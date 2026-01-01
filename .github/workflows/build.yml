@@ -1,0 +1,47 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache JUCE FetchContent
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: ${{ runner.os }}-juce-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-juce-
+
+      - name: Cache build artefacts
+        uses: actions/cache@v4
+        with:
+          path: build/Monument_artefacts
+          key: ${{ runner.os }}-artefacts-${{ hashFiles('CMakeLists.txt', 'plugin/**', 'ui/**', 'dsp/**') }}
+          restore-keys: |
+            ${{ runner.os }}-artefacts-
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Upload AU bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Monument-AU
+          path: build/Monument_artefacts/Release/AU/Monument.component
+
+      - name: Upload VST3 bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Monument-VST3
+          path: build/Monument_artefacts/Release/VST3/Monument.vst3
