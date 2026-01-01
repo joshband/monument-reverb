@@ -79,3 +79,13 @@ target_link_libraries(Monument
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
 )
+
+option(MONUMENT_ENABLE_TESTS "Build Monument tests" ON)
+
+if(MONUMENT_ENABLE_TESTS)
+  enable_testing()
+  add_executable(monument_smoke_test
+    tests/smoke-test.cpp
+  )
+  add_test(NAME monument_smoke_test COMMAND monument_smoke_test)
+endif()

@@ -1,3 +1,7 @@
 # Tests
 
-Automated tests will live here once a test framework is chosen.
+Tests are run with CTest. After building:
+
+```sh
+ctest --test-dir build -C Release
+```

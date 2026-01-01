@@ -23,6 +23,14 @@ cmake --build build --config Release
 
 Artifacts are placed under `build/Monument_artefacts/Release`.
 
+### Tests
+
+After building, run:
+
+```sh
+ctest --test-dir build -C Release
+```
+
 ### Using a local JUCE checkout
 
 By default, JUCE is fetched with CMake FetchContent. To use a local JUCE checkout:
