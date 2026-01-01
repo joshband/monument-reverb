@@ -11,7 +11,7 @@ and communicate intent clearly.
 
 ## Coding guidelines
 
-- Use modern C++ (C++20) and keep functions small.
+- Use modern C++ (C++17) and keep functions small.
 - Format code with the repository `.clang-format`.
 - Prefer explicit names over abbreviations.
 
