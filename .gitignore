@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# CMake
+/build
+/build*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CMakeScripts/
+CMakeUserPresets.json
+CTestTestfile.cmake
+Testing/
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+
+# JUCE
+JuceLibraryCode/
+*.jucer
+*.vst3
+*.component
+*.au
+*.aaxplugin
