@@ -18,14 +18,17 @@ private:
 
     using Attachment = juce::AudioProcessorValueTreeState::SliderAttachment;
 
-    juce::Slider timeSlider;
     juce::Slider mixSlider;
+    juce::Slider timeSlider;
+    juce::Slider massSlider;
 
-    juce::Label timeLabel;
     juce::Label mixLabel;
+    juce::Label timeLabel;
+    juce::Label massLabel;
 
-    Attachment timeAttachment;
     Attachment mixAttachment;
+    Attachment timeAttachment;
+    Attachment massAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MonumentAudioProcessorEditor)
 };

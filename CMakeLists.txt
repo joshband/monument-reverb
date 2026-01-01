@@ -11,7 +11,7 @@ if(APPLE)
   endif()
 endif()
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -40,7 +40,7 @@ juce_add_plugin(Monument
   IS_MIDI_EFFECT FALSE
   EDITOR_WANTS_KEYBOARD_FOCUS FALSE
   COPY_PLUGIN_AFTER_BUILD TRUE
-  PLUGIN_MANUFACTURER_CODE Mntm
+  PLUGIN_MANUFACTURER_CODE Mnmt
   PLUGIN_CODE Mnmt
   FORMATS AU VST3
   PRODUCT_NAME "Monument"
@@ -54,8 +54,6 @@ target_sources(Monument
     plugin/PluginProcessor.cpp
     plugin/PluginEditor.h
     plugin/PluginEditor.cpp
-    dsp/MonumentDSP.h
-    dsp/MonumentDSP.cpp
 )
 
 target_include_directories(Monument
@@ -73,7 +71,6 @@ target_compile_definitions(Monument
 target_link_libraries(Monument
   PRIVATE
     juce::juce_audio_utils
-    juce::juce_dsp
   PUBLIC
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags

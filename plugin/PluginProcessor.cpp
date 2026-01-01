@@ -1,6 +1,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include <cmath>
+
 MonumentAudioProcessor::MonumentAudioProcessor()
     : juce::AudioProcessor(BusesProperties()
                                 .withInput("Input", juce::AudioChannelSet::stereo(), true)
@@ -33,7 +35,7 @@ bool MonumentAudioProcessor::isMidiEffect() const
 
 double MonumentAudioProcessor::getTailLengthSeconds() const
 {
-    return 10.0;
+    return 0.0;
 }
 
 int MonumentAudioProcessor::getNumPrograms()
@@ -61,11 +63,8 @@ void MonumentAudioProcessor::changeProgramName(int, const juce::String&)
 
 void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    juce::dsp::ProcessSpec spec;
-    spec.sampleRate = sampleRate;
-    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
-    spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
-    dsp.prepare(spec);
+    juce::ignoreUnused(sampleRate);
+    dryBuffer.setSize(getTotalNumOutputChannels(), samplesPerBlock, false, false, true);
 }
 
 void MonumentAudioProcessor::releaseResources()
@@ -94,11 +93,32 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
+    const auto mixPercent = parameters.getRawParameterValue("mix")->load();
     const auto time = parameters.getRawParameterValue("time")->load();
-    const auto mix = parameters.getRawParameterValue("mix")->load();
+    const auto mass = parameters.getRawParameterValue("mass")->load();
 
-    dsp.setParameters(time, mix);
-    dsp.process(buffer);
+    juce::ignoreUnused(time, mass);
+
+    const auto mix = juce::jlimit(0.0f, 100.0f, mixPercent) / 100.0f;
+    const auto dryGain = std::cos(mix * juce::MathConstants<float>::halfPi);
+    const auto wetGain = std::sin(mix * juce::MathConstants<float>::halfPi);
+
+    if (dryBuffer.getNumChannels() != buffer.getNumChannels()
+        || dryBuffer.getNumSamples() < buffer.getNumSamples())
+    {
+        dryBuffer.setSize(buffer.getNumChannels(), buffer.getNumSamples(), false, false, true);
+    }
+
+    dryBuffer.makeCopyOf(buffer);
+
+    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+    {
+        const auto* dry = dryBuffer.getReadPointer(channel);
+        auto* wet = buffer.getWritePointer(channel);
+
+        for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+            wet[sample] = dry[sample] * dryGain + wet[sample] * wetGain;
+    }
 }
 
 juce::AudioProcessorEditor* MonumentAudioProcessor::createEditor()
@@ -135,16 +155,22 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "mix",
+        "Mix",
+        juce::NormalisableRange<float>(0.0f, 100.0f),
+        0.0f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "time",
         "Time",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.55f));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "mix",
-        "Mix",
+        "mass",
+        "Mass",
         juce::NormalisableRange<float>(0.0f, 1.0f),
-        0.35f));
+        0.5f));
 
     return {params.begin(), params.end()};
 }

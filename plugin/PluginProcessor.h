@@ -2,8 +2,6 @@
 
 #include <JuceHeader.h>
 
-#include "dsp/MonumentDSP.h"
-
 class MonumentAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -40,8 +38,8 @@ public:
     static APVTS::ParameterLayout createParameterLayout();
 
 private:
-    MonumentDSP dsp;
     APVTS parameters;
+    juce::AudioBuffer<float> dryBuffer;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MonumentAudioProcessor)
 };

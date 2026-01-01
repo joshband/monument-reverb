@@ -3,8 +3,9 @@
 MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcessor& p)
     : juce::AudioProcessorEditor(&p),
       processor(p),
+      mixAttachment(processor.getAPVTS(), "mix", mixSlider),
       timeAttachment(processor.getAPVTS(), "time", timeSlider),
-      mixAttachment(processor.getAPVTS(), "mix", mixSlider)
+      massAttachment(processor.getAPVTS(), "mass", massSlider)
 {
     auto setupSlider = [this](juce::Slider& slider, juce::Label& label, const juce::String& text) {
         slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
@@ -16,10 +17,11 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
         addAndMakeVisible(label);
     };
 
-    setupSlider(timeSlider, timeLabel, "Time");
     setupSlider(mixSlider, mixLabel, "Mix");
+    setupSlider(timeSlider, timeLabel, "Time");
+    setupSlider(massSlider, massLabel, "Mass");
 
-    setSize(420, 240);
+    setSize(600, 240);
 }
 
 MonumentAudioProcessorEditor::~MonumentAudioProcessorEditor() = default;
@@ -38,13 +40,17 @@ void MonumentAudioProcessorEditor::resized()
     area.removeFromTop(30);
 
     auto sliderArea = area.reduced(10);
-    const auto halfWidth = sliderArea.getWidth() / 2;
+    const auto columnWidth = sliderArea.getWidth() / 3;
 
-    auto timeArea = sliderArea.removeFromLeft(halfWidth);
+    auto mixArea = sliderArea.removeFromLeft(columnWidth);
+    mixLabel.setBounds(mixArea.removeFromTop(20));
+    mixSlider.setBounds(mixArea.reduced(10));
+
+    auto timeArea = sliderArea.removeFromLeft(columnWidth);
     timeLabel.setBounds(timeArea.removeFromTop(20));
     timeSlider.setBounds(timeArea.reduced(10));
 
-    auto mixArea = sliderArea;
-    mixLabel.setBounds(mixArea.removeFromTop(20));
-    mixSlider.setBounds(mixArea.reduced(10));
+    auto massArea = sliderArea;
+    massLabel.setBounds(massArea.removeFromTop(20));
+    massSlider.setBounds(massArea.reduced(10));
 }
