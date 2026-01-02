@@ -7,3 +7,4 @@ Project notes and manuals live here.
 - docs/DSP_ARCHITECTURE.md
 - docs/TESTING.md
 - docs/ADVANCED_FEATURES.md
+- docs/PRESET_GALLERY.md
