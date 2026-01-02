@@ -40,8 +40,23 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     presetBox.setColour(juce::PopupMenu::highlightedTextColourId, juce::Colour(0xffe6e1d6));
 
     const int presetCount = processorRef.getNumFactoryPresets();
-    for (int index = 0; index < presetCount; ++index)
-        presetBox.addItem(processorRef.getFactoryPresetName(index), index + 1);
+    auto addSection = [&](const juce::String& title, int start, int end)
+    {
+        if (start >= presetCount)
+            return;
+        const int clampedEnd = juce::jmin(end, presetCount - 1);
+        if (clampedEnd < start)
+            return;
+
+        presetBox.addSectionHeading(title);
+        for (int index = start; index <= clampedEnd; ++index)
+            presetBox.addItem(processorRef.getFactoryPresetName(index), index + 1);
+    };
+
+    addSection("Foundational Spaces", 0, 5);
+    addSection("Living Spaces", 6, 11);
+    addSection("Remembering Spaces", 12, 14);
+    addSection("Time-Bent / Abstract", 15, presetCount - 1);
 
     presetBox.onChange = [this]()
     {
