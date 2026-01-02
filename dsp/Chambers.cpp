@@ -37,13 +37,29 @@ constexpr std::array<float, 8> kInputSide{
     1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f
 };
 
+// Constant-power pan weights per line (no sign flips) so mono sum keeps all taps.
+// Pan positions: {-0.9, 0.9, -0.7, 0.7, -0.5, 0.5, -0.3, 0.3}.
 constexpr std::array<float, 8> kOutputLeft{
-    1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f
+    0.9969173f, 0.0784591f, 0.9723699f, 0.2334454f,
+    0.9238795f, 0.3826834f, 0.8526402f, 0.5224986f
 };
 
 constexpr std::array<float, 8> kOutputRight{
-    1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, -1.0f, 1.0f
+    0.0784591f, 0.9969173f, 0.2334454f, 0.9723699f,
+    0.3826834f, 0.9238795f, 0.5224986f, 0.8526402f
 };
+
+constexpr float kOutputGain = 0.5f; // sum(L^2) == sum(R^2) == 4.0 -> normalize to unity.
+
+constexpr float kGravityCutoffMinHz = 20.0f;
+constexpr float kGravityCutoffMaxHz = 200.0f;
+
+inline float onePoleCoeffFromHz(float cutoffHz, double sampleRate)
+{
+    const double omega = 2.0 * juce::MathConstants<double>::pi
+        * static_cast<double>(cutoffHz) / sampleRate;
+    return static_cast<float>(std::exp(-omega));
+}
 
 inline void hadamard8(float* v)
 {
@@ -118,6 +134,7 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
     delayLines.clear();
     writePositions.fill(0);
     lowpassState.fill(0.0f);
+    gravityLowpassState.fill(0.0f);
     dampingCoefficients.fill(1.0f);
 
     // Input diffusion: short, per-channel allpass before injection to build density
@@ -139,6 +156,9 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
         lateDiffusers[i].setDelaySamples(diffuserDelaySamples);
         lateDiffusers[i].prepare();
     }
+
+    gravityCoeffMin = onePoleCoeffFromHz(kGravityCutoffMinHz, sampleRateHz);
+    gravityCoeffMax = onePoleCoeffFromHz(kGravityCutoffMaxHz, sampleRateHz);
 
     // Per-parameter smoothing times are tuned to feel responsive while preventing zipper noise.
     timeSmoother.prepare(sampleRateHz);
@@ -165,6 +185,7 @@ void Chambers::reset()
     delayLines.clear();
     writePositions.fill(0);
     lowpassState.fill(0.0f);
+    gravityLowpassState.fill(0.0f);
     for (auto& diffuser : inputDiffusers)
         diffuser.reset();
     for (auto& diffuser : lateDiffusers)
@@ -178,7 +199,7 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
     const auto numSamples = buffer.getNumSamples();
     const auto numChannels = buffer.getNumChannels();
 
-    const float outputScale = kInvSqrt8;
+    const float outputScale = kOutputGain; // Normalizes constant-power output mix to unity.
 
     auto* left = buffer.getWritePointer(0);
     auto* right = numChannels > 1 ? buffer.getWritePointer(1) : nullptr;
@@ -206,12 +227,10 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
 
         const float feedbackBaseLocal = juce::jmap(timeNorm, 0.35f, 0.92f);
         const float dampingBaseLocal = juce::jmap(massNorm, 0.1f, 0.85f);
-        const float dampingWithGravity = juce::jlimit(
-            0.0f, 0.98f, dampingBaseLocal + gravityNorm * 0.2f);
 
         for (size_t i = 0; i < kNumLines; ++i)
         {
-            const float damping = juce::jlimit(0.0f, 0.98f, dampingWithGravity + kDampingOffsets[i]);
+            const float damping = juce::jlimit(0.0f, 0.98f, dampingBaseLocal + kDampingOffsets[i]);
             dampingCoefficients[i] = 1.0f - damping;
         }
 
@@ -238,6 +257,8 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         earlyMixLocal = juce::jlimit(0.0f, 0.7f, earlyMixLocal);
 
         const float inputScale = inputGainLocal * kInvSqrt8;
+        const float gravityCoeff = juce::jlimit(
+            0.0f, 1.0f, juce::jmap(gravityNorm, gravityCoeffMin, gravityCoeffMax));
 
         const float inL = left[sample];
         const float inR = right != nullptr ? right[sample] : inL;
@@ -285,7 +306,11 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             const float writeValue = injection + feedback[i] * feedbackLocal;
             const float damped = lowpassState[i] + dampingCoefficients[i] * (writeValue - lowpassState[i]);
             lowpassState[i] = damped;
-            lineData[i][writePositions[i]] = damped;
+            // Gravity is a low-end containment high-pass inside the loop, after HF damping.
+            const float gravityLow = gravityLowpassState[i]
+                + (1.0f - gravityCoeff) * (damped - gravityLowpassState[i]);
+            gravityLowpassState[i] = gravityLow;
+            lineData[i][writePositions[i]] = damped - gravityLow;
 
             ++writePositions[i];
             if (writePositions[i] >= delayBufferLength)

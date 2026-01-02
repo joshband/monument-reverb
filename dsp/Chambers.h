@@ -32,6 +32,7 @@ private:
     std::array<float, kNumLines> delaySamples{};
     std::array<int, kNumLines> writePositions{};
     std::array<float, kNumLines> lowpassState{};
+    std::array<float, kNumLines> gravityLowpassState{};
     std::array<float, kNumLines> dampingCoefficients{};
     int delayBufferLength = 0;
 
@@ -43,6 +44,8 @@ private:
     float massTarget = 0.5f;
     float densityTarget = 0.5f;
     float gravityTarget = 0.5f;
+    float gravityCoeffMin = 1.0f;
+    float gravityCoeffMax = 1.0f;
     bool smoothersPrimed = false;
 
     float bloomAmount = 0.0f;
