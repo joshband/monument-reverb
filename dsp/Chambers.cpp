@@ -140,7 +140,24 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
         lateDiffusers[i].prepare();
     }
 
-    setDensity(densityAmount);
+    // Per-parameter smoothing times are tuned to feel responsive while preventing zipper noise.
+    timeSmoother.prepare(sampleRateHz);
+    timeSmoother.setSmoothingTimeMs(40.0f); // Time (feedback) needs smooth tail-safe motion.
+    timeSmoother.setTarget(timeTarget);
+
+    massSmoother.prepare(sampleRateHz);
+    massSmoother.setSmoothingTimeMs(60.0f); // Mass (damping) is slower to avoid HF flutter.
+    massSmoother.setTarget(massTarget);
+
+    densitySmoother.prepare(sampleRateHz);
+    densitySmoother.setSmoothingTimeMs(30.0f); // Density can move faster without clicks.
+    densitySmoother.setTarget(densityTarget);
+
+    gravitySmoother.prepare(sampleRateHz);
+    gravitySmoother.setSmoothingTimeMs(80.0f); // Gravity is slow to avoid LF pumping.
+    gravitySmoother.setTarget(gravityTarget);
+
+    smoothersPrimed = false;
 }
 
 void Chambers::reset()
@@ -152,29 +169,15 @@ void Chambers::reset()
         diffuser.reset();
     for (auto& diffuser : lateDiffusers)
         diffuser.reset();
+    smoothersPrimed = false;
 }
 
 void Chambers::process(juce::AudioBuffer<float>& buffer)
 {
+    juce::ScopedNoDenormals noDenormals;
     const auto numSamples = buffer.getNumSamples();
     const auto numChannels = buffer.getNumChannels();
 
-    const float dampingBaseLocal = juce::jlimit(0.0f, 0.98f, dampingBase + gravityAmount * 0.2f);
-    for (size_t i = 0; i < kNumLines; ++i)
-    {
-        const float damping = juce::jlimit(0.0f, 0.98f, dampingBaseLocal + kDampingOffsets[i]);
-        dampingCoefficients[i] = 1.0f - damping;
-    }
-
-    const float feedbackLocal = freezeEnabled ? 0.99f : feedbackBase;
-    const float bloomScale = 1.0f + bloomAmount * 0.6f;
-    const float inputGainLocal = densityInputGain * bloomScale;
-    float earlyMixLocal = densityEarlyMix * (1.0f - bloomAmount * 0.5f);
-    if (freezeEnabled)
-        earlyMixLocal = 0.0f;
-    earlyMixLocal = juce::jlimit(0.0f, 0.7f, earlyMixLocal);
-
-    const float inputScale = inputGainLocal * kInvSqrt8;
     const float outputScale = kInvSqrt8;
 
     auto* left = buffer.getWritePointer(0);
@@ -184,8 +187,58 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
     for (size_t i = 0; i < kNumLines; ++i)
         lineData[i] = delayLines.getWritePointer(static_cast<int>(i));
 
+    if (!smoothersPrimed)
+    {
+        timeSmoother.reset(timeTarget);
+        massSmoother.reset(massTarget);
+        densitySmoother.reset(densityTarget);
+        gravitySmoother.reset(gravityTarget);
+        smoothersPrimed = true;
+    }
+
     for (int sample = 0; sample < numSamples; ++sample)
     {
+        // Per-sample smoothing avoids block-stepped automation artifacts and tail glitches.
+        const float timeNorm = juce::jlimit(0.0f, 1.0f, timeSmoother.getNextValue());
+        const float massNorm = juce::jlimit(0.0f, 1.0f, massSmoother.getNextValue());
+        const float densityNorm = juce::jlimit(0.0f, 1.0f, densitySmoother.getNextValue());
+        const float gravityNorm = juce::jlimit(0.0f, 1.0f, gravitySmoother.getNextValue());
+
+        const float feedbackBaseLocal = juce::jmap(timeNorm, 0.35f, 0.92f);
+        const float dampingBaseLocal = juce::jmap(massNorm, 0.1f, 0.85f);
+        const float dampingWithGravity = juce::jlimit(
+            0.0f, 0.98f, dampingBaseLocal + gravityNorm * 0.2f);
+
+        for (size_t i = 0; i < kNumLines; ++i)
+        {
+            const float damping = juce::jlimit(0.0f, 0.98f, dampingWithGravity + kDampingOffsets[i]);
+            dampingCoefficients[i] = 1.0f - damping;
+        }
+
+        const float densityInputGain = juce::jmap(densityNorm, 0.18f, 0.32f);
+        const float densityEarlyMix = juce::jmap(densityNorm, 0.45f, 0.25f);
+
+        // Density drives diffusion strength; coefficients stay below 0.75 for stability.
+        const float inputCoeff = juce::jmap(densityNorm, 0.12f, 0.6f);
+        const float lateCoeffBase = juce::jmap(densityNorm, 0.18f, 0.7f);
+        inputDiffusers[0].setCoefficient(inputCoeff);
+        inputDiffusers[1].setCoefficient(inputCoeff);
+        for (size_t i = 0; i < kNumLines; ++i)
+        {
+            const float coeff = lateCoeffBase * (1.0f + kLateDiffuserCoeffOffsets[i]);
+            lateDiffusers[i].setCoefficient(juce::jlimit(0.05f, 0.74f, coeff));
+        }
+
+        const float feedbackLocal = freezeEnabled ? 0.99f : feedbackBaseLocal;
+        const float bloomScale = 1.0f + bloomAmount * 0.6f;
+        const float inputGainLocal = densityInputGain * bloomScale;
+        float earlyMixLocal = densityEarlyMix * (1.0f - bloomAmount * 0.5f);
+        if (freezeEnabled)
+            earlyMixLocal = 0.0f;
+        earlyMixLocal = juce::jlimit(0.0f, 0.7f, earlyMixLocal);
+
+        const float inputScale = inputGainLocal * kInvSqrt8;
+
         const float inL = left[sample];
         const float inR = right != nullptr ? right[sample] : inL;
 
@@ -254,35 +307,20 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
 
 void Chambers::setTime(float time)
 {
-    const auto t = juce::jlimit(0.0f, 1.0f, time);
-    feedbackBase = juce::jmap(t, 0.35f, 0.92f);
+    timeTarget = juce::jlimit(0.0f, 1.0f, time);
+    timeSmoother.setTarget(timeTarget);
 }
 
 void Chambers::setMass(float mass)
 {
-    const auto m = juce::jlimit(0.0f, 1.0f, mass);
-    dampingBase = juce::jmap(m, 0.1f, 0.85f);
+    massTarget = juce::jlimit(0.0f, 1.0f, mass);
+    massSmoother.setTarget(massTarget);
 }
 
 void Chambers::setDensity(float density)
 {
-    densityAmount = juce::jlimit(0.0f, 1.0f, density);
-    densityInputGain = juce::jmap(densityAmount, 0.18f, 0.32f);
-    densityEarlyMix = juce::jmap(densityAmount, 0.45f, 0.25f);
-
-    // Density maps to diffusion strength: minimal but non-zero at 0,
-    // strong at 1 while keeping coefficients safely < 0.75.
-    const float inputCoeff = juce::jmap(densityAmount, 0.12f, 0.6f);
-    const float lateCoeffBase = juce::jmap(densityAmount, 0.18f, 0.7f);
-
-    for (auto& diffuser : inputDiffusers)
-        diffuser.setCoefficient(inputCoeff);
-
-    for (size_t i = 0; i < kNumLines; ++i)
-    {
-        const float coeff = lateCoeffBase * (1.0f + kLateDiffuserCoeffOffsets[i]);
-        lateDiffusers[i].setCoefficient(juce::jlimit(0.05f, 0.74f, coeff));
-    }
+    densityTarget = juce::jlimit(0.0f, 1.0f, density);
+    densitySmoother.setTarget(densityTarget);
 }
 
 void Chambers::setBloom(float bloom)
@@ -292,7 +330,8 @@ void Chambers::setBloom(float bloom)
 
 void Chambers::setGravity(float gravity)
 {
-    gravityAmount = juce::jlimit(0.0f, 1.0f, gravity);
+    gravityTarget = juce::jlimit(0.0f, 1.0f, gravity);
+    gravitySmoother.setTarget(gravityTarget);
 }
 
 void Chambers::setFreeze(bool shouldFreeze)

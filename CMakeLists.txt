@@ -60,6 +60,8 @@ target_sources(Monument
     dsp/DspModules.cpp
     dsp/AllpassDiffuser.h
     dsp/AllpassDiffuser.cpp
+    dsp/ParameterSmoother.h
+    dsp/ParameterSmoother.cpp
     dsp/Chambers.h
     dsp/Chambers.cpp
     ui/MonumentKnob.h

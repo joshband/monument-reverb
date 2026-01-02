@@ -2,6 +2,7 @@
 
 #include "dsp/AllpassDiffuser.h"
 #include "dsp/DspModule.h"
+#include "dsp/ParameterSmoother.h"
 
 #include <array>
 
@@ -33,13 +34,18 @@ private:
     std::array<float, kNumLines> lowpassState{};
     std::array<float, kNumLines> dampingCoefficients{};
     int delayBufferLength = 0;
-    float feedbackBase = 0.75f;
-    float dampingBase = 0.55f;
-    float densityInputGain = 0.25f;
-    float densityEarlyMix = 0.35f;
-    float densityAmount = 0.5f;
+
+    ParameterSmoother timeSmoother;
+    ParameterSmoother massSmoother;
+    ParameterSmoother densitySmoother;
+    ParameterSmoother gravitySmoother;
+    float timeTarget = 0.55f;
+    float massTarget = 0.5f;
+    float densityTarget = 0.5f;
+    float gravityTarget = 0.5f;
+    bool smoothersPrimed = false;
+
     float bloomAmount = 0.0f;
-    float gravityAmount = 0.0f;
     bool freezeEnabled = false;
 
     std::array<AllpassDiffuser, 2> inputDiffusers;
