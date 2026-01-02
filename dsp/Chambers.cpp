@@ -86,6 +86,10 @@ constexpr float kWetLimiterCeiling = 0.95f;
 constexpr float kMaxFeedback = 0.98f;
 constexpr float kBloomSmoothingMs = 40.0f;
 constexpr float kWarpSmoothingMs = 1200.0f;
+constexpr float kDriftSmoothingMs = 1500.0f;
+constexpr float kDriftRateMinHz = 0.05f;
+constexpr float kDriftRateMaxHz = 0.2f;
+constexpr float kDriftDepthMaxSamples = 0.6f;
 constexpr float kEnvelopeMinTimeSeconds = 1.0f;
 constexpr float kEnvelopeMaxTimeSeconds = 12.0f;
 constexpr float kBloomPeakGain = 0.5f; // Up to 1.5x at Bloom=1.
@@ -213,6 +217,16 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
         lateDiffusers[i].prepare();
     }
 
+    driftDepthMaxSamples = kDriftDepthMaxSamples;
+    {
+        juce::Random random;
+        for (size_t i = 0; i < kNumLines; ++i)
+        {
+            driftRateHz[i] = juce::jmap(random.nextFloat(), kDriftRateMinHz, kDriftRateMaxHz);
+            driftPhase[i] = random.nextFloat() * juce::MathConstants<float>::twoPi;
+        }
+    }
+
     gravityCoeffMin = onePoleCoeffFromHz(kGravityCutoffMinHz, sampleRateHz);
     gravityCoeffMax = onePoleCoeffFromHz(kGravityCutoffMaxHz, sampleRateHz);
     freezeRampSamples = juce::jmax(
@@ -246,6 +260,10 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
     warpSmoother.prepare(sampleRateHz);
     warpSmoother.setSmoothingTimeMs(kWarpSmoothingMs); // Warp is intentionally slow to avoid motion artifacts.
     warpSmoother.setTarget(warpTarget);
+
+    driftSmoother.prepare(sampleRateHz);
+    driftSmoother.setSmoothingTimeMs(kDriftSmoothingMs); // Drift stays gentle and motion-safe.
+    driftSmoother.setTarget(driftTarget);
 
     warpSmoothed = warpTarget;
     computeWarpMatrix(warpSmoothed, warpMatrix);
@@ -307,6 +325,7 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         gravitySmoother.reset(gravityTarget);
         bloomSmoother.reset(bloomTarget);
         warpSmoother.reset(warpTarget);
+        driftSmoother.reset(driftTarget);
         warpSmoothed = warpTarget;
         computeWarpMatrix(warpSmoothed, warpMatrix);
         warpMatrixFrozen = warpMatrix;
@@ -316,6 +335,8 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
     }
 
     const bool freezeActive = isFrozen;
+    const float driftPhaseStep = juce::MathConstants<float>::twoPi
+        / static_cast<float>(sampleRateHz);
     if (freezeActive && !wasFrozen)
     {
         // Capture the active topology so Freeze holds the current spatial mapping.
@@ -386,6 +407,11 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         const float densityNorm = juce::jlimit(0.0f, 1.0f, densitySmoother.getNextValue());
         const float gravityNorm = juce::jlimit(0.0f, 1.0f, gravitySmoother.getNextValue());
         const float bloomNorm = juce::jlimit(0.0f, 1.0f, bloomSmoother.getNextValue());
+        // Drift subtly modulates delay lengths; depth ramps with freezeBlend and phases pause on freeze/ramp.
+        const float driftNorm = juce::jlimit(0.0f, 1.0f, driftSmoother.getNextValue());
+        const float driftDepthBase = driftNorm * driftDepthMaxSamples;
+        const float driftDepth = freezeActive ? 0.0f : (driftDepthBase * freezeBlend);
+        const bool advanceDrift = !freezeActive && (freezeRampRemaining == 0);
 
         float feedbackBaseLocal = juce::jmap(timeNorm, 0.35f, 0.92f);
         if (feedbackBaseLocal > kMaxFeedback)
@@ -473,7 +499,17 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         for (size_t i = 0; i < kNumLines; ++i)
         {
             const int readPos = holdState ? freezeWritePositions[i] : writePositions[i];
-            out[i] = readFractionalDelay(lineData[i], delayBufferLength, readPos, delaySamples[i]);
+            if (advanceDrift)
+            {
+                driftPhase[i] += driftRateHz[i] * driftPhaseStep;
+                if (driftPhase[i] >= juce::MathConstants<float>::twoPi)
+                    driftPhase[i] -= juce::MathConstants<float>::twoPi;
+            }
+            const float modOffset = driftDepth != 0.0f
+                ? std::sin(driftPhase[i]) * driftDepth
+                : 0.0f;
+            const float driftedDelay = juce::jmax(1.0f, delaySamples[i] + modOffset);
+            out[i] = readFractionalDelay(lineData[i], delayBufferLength, readPos, driftedDelay);
         }
 
         float feedback[kNumLines];
@@ -620,6 +656,12 @@ void Chambers::setWarp(float warp)
 {
     warpTarget = juce::jlimit(0.0f, 1.0f, warp);
     warpSmoother.setTarget(warpTarget);
+}
+
+void Chambers::setDrift(float drift)
+{
+    driftTarget = juce::jlimit(0.0f, 1.0f, drift);
+    driftSmoother.setTarget(driftTarget);
 }
 
 void Chambers::setFreeze(bool shouldFreeze)

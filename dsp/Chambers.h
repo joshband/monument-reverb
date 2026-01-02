@@ -22,6 +22,7 @@ public:
     void setBloom(float bloom);
     void setGravity(float gravity);
     void setWarp(float warp);
+    void setDrift(float drift);
     void setFreeze(bool shouldFreeze);
 
 private:
@@ -44,14 +45,17 @@ private:
     ParameterSmoother gravitySmoother;
     ParameterSmoother bloomSmoother;
     ParameterSmoother warpSmoother;
+    ParameterSmoother driftSmoother;
     float timeTarget = 0.55f;
     float massTarget = 0.5f;
     float densityTarget = 0.5f;
     float gravityTarget = 0.5f;
     float bloomTarget = 0.5f;
     float warpTarget = 0.0f;
+    float driftTarget = 0.0f;
     float warpSmoothed = 0.0f;
     float lastMatrixBlend = 1.0f;
+    float driftDepthMaxSamples = 0.6f;
     float gravityCoeffMin = 1.0f;
     float gravityCoeffMax = 1.0f;
     bool smoothersPrimed = false;
@@ -69,6 +73,8 @@ private:
 
     std::array<AllpassDiffuser, 2> inputDiffusers;
     std::array<AllpassDiffuser, kNumLines> lateDiffusers;
+    std::array<float, kNumLines> driftPhase{};
+    std::array<float, kNumLines> driftRateHz{};
     std::array<std::array<float, kNumLines>, kNumLines> warpMatrix{};
     std::array<std::array<float, kNumLines>, kNumLines> warpMatrixFrozen{};
     std::array<std::array<float, kNumLines>, kNumLines> feedbackMatrix{};
