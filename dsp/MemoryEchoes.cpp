@@ -18,7 +18,7 @@ constexpr float kRecallMaxSeconds = 4.0f;
 constexpr float kFragmentMinMs = 150.0f;
 constexpr float kFragmentMaxMs = 400.0f;
 constexpr float kFragmentFadeMs = 20.0f;
-constexpr float kInjectionGainMax = 0.08f;
+constexpr float kInjectionGainMax = 0.06f;
 constexpr float kInjectionClamp = 0.15f;
 constexpr float kMemoryEpsilon = 1.0e-4f;
 
