@@ -54,10 +54,14 @@ constexpr float kOutputGain = 0.5f; // sum(L^2) == sum(R^2) == 4.0 -> normalize 
 constexpr float kGravityCutoffMinHz = 20.0f;
 constexpr float kGravityCutoffMaxHz = 200.0f;
 
-constexpr float kFreezeReleaseMs = 30.0f;
-constexpr float kFreezeLimiterDrive = 2.5f;
-constexpr float kFreezeLimiterCeiling = 0.95f;
-const float kFreezeLimiterNorm = 1.0f / std::tanh(kFreezeLimiterDrive);
+constexpr float kFreezeReleaseMs = 40.0f;
+constexpr float kFreezeLimiterCeiling = 0.9f;
+constexpr float kWetLimiterCeiling = 0.95f;
+constexpr float kMaxFeedback = 0.98f;
+constexpr float kBloomSmoothingMs = 40.0f;
+constexpr float kEnvelopeMinTimeSeconds = 1.0f;
+constexpr float kEnvelopeMaxTimeSeconds = 12.0f;
+constexpr float kBloomPeakGain = 0.5f; // Up to 1.5x at Bloom=1.
 
 inline float onePoleCoeffFromHz(float cutoffHz, double sampleRate)
 {
@@ -66,9 +70,9 @@ inline float onePoleCoeffFromHz(float cutoffHz, double sampleRate)
     return static_cast<float>(std::exp(-omega));
 }
 
-inline float freezeSoftLimit(float value)
+inline float freezeHardLimit(float value)
 {
-    return kFreezeLimiterCeiling * std::tanh(kFreezeLimiterDrive * value) * kFreezeLimiterNorm;
+    return juce::jlimit(-kFreezeLimiterCeiling, kFreezeLimiterCeiling, value);
 }
 
 inline void hadamard8(float* v)
@@ -143,6 +147,7 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
     delayLines.setSize(kNumLines, delayBufferLength);
     delayLines.clear();
     writePositions.fill(0);
+    freezeWritePositions = writePositions;
     lowpassState.fill(0.0f);
     gravityLowpassState.fill(0.0f);
     dampingCoefficients.fill(1.0f);
@@ -193,13 +198,21 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
     gravitySmoother.setSmoothingTimeMs(80.0f); // Gravity is slow to avoid LF pumping.
     gravitySmoother.setTarget(gravityTarget);
 
+    bloomSmoother.prepare(sampleRateHz);
+    bloomSmoother.setSmoothingTimeMs(kBloomSmoothingMs); // Bloom envelope changes should be smooth.
+    bloomSmoother.setTarget(bloomTarget);
+
     smoothersPrimed = false;
+    envelopeTimeSeconds = 0.0f;
+    envelopeValue = 1.0f;
+    envelopeTriggerArmed = true;
 }
 
 void Chambers::reset()
 {
     delayLines.clear();
     writePositions.fill(0);
+    freezeWritePositions = writePositions;
     lowpassState.fill(0.0f);
     gravityLowpassState.fill(0.0f);
     for (auto& diffuser : inputDiffusers)
@@ -210,6 +223,9 @@ void Chambers::reset()
     freezeRampRemaining = 0;
     freezeBlend = 1.0f;
     wasFrozen = isFrozen;
+    envelopeTimeSeconds = 0.0f;
+    envelopeValue = 1.0f;
+    envelopeTriggerArmed = true;
 }
 
 void Chambers::process(juce::AudioBuffer<float>& buffer)
@@ -233,21 +249,11 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         massSmoother.reset(massTarget);
         densitySmoother.reset(densityTarget);
         gravitySmoother.reset(gravityTarget);
+        bloomSmoother.reset(bloomTarget);
         smoothersPrimed = true;
     }
 
     const bool freezeActive = isFrozen;
-    if (!wasFrozen && freezeActive)
-    {
-        freezeBlend = 0.0f;
-        freezeRampRemaining = 0;
-    }
-    else if (wasFrozen && !freezeActive)
-    {
-        freezeBlend = 0.0f;
-        freezeRampRemaining = freezeRampSamples;
-    }
-    wasFrozen = freezeActive;
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
@@ -268,14 +274,28 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         {
             freezeBlend = 0.0f;
         }
+        const bool holdState = freezeActive || (freezeRampRemaining > 0);
 
         // Per-sample smoothing avoids block-stepped automation artifacts and tail glitches.
         const float timeNorm = juce::jlimit(0.0f, 1.0f, timeSmoother.getNextValue());
         const float massNorm = juce::jlimit(0.0f, 1.0f, massSmoother.getNextValue());
         const float densityNorm = juce::jlimit(0.0f, 1.0f, densitySmoother.getNextValue());
         const float gravityNorm = juce::jlimit(0.0f, 1.0f, gravitySmoother.getNextValue());
+        const float bloomNorm = juce::jlimit(0.0f, 1.0f, bloomSmoother.getNextValue());
 
-        const float feedbackBaseLocal = juce::jmap(timeNorm, 0.35f, 0.92f);
+        float feedbackBaseLocal = juce::jmap(timeNorm, 0.35f, 0.92f);
+        if (feedbackBaseLocal > kMaxFeedback)
+        {
+#if JUCE_DEBUG
+            static bool warned = false;
+            if (!warned)
+            {
+                DBG("Chambers: feedback clamped for safety.");
+                warned = true;
+            }
+#endif
+            feedbackBaseLocal = kMaxFeedback;
+        }
         const float dampingBaseLocal = juce::jmap(massNorm, 0.1f, 0.85f);
 
         for (size_t i = 0; i < kNumLines; ++i)
@@ -302,9 +322,8 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         const float feedbackLocal = freezeActive
             ? 1.0f
             : 1.0f + freezeBlend * (feedbackBaseLocal - 1.0f);
-        const float bloomScale = 1.0f + bloomAmount * 0.6f;
-        const float inputGainLocal = densityInputGain * bloomScale;
-        float earlyMixLocal = densityEarlyMix * (1.0f - bloomAmount * 0.5f);
+        const float inputGainLocal = densityInputGain;
+        float earlyMixLocal = densityEarlyMix;
         if (freezeActive)
             earlyMixLocal = 0.0f;
         earlyMixLocal = juce::jlimit(0.0f, 0.7f, earlyMixLocal);
@@ -315,6 +334,23 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
 
         const float inL = left[sample];
         const float inR = right != nullptr ? right[sample] : inL;
+        const float inputMagnitude = juce::jmax(std::abs(inL), std::abs(inR));
+
+        if (!freezeActive)
+        {
+            if (inputMagnitude > envelopeResetThreshold && envelopeTriggerArmed)
+            {
+                envelopeTimeSeconds = 0.0f;
+                envelopeValue = 1.0f;
+                envelopeTriggerArmed = false;
+            }
+            else if (inputMagnitude <= envelopeResetThreshold)
+            {
+                envelopeTriggerArmed = true;
+            }
+
+            envelopeTimeSeconds += static_cast<float>(1.0 / sampleRateHz);
+        }
 
         // Input diffusion is pre-FDN to build density without altering the feedback topology.
         float diffL = inL;
@@ -332,13 +368,15 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         float out[kNumLines];
         for (size_t i = 0; i < kNumLines; ++i)
         {
-            out[i] = readFractionalDelay(lineData[i], delayBufferLength, writePositions[i], delaySamples[i]);
+            const int readPos = holdState ? freezeWritePositions[i] : writePositions[i];
+            out[i] = readFractionalDelay(lineData[i], delayBufferLength, readPos, delaySamples[i]);
         }
 
         float feedback[kNumLines];
         for (size_t i = 0; i < kNumLines; ++i)
             feedback[i] = out[i];
-        hadamard8(feedback);
+        if (!freezeActive)
+            hadamard8(feedback);
 
         float lateOut[kNumLines];
         for (size_t i = 0; i < kNumLines; ++i)
@@ -356,6 +394,29 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             }
         }
 
+        if (!freezeActive)
+        {
+            // Bloom shapes the late-field envelope by blending exponential decay with a plateau.
+            const float envelopeTime = envelopeTimeSeconds;
+            const float decayTimeSeconds = juce::jmap(
+                timeNorm, kEnvelopeMinTimeSeconds, kEnvelopeMaxTimeSeconds);
+            const float expEnv = std::exp(-envelopeTime / decayTimeSeconds);
+            const float plateauFraction = 0.25f + 0.35f * bloomNorm;
+            const float plateauTime = decayTimeSeconds * plateauFraction;
+            const float plateauEnv = envelopeTime < plateauTime
+                ? 1.0f
+                : std::exp(-(envelopeTime - plateauTime) / decayTimeSeconds);
+            const float bloomGain = 1.0f + kBloomPeakGain * (bloomNorm * bloomNorm);
+            const float targetEnvelope = expEnv + bloomNorm * ((plateauEnv * bloomGain) - expEnv);
+            envelopeValue = juce::jlimit(0.0f, 1.5f, targetEnvelope);
+        }
+        else
+        {
+            envelopeValue = 1.0f;
+        }
+
+        const float envelopeApplied = freezeActive ? 1.0f : (1.0f + freezeBlend * (envelopeValue - 1.0f));
+
         float wetL = 0.0f;
         float wetR = 0.0f;
         for (size_t i = 0; i < kNumLines; ++i)
@@ -363,20 +424,22 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             wetL += lateOut[i] * kOutputLeft[i];
             wetR += lateOut[i] * kOutputRight[i];
         }
-        wetL *= outputScale;
-        wetR *= outputScale;
+        wetL *= outputScale * envelopeApplied;
+        wetR *= outputScale * envelopeApplied;
+        wetL = juce::jlimit(-kWetLimiterCeiling, kWetLimiterCeiling, wetL);
+        wetR = juce::jlimit(-kWetLimiterCeiling, kWetLimiterCeiling, wetR);
 
         for (size_t i = 0; i < kNumLines; ++i)
         {
-            const float injection = freezeActive
+            const float injection = holdState
                 ? 0.0f
                 : (mid * kInputMid[i] + side * kInputSide[i]) * inputScale;
             const float writeValue = injection + feedback[i] * feedbackLocal;
-            float writeSample = writeValue;
-            if (freezeActive)
+            const int writePos = holdState ? freezeWritePositions[i] : writePositions[i];
+            if (holdState)
             {
-                // True freeze: hold state with unity feedback and a subtle limiter to prevent creep.
-                writeSample = freezeSoftLimit(writeValue);
+                // Freeze/ramp hold: keep stored state fixed and clamp for safety.
+                lineData[i][writePos] = freezeHardLimit(lineData[i][writePos]);
             }
             else
             {
@@ -387,14 +450,16 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
                     + (1.0f - gravityCoeff) * (damped - gravityLowpassState[i]);
                 gravityLowpassState[i] = gravityLow;
                 const float gravityOut = damped - gravityLow;
-                writeSample = damped + freezeBlend * (gravityOut - damped);
+                const float writeSample = damped + freezeBlend * (gravityOut - damped);
+                lineData[i][writePos] = writeSample;
             }
-            lineData[i][writePositions[i]] = writeSample;
 
-            // Keep the delay heads moving during freeze so the held texture remains active.
-            ++writePositions[i];
-            if (writePositions[i] >= delayBufferLength)
-                writePositions[i] = 0;
+            if (!holdState)
+            {
+                ++writePositions[i];
+                if (writePositions[i] >= delayBufferLength)
+                    writePositions[i] = 0;
+            }
         }
 
         const float wetBlend = 1.0f - earlyMixLocal;
@@ -430,7 +495,8 @@ void Chambers::setDensity(float density)
 
 void Chambers::setBloom(float bloom)
 {
-    bloomAmount = juce::jlimit(0.0f, 1.0f, bloom);
+    bloomTarget = juce::jlimit(0.0f, 1.0f, bloom);
+    bloomSmoother.setTarget(bloomTarget);
 }
 
 void Chambers::setGravity(float gravity)
@@ -441,7 +507,24 @@ void Chambers::setGravity(float gravity)
 
 void Chambers::setFreeze(bool shouldFreeze)
 {
-    isFrozen = shouldFreeze;
+    if (shouldFreeze && !isFrozen)
+    {
+        freezeWritePositions = writePositions;
+        isFrozen = true;
+        freezeBlend = 0.0f;
+        freezeRampRemaining = 0;
+    }
+    else if (!shouldFreeze && isFrozen)
+    {
+        isFrozen = false;
+        freezeBlend = 0.0f;
+        freezeRampRemaining = freezeRampSamples;
+        envelopeTimeSeconds = 0.0f;
+        envelopeValue = 1.0f;
+        envelopeTriggerArmed = true;
+    }
+
+    wasFrozen = isFrozen;
 }
 
 } // namespace dsp

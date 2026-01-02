@@ -31,6 +31,7 @@ private:
     juce::AudioBuffer<float> delayLines;
     std::array<float, kNumLines> delaySamples{};
     std::array<int, kNumLines> writePositions{};
+    std::array<int, kNumLines> freezeWritePositions{};
     std::array<float, kNumLines> lowpassState{};
     std::array<float, kNumLines> gravityLowpassState{};
     std::array<float, kNumLines> dampingCoefficients{};
@@ -40,10 +41,12 @@ private:
     ParameterSmoother massSmoother;
     ParameterSmoother densitySmoother;
     ParameterSmoother gravitySmoother;
+    ParameterSmoother bloomSmoother;
     float timeTarget = 0.55f;
     float massTarget = 0.5f;
     float densityTarget = 0.5f;
     float gravityTarget = 0.5f;
+    float bloomTarget = 0.5f;
     float gravityCoeffMin = 1.0f;
     float gravityCoeffMax = 1.0f;
     bool smoothersPrimed = false;
@@ -54,7 +57,10 @@ private:
     float freezeRampStep = 1.0f;
     float freezeBlend = 1.0f;
 
-    float bloomAmount = 0.0f;
+    float envelopeTimeSeconds = 0.0f;
+    float envelopeValue = 1.0f;
+    float envelopeResetThreshold = 1.0e-4f;
+    bool envelopeTriggerArmed = true;
 
     std::array<AllpassDiffuser, 2> inputDiffusers;
     std::array<AllpassDiffuser, kNumLines> lateDiffusers;
