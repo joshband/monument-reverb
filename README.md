@@ -18,6 +18,9 @@ Core priorities:
 - docs/Monument_User_Manual.html
 - docs/PARAMETER_BEHAVIOR.md
 - docs/DSP_ARCHITECTURE.md
+- docs/TESTING.md
+- docs/ADVANCED_FEATURES.md
+- docs/Monument_v1.0_Pre-Memory_Validation.md
 - MONUMENT_MANIFEST.md
 
 ## Quick start (macOS, Apple Silicon)
@@ -124,11 +127,14 @@ All parameters are normalized to [0, 1] unless noted. Mix is [0, 100].
 | Drift | Micro motion | Per-line slow LFO delay offsets, ultra subtle |
 | Gravity | Spectral tilt | Frequency-dependent decay and high-pass gravity |
 | Freeze | Infinite hold | Locks FDN state, mutes input, smooth crossfade |
+| Pillar Shape | Early reflection spacing | Compresses or expands tap intervals |
+| Pillar Mode | Early reflection palette | Glass, Stone, Fog tap profiles |
 
 ## Preset gallery
 
 Monument ships with curated, whimsical presets that explore extremes and hybrids.
 
+- Init Patch: neutral starting point for new spaces
 - Cathedral of Glass: long, bright, high density shimmer
 - Event Horizon: dark, swelling tail with bent geometry
 - Folded Atrium: medium time, strong warp, controlled bloom
@@ -138,6 +144,26 @@ Monument ships with curated, whimsical presets that explore extremes and hybrids
 - Tesseract Chamber: long, low density, high drift
 - Stone Circles: tight, dry, and grounded
 - Frozen Monument (Engage Freeze): tuned for Freeze captures
+
+User presets can be saved as JSON in `~/Documents/MonumentPresets/`.
+
+## Pillars modes
+
+```mermaid
+flowchart LR
+  Input --> Pillars
+  Pillars -->|Fractal taps| Early
+  Pillars -->|IR amplitudes| Early
+  Early --> Chambers
+```
+
+![Monument pillars modes](docs/assets/monument-pillars-modes.svg)
+
+## Testing and validation
+
+- pluginval: run `./scripts/run_pluginval.sh` (see `docs/TESTING.md` for setup).
+- REAPER Performance Monitor: load 50-100 instances and compare CPU usage.
+- Instrumentation: use Instruments, AddressSanitizer, or Valgrind for leak checks.
 
 ## Project layout
 

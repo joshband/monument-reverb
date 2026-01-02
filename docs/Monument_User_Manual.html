@@ -325,6 +325,8 @@
               <tr><td>Drift</td><td>Micro motion in the tail</td></tr>
               <tr><td>Mix</td><td>Wet/dry balance</td></tr>
               <tr><td>Freeze</td><td>Infinite hold of the current state</td></tr>
+              <tr><td>Pillar Shape</td><td>Compresses or expands early tap spacing</td></tr>
+              <tr><td>Pillar Mode</td><td>Glass, Stone, Fog early-reflection palettes</td></tr>
             </tbody>
           </table>
         </div>
@@ -350,6 +352,7 @@
     <section class="panel" id="presets">
       <h2>Preset gallery</h2>
       <div class="grid three">
+        <div class="card"><h3>Init Patch</h3><p>Neutral starting point for new spaces.</p></div>
         <div class="card"><h3>Cathedral of Glass</h3><p>Long, bright, high density shimmer.</p></div>
         <div class="card"><h3>Event Horizon</h3><p>Dark, swelling tail with bent geometry.</p></div>
         <div class="card"><h3>Folded Atrium</h3><p>Medium time, strong warp, tight bloom.</p></div>
@@ -360,6 +363,17 @@
         <div class="card"><h3>Stone Circles</h3><p>Tight, dry, grounded echo.</p></div>
         <div class="card"><h3>Frozen Monument (Engage Freeze)</h3><p>Designed to be held by Freeze.</p></div>
       </div>
+    </section>
+
+    <section class="panel" id="pillars">
+      <h2>Pillars modes</h2>
+      <p>Early reflections can be steered toward bright glass, heavy stone, or fog-like smears.</p>
+      <img class="visual" src="assets/monument-pillars-modes.svg" alt="Pillars modes overview">
+      <pre class="mermaid">flowchart LR
+  Input --> Pillars
+  Pillars -->|Fractal taps| Early
+  Pillars -->|IR amplitudes| Early
+  Early --> Chambers</pre>
     </section>
 
     <section class="panel" id="recipes">
