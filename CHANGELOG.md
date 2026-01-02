@@ -11,6 +11,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Testing hooks for peak/CPU logging, plus pluginval runner and testing docs.
 - Advanced feature scaffolding notes for algorithm switching, colour modes, tape loop, and sound-on-sound.
 - Memory Echoes Phase 1: optional wet-memory recall with recent/distant buffers, plus the "Ruined Monument (Remembers)" preset.
+- Memory Echoes Phase 2 complete: age-based filtering/saturation/decay, subtle drift, and recall density shaping with new Memory Decay/Memory Drift parameters.
 
 ### Changed
 - Time feedback mapping widened to 0.35-0.995; mass and density ranges extended for darker and sparser tails.

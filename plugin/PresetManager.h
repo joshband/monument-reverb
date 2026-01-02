@@ -18,6 +18,8 @@ public:
         float drift = 0.0f;
         float memory = 0.0f;
         float memoryDepth = 0.5f;
+        float memoryDecay = 0.4f;
+        float memoryDrift = 0.3f;
         float mix = 0.5f;
     };
 

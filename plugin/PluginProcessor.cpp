@@ -140,6 +140,8 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const auto pillarModeRaw = parameters.getRawParameterValue("pillarMode")->load();
     const auto memory = parameters.getRawParameterValue("memory")->load();
     const auto memoryDepth = parameters.getRawParameterValue("memoryDepth")->load();
+    const auto memoryDecay = parameters.getRawParameterValue("memoryDecay")->load();
+    const auto memoryDrift = parameters.getRawParameterValue("memoryDrift")->load();
     const auto freeze = parameters.getRawParameterValue("freeze")->load() > 0.5f;
 
     const float mixPercent = std::isfinite(mixPercentRaw) ? mixPercentRaw : 0.0f;
@@ -164,6 +166,8 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     chambers.setFreeze(freeze);
     memoryEchoes.setMemory(memory);
     memoryEchoes.setDepth(memoryDepth);
+    memoryEchoes.setDecay(memoryDecay);
+    memoryEchoes.setDrift(memoryDrift);
     memoryEchoes.setFreeze(freeze);
     weathering.setWarp(warp);
     weathering.setDrift(drift);
@@ -421,6 +425,18 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
         "Memory Depth",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "memoryDecay",
+        "Memory Decay",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.4f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "memoryDrift",
+        "Memory Drift",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.3f));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "gravity",

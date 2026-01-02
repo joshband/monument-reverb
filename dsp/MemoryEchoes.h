@@ -23,6 +23,8 @@ public:
 
     void setMemory(float amount);
     void setDepth(float depth);
+    void setDecay(float decay);
+    void setDrift(float drift);
     void setFreeze(bool shouldFreeze);
 
 private:
@@ -32,8 +34,8 @@ private:
         Distant
     };
 
-    void scheduleNextRecall();
-    void startFragment(float depth, float memoryAmount);
+    void scheduleNextRecall(float memoryAmount);
+    void startFragment(float depth, float memoryAmount, float decayAmount, float driftAmount);
 
     double sampleRateHz = 44100.0;
     int maxBlockSize = 0;
@@ -55,8 +57,12 @@ private:
 
     ParameterSmoother memorySmoother;
     ParameterSmoother depthSmoother;
+    ParameterSmoother decaySmoother;
+    ParameterSmoother driftSmoother;
     float memoryTarget = 0.0f;
     float depthTarget = 0.5f;
+    float decayTarget = 0.4f;
+    float driftTarget = 0.3f;
     bool smoothersPrimed = false;
     bool memoryEnabled = false;
     float memoryAmountForCapture = 0.0f;
@@ -66,12 +72,26 @@ private:
     juce::Random random;
     int samplesUntilRecall = 0;
     bool fragmentActive = false;
+    bool blockHadFragment = false;
     BufferChoice activeBuffer = BufferChoice::Recent;
-    int fragmentReadPos = 0;
+    float fragmentReadPos = 0.0f;
     int fragmentLengthSamples = 0;
     int fragmentSamplesRemaining = 0;
     int fragmentFadeSamples = 0;
     float fragmentGain = 0.0f;
+    float fragmentAge = 0.0f;
+    float fragmentLowpassCoeff = 0.0f;
+    float fragmentLowpassStateL = 0.0f;
+    float fragmentLowpassStateR = 0.0f;
+    float fragmentSaturationDrive = 1.0f;
+    float fragmentSaturationNorm = 1.0f;
+    float fragmentDriftCents = 0.0f;
+    float fragmentDriftTarget = 0.0f;
+    float fragmentDriftCentsMax = 0.0f;
+    float driftSlewCoeff = 0.0f;
+    int driftUpdateSamples = 0;
+    int driftUpdateRemaining = 0;
+    float lastRecallAge = 0.0f;
 };
 
 } // namespace dsp

@@ -29,9 +29,11 @@ PresetManager::PresetValues makePreset(float time,
     float drift,
     float mix,
     float memory = 0.0f,
-    float memoryDepth = 0.5f)
+    float memoryDepth = 0.5f,
+    float memoryDecay = 0.4f,
+    float memoryDrift = 0.3f)
 {
-    return {time, mass, density, bloom, gravity, warp, drift, memory, memoryDepth, mix};
+    return {time, mass, density, bloom, gravity, warp, drift, memory, memoryDepth, memoryDecay, memoryDrift, mix};
 }
 } // namespace
 
@@ -47,7 +49,7 @@ const std::array<PresetManager::Preset, PresetManager::kNumFactoryPresets> Prese
     {"Stone Circles", "Tight, dry echoes like ancient stones.", makePreset(0.15f, 0.60f, 0.20f, 0.20f, 1.00f, 0.00f, 0.00f, 0.45f)},
     {"Frozen Monument (Engage Freeze)", "Designed to be held by Freeze.", makePreset(0.70f, 0.50f, 0.50f, 0.50f, 0.50f, 0.00f, 0.00f, 0.60f)},
     {"Ruined Monument (Remembers)", "Faint, aged reflections resurface as the space remembers itself.",
-        makePreset(0.85f, 0.60f, 0.40f, 0.45f, 0.45f, 0.10f, 0.15f, 0.60f, 0.55f, 0.75f)},
+        makePreset(0.85f, 0.60f, 0.40f, 0.45f, 0.45f, 0.10f, 0.15f, 0.60f, 0.55f, 0.75f, 0.60f, 0.35f)},
 }};
 
 PresetManager::PresetManager(juce::AudioProcessorValueTreeState& apvts)
@@ -122,6 +124,8 @@ void PresetManager::saveUserPreset(const juce::File& targetFile,
     params->setProperty("drift", values.drift);
     params->setProperty("memory", values.memory);
     params->setProperty("memoryDepth", values.memoryDepth);
+    params->setProperty("memoryDecay", values.memoryDecay);
+    params->setProperty("memoryDrift", values.memoryDrift);
     params->setProperty("mix", values.mix);
 
     root->setProperty("parameters", params.release());
@@ -157,6 +161,8 @@ bool PresetManager::loadUserPreset(const juce::File& sourceFile)
     values.drift = readFloatProperty(paramsObject, "drift", values.drift);
     values.memory = readFloatProperty(paramsObject, "memory", values.memory);
     values.memoryDepth = readFloatProperty(paramsObject, "memoryDepth", values.memoryDepth);
+    values.memoryDecay = readFloatProperty(paramsObject, "memoryDecay", values.memoryDecay);
+    values.memoryDrift = readFloatProperty(paramsObject, "memoryDrift", values.memoryDrift);
     values.mix = readFloatProperty(paramsObject, "mix", values.mix);
 
     applyPreset(values);
@@ -194,6 +200,8 @@ PresetManager::PresetValues PresetManager::captureCurrentValues() const
     values.drift = readParam("drift", values.drift);
     values.memory = readParam("memory", values.memory);
     values.memoryDepth = readParam("memoryDepth", values.memoryDepth);
+    values.memoryDecay = readParam("memoryDecay", values.memoryDecay);
+    values.memoryDrift = readParam("memoryDrift", values.memoryDrift);
     values.mix = readParam("mix", values.mix);
 
     return values;
@@ -212,6 +220,8 @@ void PresetManager::applyPreset(const PresetValues& values)
     setParamNormalized(parameters, "drift", init.drift);
     setParamNormalized(parameters, "memory", init.memory);
     setParamNormalized(parameters, "memoryDepth", init.memoryDepth);
+    setParamNormalized(parameters, "memoryDecay", init.memoryDecay);
+    setParamNormalized(parameters, "memoryDrift", init.memoryDrift);
     setParamNormalized(parameters, "mix", init.mix);
     setParamNormalized(parameters, "time", values.time);
     setParamNormalized(parameters, "mass", values.mass);
@@ -222,6 +232,8 @@ void PresetManager::applyPreset(const PresetValues& values)
     setParamNormalized(parameters, "drift", values.drift);
     setParamNormalized(parameters, "memory", values.memory);
     setParamNormalized(parameters, "memoryDepth", values.memoryDepth);
+    setParamNormalized(parameters, "memoryDecay", values.memoryDecay);
+    setParamNormalized(parameters, "memoryDrift", values.memoryDrift);
     setParamNormalized(parameters, "mix", values.mix);
 }
 
