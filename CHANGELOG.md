@@ -24,6 +24,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ### Fixed
 - Preset switches clear freeze state and reset Pillars mutation timers to avoid residual behavior.
+- Memory Echoes recall scheduling now triggers fragments correctly; added a MemoryEchoes unit test and pluginval script test hook.
 
 ## [0.1.7] - 2026-01-01
 

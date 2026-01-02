@@ -2,10 +2,30 @@
 #include "PluginEditor.h"
 
 #include <cmath>
+#if defined(MONUMENT_TESTING)
+#include <mutex>
+#endif
 
 namespace
 {
 constexpr float kPresetFadeMs = 60.0f;
+
+#if defined(MONUMENT_TESTING)
+std::once_flag gTestingLoggerOnce;
+std::unique_ptr<juce::FileLogger> gTestingLogger;
+
+void ensureTestingLogger()
+{
+    std::call_once(gTestingLoggerOnce, []()
+    {
+        const auto logFile = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+            .getChildFile("MonumentTesting.log");
+        gTestingLogger = std::make_unique<juce::FileLogger>(logFile, "Monument testing log", 0);
+        juce::Logger::setCurrentLogger(gTestingLogger.get());
+        juce::Logger::writeToLog("Monument MONUMENT_TESTING logger ready: " + logFile.getFullPathName());
+    });
+}
+#endif
 }
 
 MonumentAudioProcessor::MonumentAudioProcessor()
@@ -69,6 +89,10 @@ void MonumentAudioProcessor::changeProgramName(int, const juce::String&)
 
 void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+#if defined(MONUMENT_TESTING)
+    ensureTestingLogger();
+#endif
+
     const auto numChannels = getTotalNumOutputChannels();
     dryBuffer.setSize(numChannels, samplesPerBlock, false, false, true);
     dryBuffer.clear();

@@ -28,3 +28,10 @@ mkdir -p "${OUTPUT_DIR}"
 "${PLUGINVAL}" --strictness-level 10 --validate "${PLUGIN_PATH}" --output-dir "${OUTPUT_DIR}"
 
 echo "pluginval report: ${OUTPUT_DIR}"
+
+if [[ -f "${BUILD_DIR}/CTestTestfile.cmake" ]]; then
+    echo "Running tests in ${BUILD_DIR}"
+    ctest --test-dir "${BUILD_DIR}" -C "${CONFIG}"
+else
+    echo "No tests found in ${BUILD_DIR}"
+fi

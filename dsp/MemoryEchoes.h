@@ -26,6 +26,9 @@ public:
     void setDecay(float decay);
     void setDrift(float drift);
     void setFreeze(bool shouldFreeze);
+#if defined(MONUMENT_TESTING)
+    void setRandomSeed(int64_t seed);
+#endif
 
 private:
     enum class BufferChoice

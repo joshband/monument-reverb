@@ -199,15 +199,21 @@ void MemoryEchoes::process(juce::AudioBuffer<float>& buffer)
                 scheduleNextRecall(memoryAmount);
             else
                 lastRecallAge = 0.0f;
+#if defined(MONUMENT_TESTING)
+            juce::Logger::writeToLog("Monument MemoryEchoes "
+                + juce::String(memoryEnabled ? "enabled" : "disabled")
+                + " memory=" + juce::String(memoryAmount, 3));
+#endif
         }
 
         if (memoryEnabled && !fragmentActive)
         {
-            if (samplesUntilRecall <= 0)
-                scheduleNextRecall(memoryAmount);
             --samplesUntilRecall;
             if (samplesUntilRecall <= 0)
+            {
                 startFragment(depth, memoryAmount, decayAmount, driftAmount);
+                scheduleNextRecall(memoryAmount);
+            }
         }
 
         float injectL = 0.0f;
@@ -413,6 +419,13 @@ void MemoryEchoes::setFreeze(bool shouldFreeze)
     freezeEnabled = shouldFreeze;
 }
 
+#if defined(MONUMENT_TESTING)
+void MemoryEchoes::setRandomSeed(int64_t seed)
+{
+    random.setSeed(seed);
+}
+#endif
+
 void MemoryEchoes::scheduleNextRecall(float memoryAmount)
 {
     const float baseSeconds = juce::jmap(random.nextFloat(), kRecallMinSeconds, kRecallMaxSeconds);
@@ -492,6 +505,19 @@ void MemoryEchoes::startFragment(float depth, float memoryAmount, float decayAmo
     const float gainScale = juce::jmax(0.0f, 1.0f - decayScale * 0.35f);
     fragmentGain = juce::jmin(kInjectionGainMax, memoryClamped * kInjectionGainMax) * gainScale;
     fragmentActive = fragmentGain > 0.0f;
+
+#if defined(MONUMENT_TESTING)
+    if (fragmentActive)
+    {
+        juce::Logger::writeToLog("Monument MemoryEchoes fragment age="
+            + juce::String(fragmentAge, 3)
+            + " gain=" + juce::String(fragmentGain, 4)
+            + " depth=" + juce::String(depthClamped, 3)
+            + " memory=" + juce::String(memoryClamped, 3)
+            + " decay=" + juce::String(decayAmount, 3)
+            + " drift=" + juce::String(driftAmount, 3));
+    }
+#endif
 }
 
 } // namespace dsp
