@@ -6,10 +6,21 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ## [Unreleased]
 
 ### Added
+- Factory preset descriptions, Init Patch, and JSON user preset save/load support.
+- Pillars early-reflection upgrades: geometry bending, fractal tap clusters, pseudo-IR loading, and Glass/Stone/Fog modes.
+- Testing hooks for peak/CPU logging, plus pluginval runner and testing docs.
+- Advanced feature scaffolding notes for algorithm switching, colour modes, tape loop, and sound-on-sound.
 
 ### Changed
+- Time feedback mapping widened to 0.35-0.995; mass and density ranges extended for darker and sparser tails.
+- Drift depth limit set to +/-1 sample for subtle motion without pitch wobble.
+- Freeze crossfade timing extended to 100 ms for click-free engage/release.
+- Preset loading now applies Init Patch first and schedules a short DSP reset fade.
+- Pillars tap energy normalization and output headroom clamp for bounded early-space output.
+- Chambers parameter setters now sanitize out-of-range/NaN values (JUCE_DEBUG warnings).
 
 ### Fixed
+- Preset switches clear freeze state and reset Pillars mutation timers to avoid residual behavior.
 
 ## [0.1.7] - 2026-01-01
 

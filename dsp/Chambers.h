@@ -55,7 +55,7 @@ private:
     float driftTarget = 0.0f;
     float warpSmoothed = 0.0f;
     float lastMatrixBlend = 1.0f;
-    float driftDepthMaxSamples = 0.6f;
+    float driftDepthMaxSamples = 1.0f;
     float gravityCoeffMin = 1.0f;
     float gravityCoeffMax = 1.0f;
     bool smoothersPrimed = false;

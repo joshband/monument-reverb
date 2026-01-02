@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="220" viewBox="0 0 960 220" role="img" aria-label="Pillars modes overview">
+  <defs>
+    <style>
+      .label { font: 14px 'Palatino Linotype', 'Book Antiqua', Palatino, serif; fill: #e6e1d6; }
+      .title { font: 16px 'Palatino Linotype', 'Book Antiqua', Palatino, serif; fill: #c98b45; }
+      .box { fill: #14171b; stroke: #7f9ea8; stroke-width: 1.5; rx: 12; }
+      .accent { stroke: #c98b45; stroke-width: 2; }
+    </style>
+  </defs>
+  <rect width="960" height="220" fill="#0d0f12" />
+
+  <rect class="box" x="60" y="50" width="260" height="120" />
+  <rect class="box" x="350" y="50" width="260" height="120" />
+  <rect class="box" x="640" y="50" width="260" height="120" />
+
+  <text class="title" x="190" y="80" text-anchor="middle">Glass</text>
+  <text class="label" x="190" y="105" text-anchor="middle">Bright, airy taps</text>
+  <text class="label" x="190" y="125" text-anchor="middle">Short diffusion smear</text>
+
+  <text class="title" x="480" y="80" text-anchor="middle">Stone</text>
+  <text class="label" x="480" y="105" text-anchor="middle">Dense, weighty taps</text>
+  <text class="label" x="480" y="125" text-anchor="middle">Stronger damping</text>
+
+  <text class="title" x="770" y="80" text-anchor="middle">Fog</text>
+  <text class="label" x="770" y="105" text-anchor="middle">Smeared clusters</text>
+  <text class="label" x="770" y="125" text-anchor="middle">Expanded intervals</text>
+
+  <line class="accent" x1="190" y1="150" x2="190" y2="168" />
+  <line class="accent" x1="480" y1="150" x2="480" y2="168" />
+  <line class="accent" x1="770" y1="150" x2="770" y2="168" />
+</svg>

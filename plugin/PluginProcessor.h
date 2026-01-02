@@ -2,7 +2,7 @@
 
 #include <JuceHeader.h>
 
-#include <string>
+#include <atomic>
 
 #include "dsp/DspModules.h"
 #include "PresetManager.h"
@@ -41,12 +41,25 @@ public:
 
     APVTS& getAPVTS();
     static APVTS::ParameterLayout createParameterLayout();
-    int getNumPresets() const;
-    std::string getPresetName(int index) const;
-    void loadPreset(int index);
-    bool loadPresetByName(const std::string& name);
+
+    int getNumFactoryPresets() const;
+    juce::String getFactoryPresetName(int index) const;
+    juce::String getFactoryPresetDescription(int index) const;
+    void loadFactoryPreset(int index);
+    void saveUserPreset(const juce::String& name, const juce::String& description);
+    void saveUserPreset(const juce::File& targetFile,
+                        const juce::String& name,
+                        const juce::String& description);
+    void loadUserPreset(const juce::File& sourceFile);
 
 private:
+    enum class PresetTransitionState
+    {
+        None,
+        FadingOut,
+        FadingIn
+    };
+
     APVTS parameters;
     PresetManager presetManager;
     juce::AudioBuffer<float> dryBuffer;
@@ -56,6 +69,11 @@ private:
     monument::dsp::Weathering weathering;
     monument::dsp::Buttress buttress;
     monument::dsp::Facade facade;
+    std::atomic<bool> presetResetRequested{false};
+    PresetTransitionState presetTransition = PresetTransitionState::None;
+    int presetFadeSamples = 0;
+    int presetFadeRemaining = 0;
+    float presetGain = 1.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MonumentAudioProcessor)
 };

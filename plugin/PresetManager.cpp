@@ -4,6 +4,16 @@
 
 namespace
 {
+constexpr int kPresetVersion = 1;
+
+template <typename T>
+float readFloatProperty(const juce::DynamicObject* object, const juce::String& key, T fallback)
+{
+    if (object == nullptr || !object->hasProperty(key))
+        return static_cast<float>(fallback);
+    return static_cast<float>(object->getProperty(key));
+}
+
 void setParamNormalized(juce::AudioProcessorValueTreeState& apvts, const juce::String& id, float value)
 {
     if (auto* param = apvts.getParameter(id))
@@ -17,34 +27,23 @@ PresetManager::PresetValues makePreset(float time,
     float gravity,
     float warp,
     float drift,
-    float mix,
-    float air,
-    float width,
-    float freeze)
+    float mix)
 {
-    return {time, mass, density, bloom, gravity, warp, drift, mix, air, width, freeze};
+    return {time, mass, density, bloom, gravity, warp, drift, mix};
 }
 } // namespace
 
-const std::array<PresetManager::Preset, PresetManager::kNumPresets> PresetManager::kPresets{{
-    // Long, shimmering reflections with gentle motion.
-    {"Cathedral of Glass", makePreset(0.82f, 0.25f, 0.80f, 0.55f, 0.15f, 0.00f, 0.20f, 0.60f, 0.70f, 0.75f, 0.0f)},
-    // Dark, swelling tail that bends around the source.
-    {"Event Horizon", makePreset(1.00f, 0.85f, 0.55f, 0.85f, 0.50f, 0.30f, 0.50f, 0.70f, 0.35f, 0.65f, 0.0f)},
-    // The topology folds on itself with a tight bloom.
-    {"Folded Atrium", makePreset(0.55f, 0.45f, 0.55f, 0.20f, 0.30f, 0.80f, 0.10f, 0.55f, 0.50f, 0.70f, 0.0f)},
-    // Massive but sparse, with minimal bloom and no warp.
-    {"Monumental Void", makePreset(0.90f, 0.35f, 0.10f, 0.00f, 0.00f, 0.00f, 0.00f, 0.65f, 0.45f, 0.80f, 0.0f)},
-    // Short, lush bloom with weightless diffusion.
-    {"Zero-G Garden", makePreset(0.25f, 0.30f, 0.85f, 0.85f, 0.10f, 0.50f, 0.40f, 0.50f, 0.70f, 0.90f, 0.0f)},
-    // Maximum warp with reflective, bending echoes.
-    {"Hall of Mirrors", makePreset(0.60f, 0.40f, 0.60f, 0.40f, 0.20f, 1.00f, 0.30f, 0.55f, 0.60f, 0.85f, 0.0f)},
-    // Slow, dimensional motion with extended decay.
-    {"Tesseract Chamber", makePreset(0.85f, 0.55f, 0.30f, 0.60f, 0.50f, 0.70f, 0.70f, 0.65f, 0.50f, 0.75f, 0.0f)},
-    // Tight and dry, like ancient stones breathing lightly.
-    {"Stone Circles", makePreset(0.15f, 0.60f, 0.20f, 0.20f, 1.00f, 0.00f, 0.00f, 0.45f, 0.35f, 0.40f, 0.0f)},
-    // Use Freeze to capture a moment and let it hover.
-    {"Frozen Monument (Engage Freeze)", makePreset(0.70f, 0.50f, 0.50f, 0.50f, 0.50f, 0.00f, 0.00f, 0.60f, 0.50f, 0.70f, 0.0f)},
+const std::array<PresetManager::Preset, PresetManager::kNumFactoryPresets> PresetManager::kFactoryPresets{{
+    {"Init Patch", "Midpoint defaults with no warp or drift.", makePreset(0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.00f, 0.00f, 0.50f)},
+    {"Cathedral of Glass", "Long, bright reflections with gentle motion.", makePreset(0.82f, 0.25f, 0.80f, 0.55f, 0.15f, 0.00f, 0.20f, 0.60f)},
+    {"Event Horizon", "Dark, swelling tail that bends around the source.", makePreset(1.00f, 0.85f, 0.55f, 0.85f, 0.50f, 0.30f, 0.50f, 0.70f)},
+    {"Folded Atrium", "Medium time, tight bloom, topology folded inward.", makePreset(0.55f, 0.45f, 0.55f, 0.20f, 0.30f, 0.80f, 0.10f, 0.55f)},
+    {"Monumental Void", "Massive, sparse, minimal bloom, no warp.", makePreset(0.90f, 0.35f, 0.10f, 0.00f, 0.00f, 0.00f, 0.00f, 0.65f)},
+    {"Zero-G Garden", "Short, lush bloom with weightless diffusion.", makePreset(0.25f, 0.30f, 0.85f, 0.85f, 0.10f, 0.50f, 0.40f, 0.50f)},
+    {"Hall of Mirrors", "Maximum warp with reflective, bending echoes.", makePreset(0.60f, 0.40f, 0.60f, 0.40f, 0.20f, 1.00f, 0.30f, 0.55f)},
+    {"Tesseract Chamber", "Slow, dimensional motion with extended decay.", makePreset(0.85f, 0.55f, 0.30f, 0.60f, 0.50f, 0.70f, 0.70f, 0.65f)},
+    {"Stone Circles", "Tight, dry echoes like ancient stones.", makePreset(0.15f, 0.60f, 0.20f, 0.20f, 1.00f, 0.00f, 0.00f, 0.45f)},
+    {"Frozen Monument (Engage Freeze)", "Designed to be held by Freeze.", makePreset(0.70f, 0.50f, 0.50f, 0.50f, 0.50f, 0.00f, 0.00f, 0.60f)},
 }};
 
 PresetManager::PresetManager(juce::AudioProcessorValueTreeState& apvts)
@@ -52,50 +51,156 @@ PresetManager::PresetManager(juce::AudioProcessorValueTreeState& apvts)
 {
 }
 
-int PresetManager::getNumPresets() const
+int PresetManager::getNumFactoryPresets() const
 {
-    return static_cast<int>(kPresets.size());
+    return static_cast<int>(kFactoryPresets.size());
 }
 
-std::string PresetManager::getPresetName(int index) const
+juce::String PresetManager::getFactoryPresetName(int index) const
 {
-    if (index < 0 || index >= static_cast<int>(kPresets.size()))
+    if (index < 0 || index >= static_cast<int>(kFactoryPresets.size()))
         return {};
-    return kPresets[static_cast<size_t>(index)].name;
+    return kFactoryPresets[static_cast<size_t>(index)].name;
 }
 
-int PresetManager::findPresetIndex(const std::string& name) const
+juce::String PresetManager::getFactoryPresetDescription(int index) const
 {
-    auto it = std::find_if(kPresets.begin(), kPresets.end(),
-        [&name](const Preset& preset) { return name == preset.name; });
-    if (it == kPresets.end())
-        return -1;
-    return static_cast<int>(std::distance(kPresets.begin(), it));
+    if (index < 0 || index >= static_cast<int>(kFactoryPresets.size()))
+        return {};
+    return kFactoryPresets[static_cast<size_t>(index)].description;
 }
 
-bool PresetManager::loadPreset(int index)
+bool PresetManager::loadFactoryPreset(int index)
 {
-    if (index < 0 || index >= static_cast<int>(kPresets.size()))
+    if (index < 0 || index >= static_cast<int>(kFactoryPresets.size()))
         return false;
-    applyPreset(kPresets[static_cast<size_t>(index)].values);
+    applyPreset(kFactoryPresets[static_cast<size_t>(index)].values);
     return true;
 }
 
-bool PresetManager::loadPresetByName(const std::string& name)
+bool PresetManager::loadFactoryPresetByName(const juce::String& name)
 {
-    const int index = findPresetIndex(name);
-    if (index < 0)
+    auto it = std::find_if(kFactoryPresets.begin(), kFactoryPresets.end(),
+        [&name](const Preset& preset) { return preset.name == name; });
+    if (it == kFactoryPresets.end())
         return false;
-    return loadPreset(index);
+    applyPreset(it->values);
+    return true;
 }
 
-const std::array<PresetManager::Preset, PresetManager::kNumPresets>& PresetManager::getPresets()
+void PresetManager::saveUserPreset(const juce::String& name, const juce::String& description)
 {
-    return kPresets;
+    saveUserPreset(juce::File{}, name, description);
+}
+
+void PresetManager::saveUserPreset(const juce::File& targetFile,
+    const juce::String& name,
+    const juce::String& description)
+{
+    const auto resolvedFile = resolveUserPresetFile(targetFile, name);
+    if (resolvedFile == juce::File{})
+        return;
+
+    const auto values = captureCurrentValues();
+
+    auto root = std::make_unique<juce::DynamicObject>();
+    root->setProperty("formatVersion", kPresetVersion);
+    root->setProperty("name", name);
+    root->setProperty("description", description);
+
+    auto params = std::make_unique<juce::DynamicObject>();
+    params->setProperty("time", values.time);
+    params->setProperty("mass", values.mass);
+    params->setProperty("density", values.density);
+    params->setProperty("bloom", values.bloom);
+    params->setProperty("gravity", values.gravity);
+    params->setProperty("warp", values.warp);
+    params->setProperty("drift", values.drift);
+    params->setProperty("mix", values.mix);
+
+    root->setProperty("parameters", params.release());
+
+    const juce::var json(root.release());
+    const auto jsonText = juce::JSON::toString(json, true);
+    resolvedFile.replaceWithText(jsonText);
+}
+
+bool PresetManager::loadUserPreset(const juce::File& sourceFile)
+{
+    if (!sourceFile.existsAsFile())
+        return false;
+
+    const auto jsonText = sourceFile.loadFileAsString();
+    const auto json = juce::JSON::parse(jsonText);
+    auto* rootObject = json.getDynamicObject();
+    if (rootObject == nullptr)
+        return false;
+
+    auto paramsVar = rootObject->getProperty("parameters");
+    auto* paramsObject = paramsVar.getDynamicObject();
+    if (paramsObject == nullptr)
+        paramsObject = rootObject;
+
+    PresetValues values{};
+    values.time = readFloatProperty(paramsObject, "time", values.time);
+    values.mass = readFloatProperty(paramsObject, "mass", values.mass);
+    values.density = readFloatProperty(paramsObject, "density", values.density);
+    values.bloom = readFloatProperty(paramsObject, "bloom", values.bloom);
+    values.gravity = readFloatProperty(paramsObject, "gravity", values.gravity);
+    values.warp = readFloatProperty(paramsObject, "warp", values.warp);
+    values.drift = readFloatProperty(paramsObject, "drift", values.drift);
+    values.mix = readFloatProperty(paramsObject, "mix", values.mix);
+
+    applyPreset(values);
+    return true;
+}
+
+juce::File PresetManager::getDefaultUserPresetDirectory() const
+{
+    return juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+        .getChildFile("MonumentPresets");
+}
+
+const std::array<PresetManager::Preset, PresetManager::kNumFactoryPresets>& PresetManager::getFactoryPresets()
+{
+    return kFactoryPresets;
+}
+
+PresetManager::PresetValues PresetManager::captureCurrentValues() const
+{
+    PresetValues values{};
+
+    auto readParam = [this](const juce::String& id, float fallback)
+    {
+        if (auto* param = parameters.getParameter(id))
+            return param->getValue();
+        return fallback;
+    };
+
+    values.time = readParam("time", values.time);
+    values.mass = readParam("mass", values.mass);
+    values.density = readParam("density", values.density);
+    values.bloom = readParam("bloom", values.bloom);
+    values.gravity = readParam("gravity", values.gravity);
+    values.warp = readParam("warp", values.warp);
+    values.drift = readParam("drift", values.drift);
+    values.mix = readParam("mix", values.mix);
+
+    return values;
 }
 
 void PresetManager::applyPreset(const PresetValues& values)
 {
+    const auto& init = kFactoryPresets.front().values;
+    // Always apply Init Patch first so preset switching clears residual state.
+    setParamNormalized(parameters, "time", init.time);
+    setParamNormalized(parameters, "mass", init.mass);
+    setParamNormalized(parameters, "density", init.density);
+    setParamNormalized(parameters, "bloom", init.bloom);
+    setParamNormalized(parameters, "gravity", init.gravity);
+    setParamNormalized(parameters, "warp", init.warp);
+    setParamNormalized(parameters, "drift", init.drift);
+    setParamNormalized(parameters, "mix", init.mix);
     setParamNormalized(parameters, "time", values.time);
     setParamNormalized(parameters, "mass", values.mass);
     setParamNormalized(parameters, "density", values.density);
@@ -104,7 +209,26 @@ void PresetManager::applyPreset(const PresetValues& values)
     setParamNormalized(parameters, "warp", values.warp);
     setParamNormalized(parameters, "drift", values.drift);
     setParamNormalized(parameters, "mix", values.mix);
-    setParamNormalized(parameters, "air", values.air);
-    setParamNormalized(parameters, "width", values.width);
-    setParamNormalized(parameters, "freeze", values.freeze);
+}
+
+juce::File PresetManager::resolveUserPresetFile(const juce::File& targetFile, const juce::String& name) const
+{
+    auto presetDir = getDefaultUserPresetDirectory();
+    presetDir.createDirectory();
+
+    if (targetFile == juce::File{})
+    {
+        const auto fileName = juce::File::createLegalFileName(name.isNotEmpty() ? name : "UserPreset")
+            .replaceCharacter(' ', '_');
+        return presetDir.getChildFile(fileName + ".json");
+    }
+
+    if (targetFile.isDirectory())
+    {
+        const auto fileName = juce::File::createLegalFileName(name.isNotEmpty() ? name : "UserPreset")
+            .replaceCharacter(' ', '_');
+        return targetFile.getChildFile(fileName + ".json");
+    }
+
+    return targetFile;
 }

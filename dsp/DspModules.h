@@ -30,22 +30,69 @@ private:
 class Pillars final : public DSPModule
 {
 public:
+    enum class Mode
+    {
+        Glass = 0,
+        Stone = 1,
+        Fog = 2
+    };
+
     void prepare(double sampleRate, int blockSize, int numChannels) override;
     void reset() override;
     void process(juce::AudioBuffer<float>& buffer) override;
     void setDensity(float density);
+    void setShape(float shape);
+    void setMode(int modeIndex);
+    void setWarp(float warp);
+
+    // Loads a short impulse response (<= 50ms) for pseudo-convolution of early taps.
+    // This should be called off the audio thread.
+    bool loadImpulseResponse(const juce::File& file);
+    void clearImpulseResponse();
 
 private:
-    static constexpr int kNumTaps = 6;
+    static constexpr int kMaxTaps = 32;
+    static constexpr int kMinTaps = 16;
+    static constexpr float kMaxIrSeconds = 0.05f;
+
+    void updateTapLayout();
+    void updateModeTuning();
+    float shapePosition(float position01) const;
+    float applyAllpass(float input, float coeff, float& state) const;
+
     double sampleRateHz = 44100.0;
     int maxBlockSize = 0;
     int channels = 0;
-    std::array<int, kNumTaps> tapSamples{};
-    std::array<float, kNumTaps> tapGains{};
+
+    int tapCount = kMinTaps;
+    std::array<int, kMaxTaps> tapSamples{};
+    std::array<float, kMaxTaps> tapGains{};
+    std::array<float, kMaxTaps> tapAllpassCoeff{};
+    juce::AudioBuffer<float> tapAllpassState;
+
     juce::AudioBuffer<float> delayBuffer;
     int delayBufferLength = 0;
     int writePosition = 0;
+
     float densityAmount = 0.5f;
+    float warpAmount = 0.0f;
+    float pillarShape = 0.5f;
+    Mode pillarMode = Mode::Glass;
+    bool tapsDirty = true;
+    int mutationSamplesRemaining = 0;
+    int mutationIntervalSamples = 0;
+    int mutationSeed = 0;
+
+    float modeLowpassCoeff = 0.0f;
+    float modeHighpassCoeff = 0.0f;
+    float modeDiffusion = 0.18f;
+    float modeTapGain = 1.0f;
+    juce::AudioBuffer<float> modeLowState;
+    juce::AudioBuffer<float> modeHighState;
+
+    juce::AudioBuffer<float> irBuffer;
+    int irLengthSamples = 0;
+    bool irLoaded = false;
 };
 
 class Weathering final : public DSPModule

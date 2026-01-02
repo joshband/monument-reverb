@@ -3,46 +3,53 @@
 #include <JuceHeader.h>
 
 #include <array>
-#include <string>
 
 class PresetManager
 {
 public:
     struct PresetValues
     {
-        float time = 0.0f;
-        float mass = 0.0f;
-        float density = 0.0f;
-        float bloom = 0.0f;
-        float gravity = 0.0f;
+        float time = 0.5f;
+        float mass = 0.5f;
+        float density = 0.5f;
+        float bloom = 0.5f;
+        float gravity = 0.5f;
         float warp = 0.0f;
         float drift = 0.0f;
         float mix = 0.5f;
-        float air = 0.5f;
-        float width = 0.5f;
-        float freeze = 0.0f;
     };
 
     struct Preset
     {
-        const char* name = "";
+        juce::String name;
+        juce::String description;
         PresetValues values{};
     };
 
     explicit PresetManager(juce::AudioProcessorValueTreeState& apvts);
 
-    int getNumPresets() const;
-    std::string getPresetName(int index) const;
-    int findPresetIndex(const std::string& name) const;
-    bool loadPreset(int index);
-    bool loadPresetByName(const std::string& name);
+    int getNumFactoryPresets() const;
+    juce::String getFactoryPresetName(int index) const;
+    juce::String getFactoryPresetDescription(int index) const;
+    bool loadFactoryPreset(int index);
+    bool loadFactoryPresetByName(const juce::String& name);
 
-    static constexpr size_t kNumPresets = 9;
-    static const std::array<Preset, kNumPresets>& getPresets();
+    void saveUserPreset(const juce::String& name, const juce::String& description);
+    void saveUserPreset(const juce::File& targetFile,
+                        const juce::String& name,
+                        const juce::String& description);
+    bool loadUserPreset(const juce::File& sourceFile);
+
+    juce::File getDefaultUserPresetDirectory() const;
+
+    static constexpr size_t kNumFactoryPresets = 10;
+    static const std::array<Preset, kNumFactoryPresets>& getFactoryPresets();
 
 private:
+    PresetValues captureCurrentValues() const;
     void applyPreset(const PresetValues& values);
+    juce::File resolveUserPresetFile(const juce::File& targetFile, const juce::String& name) const;
 
     juce::AudioProcessorValueTreeState& parameters;
-    static const std::array<Preset, kNumPresets> kPresets;
+    static const std::array<Preset, kNumFactoryPresets> kFactoryPresets;
 };

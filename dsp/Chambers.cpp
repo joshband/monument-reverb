@@ -80,19 +80,21 @@ constexpr float kOutputGain = 0.5f; // sum(L^2) == sum(R^2) == 4.0 -> normalize 
 constexpr float kGravityCutoffMinHz = 20.0f;
 constexpr float kGravityCutoffMaxHz = 200.0f;
 
-constexpr float kFreezeReleaseMs = 40.0f;
-constexpr float kFreezeOutputFadeMs = 15.0f;
+// Freeze crossfades are kept long enough to avoid clicks and level jumps.
+constexpr float kFreezeReleaseMs = 100.0f;
+constexpr float kFreezeOutputFadeMs = 100.0f;
 constexpr float kFreezeLimiterCeiling = 0.9f;
 constexpr float kWetLimiterCeiling = 0.95f;
-constexpr float kMaxFeedback = 0.98f;
+// Feedback coefficient is clamped below unity for stability (long tails without runaway).
+constexpr float kMaxFeedback = 0.995f;
+constexpr float kMinFeedback = 0.35f;
 constexpr float kBloomSmoothingMs = 40.0f;
 constexpr float kWarpSmoothingMs = 1200.0f;
 constexpr float kDriftSmoothingMs = 1500.0f;
 constexpr float kDriftRateMinHz = 0.05f;
 constexpr float kDriftRateMaxHz = 0.2f;
-constexpr float kDriftDepthMaxSamples = 0.6f;
-constexpr float kT60MinSeconds = 3.0f;
-constexpr float kT60MaxSeconds = 180.0f;
+// Drift depth stays within +/-1.0 sample to avoid audible pitch wobble.
+constexpr float kDriftDepthMaxSamples = 1.0f;
 constexpr float kEnvelopeMinTimeSeconds = 1.0f;
 constexpr float kEnvelopeMaxTimeSeconds = 12.0f;
 constexpr float kBloomPeakGain = 0.5f; // Up to 1.5x at Bloom=1.
@@ -109,6 +111,34 @@ inline float onePoleCoeffFromHz(float cutoffHz, double sampleRate)
 inline float freezeHardLimit(float value)
 {
     return juce::jlimit(-kFreezeLimiterCeiling, kFreezeLimiterCeiling, value);
+}
+
+inline float sanitizeNormalizedParameter(float value, float fallback, const char* label, bool& warned)
+{
+    juce::ignoreUnused(label, warned);
+    if (!std::isfinite(value))
+    {
+#if JUCE_DEBUG
+        if (!warned)
+        {
+            DBG("Chambers: non-finite " + juce::String(label) + " parameter ignored.");
+            warned = true;
+        }
+#endif
+        return fallback;
+    }
+    if (value < 0.0f || value > 1.0f)
+    {
+#if JUCE_DEBUG
+        if (!warned)
+        {
+            DBG("Chambers: " + juce::String(label) + " parameter clamped.");
+            warned = true;
+        }
+#endif
+        return juce::jlimit(0.0f, 1.0f, value);
+    }
+    return value;
 }
 
 inline void blendMatrices(const Matrix8& a, const Matrix8& b, float blend, Matrix8& dest)
@@ -300,7 +330,8 @@ void Chambers::reset()
     freezeRampRemaining = 0;
     freezeBlend = 1.0f;
     freezeRampingDown = false;
-    wasFrozen = isFrozen;
+    isFrozen = false;
+    wasFrozen = false;
     envelopeTimeSeconds = 0.0f;
     envelopeValue = 1.0f;
     envelopeTriggerArmed = true;
@@ -415,10 +446,8 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         const float driftDepth = freezeActive ? 0.0f : (driftDepthBase * freezeBlend);
         const bool advanceDrift = !freezeActive && (freezeRampRemaining == 0);
 
-        const float t60Target = kT60MinSeconds
-            * std::pow(kT60MaxSeconds / kT60MinSeconds, timeNorm);
-        float feedbackBaseLocal = std::pow(
-            10.0f, -3.0f * meanDelaySeconds / juce::jmax(0.001f, t60Target));
+        // Time maps directly to feedback coefficient for long-tail control.
+        float feedbackBaseLocal = juce::jmap(timeNorm, kMinFeedback, kMaxFeedback);
         if (feedbackBaseLocal > kMaxFeedback)
         {
 #if JUCE_DEBUG
@@ -431,7 +460,8 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
 #endif
             feedbackBaseLocal = kMaxFeedback;
         }
-        const float dampingBaseLocal = juce::jmap(massNorm, 0.1f, 0.85f);
+        // Mass darkens the tail by increasing HF damping up to 0.95.
+        const float dampingBaseLocal = juce::jmap(massNorm, 0.1f, 0.95f);
 
         for (size_t i = 0; i < kNumLines; ++i)
         {
@@ -440,12 +470,14 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             dampingCoefficients[i] = 1.0f + freezeBlend * (targetCoeff - 1.0f);
         }
 
-        const float densityInputGain = juce::jmap(densityNorm, 0.18f, 0.32f);
-        const float densityEarlyMix = juce::jmap(densityNorm, 0.45f, 0.25f);
+        // Density extends down to 0.05 for grainier, sparser ambience.
+        const float densityShaped = juce::jmap(densityNorm, 0.05f, 1.0f);
+        const float densityInputGain = juce::jmap(densityShaped, 0.18f, 0.32f);
+        const float densityEarlyMix = juce::jmap(densityShaped, 0.45f, 0.25f);
 
         // Density drives diffusion strength; coefficients stay below 0.75 for stability.
-        const float inputCoeff = juce::jmap(densityNorm, 0.12f, 0.6f);
-        const float lateCoeffBase = juce::jmap(densityNorm, 0.18f, 0.7f);
+        const float inputCoeff = juce::jmap(densityShaped, 0.12f, 0.6f);
+        const float lateCoeffBase = juce::jmap(densityShaped, 0.18f, 0.7f);
         inputDiffusers[0].setCoefficient(inputCoeff);
         inputDiffusers[1].setCoefficient(inputCoeff);
         for (size_t i = 0; i < kNumLines; ++i)
@@ -566,8 +598,9 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         }
         wetLiveL *= outputScale * envelopeValue;
         wetLiveR *= outputScale * envelopeValue;
-        wetFrozenL *= outputScale;
-        wetFrozenR *= outputScale;
+        // Preserve the captured Bloom envelope during freeze crossfades.
+        wetFrozenL *= outputScale * envelopeValue;
+        wetFrozenR *= outputScale * envelopeValue;
 
         float wetL = outputBlend * wetLiveL + (1.0f - outputBlend) * wetFrozenL;
         float wetR = outputBlend * wetLiveR + (1.0f - outputBlend) * wetFrozenR;
@@ -612,43 +645,51 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
 
 void Chambers::setTime(float time)
 {
-    timeTarget = juce::jlimit(0.0f, 1.0f, time);
+    static bool warned = false;
+    timeTarget = sanitizeNormalizedParameter(time, timeTarget, "time", warned);
     timeSmoother.setTarget(timeTarget);
 }
 
 void Chambers::setMass(float mass)
 {
-    massTarget = juce::jlimit(0.0f, 1.0f, mass);
+    static bool warned = false;
+    massTarget = sanitizeNormalizedParameter(mass, massTarget, "mass", warned);
     massSmoother.setTarget(massTarget);
 }
 
 void Chambers::setDensity(float density)
 {
-    densityTarget = juce::jlimit(0.0f, 1.0f, density);
+    static bool warned = false;
+    densityTarget = sanitizeNormalizedParameter(density, densityTarget, "density", warned);
     densitySmoother.setTarget(densityTarget);
 }
 
 void Chambers::setBloom(float bloom)
 {
-    bloomTarget = juce::jlimit(0.0f, 1.0f, bloom);
+    static bool warned = false;
+    bloomTarget = sanitizeNormalizedParameter(bloom, bloomTarget, "bloom", warned);
     bloomSmoother.setTarget(bloomTarget);
 }
 
 void Chambers::setGravity(float gravity)
 {
-    gravityTarget = juce::jlimit(0.0f, 1.0f, gravity);
+    static bool warned = false;
+    gravityTarget = sanitizeNormalizedParameter(gravity, gravityTarget, "gravity", warned);
     gravitySmoother.setTarget(gravityTarget);
 }
 
 void Chambers::setWarp(float warp)
 {
-    warpTarget = juce::jlimit(0.0f, 1.0f, warp);
+    // Warp is clamped to [0, 1] and the blended matrix is re-normalized per column for stability.
+    static bool warned = false;
+    warpTarget = sanitizeNormalizedParameter(warp, warpTarget, "warp", warned);
     warpSmoother.setTarget(warpTarget);
 }
 
 void Chambers::setDrift(float drift)
 {
-    driftTarget = juce::jlimit(0.0f, 1.0f, drift);
+    static bool warned = false;
+    driftTarget = sanitizeNormalizedParameter(drift, driftTarget, "drift", warned);
     driftSmoother.setTarget(driftTarget);
 }
 

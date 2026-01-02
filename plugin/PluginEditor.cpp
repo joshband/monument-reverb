@@ -39,15 +39,15 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     presetBox.setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(0xff242833));
     presetBox.setColour(juce::PopupMenu::highlightedTextColourId, juce::Colour(0xffe6e1d6));
 
-    const int presetCount = processorRef.getNumPresets();
+    const int presetCount = processorRef.getNumFactoryPresets();
     for (int index = 0; index < presetCount; ++index)
-        presetBox.addItem(juce::String(processorRef.getPresetName(index)), index + 1);
+        presetBox.addItem(processorRef.getFactoryPresetName(index), index + 1);
 
     presetBox.onChange = [this]()
     {
         const int presetIndex = presetBox.getSelectedId() - 1;
         if (presetIndex >= 0)
-            processorRef.loadPreset(presetIndex);
+            processorRef.loadFactoryPreset(presetIndex);
     };
 
     setSize(720, 420);
