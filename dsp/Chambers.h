@@ -47,9 +47,14 @@ private:
     float gravityCoeffMin = 1.0f;
     float gravityCoeffMax = 1.0f;
     bool smoothersPrimed = false;
+    bool isFrozen = false;
+    bool wasFrozen = false;
+    int freezeRampSamples = 0;
+    int freezeRampRemaining = 0;
+    float freezeRampStep = 1.0f;
+    float freezeBlend = 1.0f;
 
     float bloomAmount = 0.0f;
-    bool freezeEnabled = false;
 
     std::array<AllpassDiffuser, 2> inputDiffusers;
     std::array<AllpassDiffuser, kNumLines> lateDiffusers;

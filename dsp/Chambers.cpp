@@ -54,11 +54,21 @@ constexpr float kOutputGain = 0.5f; // sum(L^2) == sum(R^2) == 4.0 -> normalize 
 constexpr float kGravityCutoffMinHz = 20.0f;
 constexpr float kGravityCutoffMaxHz = 200.0f;
 
+constexpr float kFreezeReleaseMs = 30.0f;
+constexpr float kFreezeLimiterDrive = 2.5f;
+constexpr float kFreezeLimiterCeiling = 0.95f;
+const float kFreezeLimiterNorm = 1.0f / std::tanh(kFreezeLimiterDrive);
+
 inline float onePoleCoeffFromHz(float cutoffHz, double sampleRate)
 {
     const double omega = 2.0 * juce::MathConstants<double>::pi
         * static_cast<double>(cutoffHz) / sampleRate;
     return static_cast<float>(std::exp(-omega));
+}
+
+inline float freezeSoftLimit(float value)
+{
+    return kFreezeLimiterCeiling * std::tanh(kFreezeLimiterDrive * value) * kFreezeLimiterNorm;
 }
 
 inline void hadamard8(float* v)
@@ -159,6 +169,12 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
 
     gravityCoeffMin = onePoleCoeffFromHz(kGravityCutoffMinHz, sampleRateHz);
     gravityCoeffMax = onePoleCoeffFromHz(kGravityCutoffMaxHz, sampleRateHz);
+    freezeRampSamples = juce::jmax(
+        1, static_cast<int>(std::round(sampleRateHz * (kFreezeReleaseMs / 1000.0f))));
+    freezeRampStep = 1.0f / static_cast<float>(freezeRampSamples);
+    freezeRampRemaining = 0;
+    freezeBlend = 1.0f;
+    wasFrozen = isFrozen;
 
     // Per-parameter smoothing times are tuned to feel responsive while preventing zipper noise.
     timeSmoother.prepare(sampleRateHz);
@@ -191,6 +207,9 @@ void Chambers::reset()
     for (auto& diffuser : lateDiffusers)
         diffuser.reset();
     smoothersPrimed = false;
+    freezeRampRemaining = 0;
+    freezeBlend = 1.0f;
+    wasFrozen = isFrozen;
 }
 
 void Chambers::process(juce::AudioBuffer<float>& buffer)
@@ -217,8 +236,39 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         smoothersPrimed = true;
     }
 
+    const bool freezeActive = isFrozen;
+    if (!wasFrozen && freezeActive)
+    {
+        freezeBlend = 0.0f;
+        freezeRampRemaining = 0;
+    }
+    else if (wasFrozen && !freezeActive)
+    {
+        freezeBlend = 0.0f;
+        freezeRampRemaining = freezeRampSamples;
+    }
+    wasFrozen = freezeActive;
+
     for (int sample = 0; sample < numSamples; ++sample)
     {
+        if (!freezeActive)
+        {
+            // Ramp normal processing back in after release to avoid clicks.
+            if (freezeRampRemaining > 0)
+            {
+                freezeBlend = juce::jmin(1.0f, freezeBlend + freezeRampStep);
+                --freezeRampRemaining;
+            }
+            else
+            {
+                freezeBlend = 1.0f;
+            }
+        }
+        else
+        {
+            freezeBlend = 0.0f;
+        }
+
         // Per-sample smoothing avoids block-stepped automation artifacts and tail glitches.
         const float timeNorm = juce::jlimit(0.0f, 1.0f, timeSmoother.getNextValue());
         const float massNorm = juce::jlimit(0.0f, 1.0f, massSmoother.getNextValue());
@@ -231,7 +281,8 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         for (size_t i = 0; i < kNumLines; ++i)
         {
             const float damping = juce::jlimit(0.0f, 0.98f, dampingBaseLocal + kDampingOffsets[i]);
-            dampingCoefficients[i] = 1.0f - damping;
+            const float targetCoeff = 1.0f - damping;
+            dampingCoefficients[i] = 1.0f + freezeBlend * (targetCoeff - 1.0f);
         }
 
         const float densityInputGain = juce::jmap(densityNorm, 0.18f, 0.32f);
@@ -248,11 +299,13 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             lateDiffusers[i].setCoefficient(juce::jlimit(0.05f, 0.74f, coeff));
         }
 
-        const float feedbackLocal = freezeEnabled ? 0.99f : feedbackBaseLocal;
+        const float feedbackLocal = freezeActive
+            ? 1.0f
+            : 1.0f + freezeBlend * (feedbackBaseLocal - 1.0f);
         const float bloomScale = 1.0f + bloomAmount * 0.6f;
         const float inputGainLocal = densityInputGain * bloomScale;
         float earlyMixLocal = densityEarlyMix * (1.0f - bloomAmount * 0.5f);
-        if (freezeEnabled)
+        if (freezeActive)
             earlyMixLocal = 0.0f;
         earlyMixLocal = juce::jlimit(0.0f, 0.7f, earlyMixLocal);
 
@@ -264,8 +317,15 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         const float inR = right != nullptr ? right[sample] : inL;
 
         // Input diffusion is pre-FDN to build density without altering the feedback topology.
-        const float diffL = inputDiffusers[0].processSample(inL);
-        const float diffR = inputDiffusers[1].processSample(inR);
+        float diffL = inL;
+        float diffR = inR;
+        if (!freezeActive)
+        {
+            const float processedL = inputDiffusers[0].processSample(inL);
+            const float processedR = inputDiffusers[1].processSample(inR);
+            diffL = inL + freezeBlend * (processedL - inL);
+            diffR = inR + freezeBlend * (processedR - inR);
+        }
         const float mid = 0.5f * (diffL + diffR);
         const float side = 0.5f * (diffL - diffR);
 
@@ -285,7 +345,15 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         {
             // Late diffusion is post-read and pre-output mix to increase density
             // without placing allpass recursion inside the feedback loop.
-            lateOut[i] = lateDiffusers[i].processSample(out[i]);
+            if (freezeActive)
+            {
+                lateOut[i] = out[i];
+            }
+            else
+            {
+                const float processed = lateDiffusers[i].processSample(out[i]);
+                lateOut[i] = out[i] + freezeBlend * (processed - out[i]);
+            }
         }
 
         float wetL = 0.0f;
@@ -300,18 +368,30 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
 
         for (size_t i = 0; i < kNumLines; ++i)
         {
-            const float injection = freezeEnabled
+            const float injection = freezeActive
                 ? 0.0f
                 : (mid * kInputMid[i] + side * kInputSide[i]) * inputScale;
             const float writeValue = injection + feedback[i] * feedbackLocal;
-            const float damped = lowpassState[i] + dampingCoefficients[i] * (writeValue - lowpassState[i]);
-            lowpassState[i] = damped;
-            // Gravity is a low-end containment high-pass inside the loop, after HF damping.
-            const float gravityLow = gravityLowpassState[i]
-                + (1.0f - gravityCoeff) * (damped - gravityLowpassState[i]);
-            gravityLowpassState[i] = gravityLow;
-            lineData[i][writePositions[i]] = damped - gravityLow;
+            float writeSample = writeValue;
+            if (freezeActive)
+            {
+                // True freeze: hold state with unity feedback and a subtle limiter to prevent creep.
+                writeSample = freezeSoftLimit(writeValue);
+            }
+            else
+            {
+                const float damped = lowpassState[i] + dampingCoefficients[i] * (writeValue - lowpassState[i]);
+                lowpassState[i] = damped;
+                // Gravity is a low-end containment high-pass inside the loop, after HF damping.
+                const float gravityLow = gravityLowpassState[i]
+                    + (1.0f - gravityCoeff) * (damped - gravityLowpassState[i]);
+                gravityLowpassState[i] = gravityLow;
+                const float gravityOut = damped - gravityLow;
+                writeSample = damped + freezeBlend * (gravityOut - damped);
+            }
+            lineData[i][writePositions[i]] = writeSample;
 
+            // Keep the delay heads moving during freeze so the held texture remains active.
             ++writePositions[i];
             if (writePositions[i] >= delayBufferLength)
                 writePositions[i] = 0;
@@ -361,7 +441,7 @@ void Chambers::setGravity(float gravity)
 
 void Chambers::setFreeze(bool shouldFreeze)
 {
-    freezeEnabled = shouldFreeze;
+    isFrozen = shouldFreeze;
 }
 
 } // namespace dsp
