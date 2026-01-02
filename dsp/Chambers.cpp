@@ -5,6 +5,32 @@
 namespace
 {
 constexpr float kInvSqrt8 = 0.3535533905932738f;
+using Matrix8 = std::array<std::array<float, 8>, 8>;
+
+constexpr float kHouseholderDiag = 0.75f;
+constexpr float kHouseholderOff = -0.25f;
+
+constexpr Matrix8 kMatrixHadamard{{
+    {{ kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8 }},
+    {{ kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8 }},
+    {{ kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8 }},
+    {{ kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8 }},
+    {{ kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8, -kInvSqrt8, -kInvSqrt8 }},
+    {{ kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8,  kInvSqrt8 }},
+    {{ kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8,  kInvSqrt8 }},
+    {{ kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8,  kInvSqrt8,  kInvSqrt8, -kInvSqrt8 }}
+}};
+
+constexpr Matrix8 kMatrixHouseholder{{
+    {{ kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag }}
+}};
 
 // Delay lengths in samples at 48 kHz.
 // Chosen as primes (>5) to avoid common factors with 48 kHz (2^7 * 3 * 5^3),
@@ -59,9 +85,12 @@ constexpr float kFreezeLimiterCeiling = 0.9f;
 constexpr float kWetLimiterCeiling = 0.95f;
 constexpr float kMaxFeedback = 0.98f;
 constexpr float kBloomSmoothingMs = 40.0f;
+constexpr float kWarpSmoothingMs = 1200.0f;
 constexpr float kEnvelopeMinTimeSeconds = 1.0f;
 constexpr float kEnvelopeMaxTimeSeconds = 12.0f;
 constexpr float kBloomPeakGain = 0.5f; // Up to 1.5x at Bloom=1.
+constexpr float kWarpMatrixEpsilon = 1.0e-4f;
+constexpr float kMatrixNormEpsilon = 1.0e-6f;
 
 inline float onePoleCoeffFromHz(float cutoffHz, double sampleRate)
 {
@@ -75,34 +104,46 @@ inline float freezeHardLimit(float value)
     return juce::jlimit(-kFreezeLimiterCeiling, kFreezeLimiterCeiling, value);
 }
 
-inline void hadamard8(float* v)
+inline void blendMatrices(const Matrix8& a, const Matrix8& b, float blend, Matrix8& dest)
 {
-    const float a0 = v[0] + v[1];
-    const float a1 = v[0] - v[1];
-    const float a2 = v[2] + v[3];
-    const float a3 = v[2] - v[3];
-    const float a4 = v[4] + v[5];
-    const float a5 = v[4] - v[5];
-    const float a6 = v[6] + v[7];
-    const float a7 = v[6] - v[7];
+    const float invBlend = 1.0f - blend;
+    for (size_t row = 0; row < 8; ++row)
+        for (size_t col = 0; col < 8; ++col)
+            dest[row][col] = invBlend * a[row][col] + blend * b[row][col];
+}
 
-    const float b0 = a0 + a2;
-    const float b1 = a1 + a3;
-    const float b2 = a0 - a2;
-    const float b3 = a1 - a3;
-    const float b4 = a4 + a6;
-    const float b5 = a5 + a7;
-    const float b6 = a4 - a6;
-    const float b7 = a5 - a7;
+inline void normalizeColumns(Matrix8& matrix)
+{
+    for (size_t col = 0; col < 8; ++col)
+    {
+        float norm = 0.0f;
+        for (size_t row = 0; row < 8; ++row)
+            norm += matrix[row][col] * matrix[row][col];
+        if (norm > kMatrixNormEpsilon)
+        {
+            const float invNorm = 1.0f / std::sqrt(norm);
+            for (size_t row = 0; row < 8; ++row)
+                matrix[row][col] *= invNorm;
+        }
+    }
+}
 
-    v[0] = (b0 + b4) * kInvSqrt8;
-    v[1] = (b1 + b5) * kInvSqrt8;
-    v[2] = (b2 + b6) * kInvSqrt8;
-    v[3] = (b3 + b7) * kInvSqrt8;
-    v[4] = (b0 - b4) * kInvSqrt8;
-    v[5] = (b1 - b5) * kInvSqrt8;
-    v[6] = (b2 - b6) * kInvSqrt8;
-    v[7] = (b3 - b7) * kInvSqrt8;
+inline void computeWarpMatrix(float warp, Matrix8& dest)
+{
+    // Warp morphs between orthogonal feedback topologies while keeping column energy stable.
+    blendMatrices(kMatrixHadamard, kMatrixHouseholder, warp, dest);
+    normalizeColumns(dest);
+}
+
+inline void applyMatrix(const Matrix8& matrix, const float* input, float* output)
+{
+    for (size_t row = 0; row < 8; ++row)
+    {
+        float sum = 0.0f;
+        for (size_t col = 0; col < 8; ++col)
+            sum += matrix[row][col] * input[col];
+        output[row] = sum;
+    }
 }
 
 inline float readFractionalDelay(const float* line, int length, int writePos, float delaySamples)
@@ -202,6 +243,16 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
     bloomSmoother.setSmoothingTimeMs(kBloomSmoothingMs); // Bloom envelope changes should be smooth.
     bloomSmoother.setTarget(bloomTarget);
 
+    warpSmoother.prepare(sampleRateHz);
+    warpSmoother.setSmoothingTimeMs(kWarpSmoothingMs); // Warp is intentionally slow to avoid motion artifacts.
+    warpSmoother.setTarget(warpTarget);
+
+    warpSmoothed = warpTarget;
+    computeWarpMatrix(warpSmoothed, warpMatrix);
+    warpMatrixFrozen = warpMatrix;
+    feedbackMatrix = warpMatrix;
+    lastMatrixBlend = 1.0f;
+
     smoothersPrimed = false;
     envelopeTimeSeconds = 0.0f;
     envelopeValue = 1.0f;
@@ -226,6 +277,11 @@ void Chambers::reset()
     envelopeTimeSeconds = 0.0f;
     envelopeValue = 1.0f;
     envelopeTriggerArmed = true;
+    warpSmoothed = warpTarget;
+    computeWarpMatrix(warpSmoothed, warpMatrix);
+    warpMatrixFrozen = warpMatrix;
+    feedbackMatrix = warpMatrix;
+    lastMatrixBlend = 1.0f;
 }
 
 void Chambers::process(juce::AudioBuffer<float>& buffer)
@@ -250,10 +306,22 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         densitySmoother.reset(densityTarget);
         gravitySmoother.reset(gravityTarget);
         bloomSmoother.reset(bloomTarget);
+        warpSmoother.reset(warpTarget);
+        warpSmoothed = warpTarget;
+        computeWarpMatrix(warpSmoothed, warpMatrix);
+        warpMatrixFrozen = warpMatrix;
+        feedbackMatrix = warpMatrix;
+        lastMatrixBlend = 1.0f;
         smoothersPrimed = true;
     }
 
     const bool freezeActive = isFrozen;
+    if (freezeActive && !wasFrozen)
+    {
+        // Capture the active topology so Freeze holds the current spatial mapping.
+        warpMatrixFrozen = feedbackMatrix;
+        lastMatrixBlend = 0.0f;
+    }
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
@@ -275,6 +343,42 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             freezeBlend = 0.0f;
         }
         const bool holdState = freezeActive || (freezeRampRemaining > 0);
+
+        bool warpMatrixDirty = false;
+        if (!freezeActive)
+        {
+            const float warpNext = juce::jlimit(0.0f, 1.0f, warpSmoother.getNextValue());
+            if (std::abs(warpNext - warpSmoothed) > kWarpMatrixEpsilon)
+            {
+                warpSmoothed = warpNext;
+                computeWarpMatrix(warpSmoothed, warpMatrix);
+                warpMatrixDirty = true;
+            }
+        }
+
+        const float matrixBlend = freezeActive ? 0.0f : freezeBlend;
+        if (freezeActive)
+        {
+            if (lastMatrixBlend != 0.0f)
+            {
+                feedbackMatrix = warpMatrixFrozen;
+                lastMatrixBlend = 0.0f;
+            }
+        }
+        else if (warpMatrixDirty || std::abs(matrixBlend - lastMatrixBlend) > kWarpMatrixEpsilon)
+        {
+            if (matrixBlend < 1.0f - kWarpMatrixEpsilon)
+            {
+                // Crossfade topologies during freeze release to avoid spatial jumps.
+                blendMatrices(warpMatrixFrozen, warpMatrix, matrixBlend, feedbackMatrix);
+                normalizeColumns(feedbackMatrix);
+            }
+            else
+            {
+                feedbackMatrix = warpMatrix;
+            }
+            lastMatrixBlend = matrixBlend;
+        }
 
         // Per-sample smoothing avoids block-stepped automation artifacts and tail glitches.
         const float timeNorm = juce::jlimit(0.0f, 1.0f, timeSmoother.getNextValue());
@@ -373,10 +477,15 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         }
 
         float feedback[kNumLines];
-        for (size_t i = 0; i < kNumLines; ++i)
-            feedback[i] = out[i];
-        if (!freezeActive)
-            hadamard8(feedback);
+        if (freezeActive)
+        {
+            for (size_t i = 0; i < kNumLines; ++i)
+                feedback[i] = out[i];
+        }
+        else
+        {
+            applyMatrix(feedbackMatrix, out, feedback);
+        }
 
         float lateOut[kNumLines];
         for (size_t i = 0; i < kNumLines; ++i)
@@ -473,6 +582,8 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             left[sample] = mid * earlyMixLocal + (wetL + wetR) * 0.5f * wetBlend;
         }
     }
+
+    wasFrozen = freezeActive;
 }
 
 void Chambers::setTime(float time)
@@ -505,6 +616,12 @@ void Chambers::setGravity(float gravity)
     gravitySmoother.setTarget(gravityTarget);
 }
 
+void Chambers::setWarp(float warp)
+{
+    warpTarget = juce::jlimit(0.0f, 1.0f, warp);
+    warpSmoother.setTarget(warpTarget);
+}
+
 void Chambers::setFreeze(bool shouldFreeze)
 {
     if (shouldFreeze && !isFrozen)
@@ -524,7 +641,6 @@ void Chambers::setFreeze(bool shouldFreeze)
         envelopeTriggerArmed = true;
     }
 
-    wasFrozen = isFrozen;
 }
 
 } // namespace dsp

@@ -21,6 +21,7 @@ public:
     void setDensity(float density);
     void setBloom(float bloom);
     void setGravity(float gravity);
+    void setWarp(float warp);
     void setFreeze(bool shouldFreeze);
 
 private:
@@ -42,11 +43,15 @@ private:
     ParameterSmoother densitySmoother;
     ParameterSmoother gravitySmoother;
     ParameterSmoother bloomSmoother;
+    ParameterSmoother warpSmoother;
     float timeTarget = 0.55f;
     float massTarget = 0.5f;
     float densityTarget = 0.5f;
     float gravityTarget = 0.5f;
     float bloomTarget = 0.5f;
+    float warpTarget = 0.0f;
+    float warpSmoothed = 0.0f;
+    float lastMatrixBlend = 1.0f;
     float gravityCoeffMin = 1.0f;
     float gravityCoeffMax = 1.0f;
     bool smoothersPrimed = false;
@@ -64,6 +69,9 @@ private:
 
     std::array<AllpassDiffuser, 2> inputDiffusers;
     std::array<AllpassDiffuser, kNumLines> lateDiffusers;
+    std::array<std::array<float, kNumLines>, kNumLines> warpMatrix{};
+    std::array<std::array<float, kNumLines>, kNumLines> warpMatrixFrozen{};
+    std::array<std::array<float, kNumLines>, kNumLines> feedbackMatrix{};
 };
 
 } // namespace dsp
