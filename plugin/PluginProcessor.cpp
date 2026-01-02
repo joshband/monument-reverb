@@ -7,7 +7,8 @@ MonumentAudioProcessor::MonumentAudioProcessor()
     : juce::AudioProcessor(BusesProperties()
                                 .withInput("Input", juce::AudioChannelSet::stereo(), true)
                                 .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-      parameters(*this, nullptr, "PARAMETERS", createParameterLayout())
+      parameters(*this, nullptr, "PARAMETERS", createParameterLayout()),
+      presetManager(parameters)
 {
 }
 
@@ -199,6 +200,26 @@ void MonumentAudioProcessor::setStateInformation(const void* data, int sizeInByt
 MonumentAudioProcessor::APVTS& MonumentAudioProcessor::getAPVTS()
 {
     return parameters;
+}
+
+int MonumentAudioProcessor::getNumPresets() const
+{
+    return presetManager.getNumPresets();
+}
+
+std::string MonumentAudioProcessor::getPresetName(int index) const
+{
+    return presetManager.getPresetName(index);
+}
+
+void MonumentAudioProcessor::loadPreset(int index)
+{
+    presetManager.loadPreset(index);
+}
+
+bool MonumentAudioProcessor::loadPresetByName(const std::string& name)
+{
+    return presetManager.loadPresetByName(name);
 }
 
 MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createParameterLayout()

@@ -26,6 +26,29 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     addAndMakeVisible(driftKnob);
     addAndMakeVisible(gravityKnob);
     addAndMakeVisible(freezeToggle);
+    addAndMakeVisible(presetBox);
+
+    presetBox.setTextWhenNothingSelected("Presets");
+    presetBox.setJustificationType(juce::Justification::centred);
+    presetBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff14171b));
+    presetBox.setColour(juce::ComboBox::textColourId, juce::Colour(0xffe6e1d6));
+    presetBox.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff3a3f46));
+    presetBox.setColour(juce::ComboBox::arrowColourId, juce::Colour(0xffe6e1d6));
+    presetBox.setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xff14171b));
+    presetBox.setColour(juce::PopupMenu::textColourId, juce::Colour(0xffe6e1d6));
+    presetBox.setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(0xff242833));
+    presetBox.setColour(juce::PopupMenu::highlightedTextColourId, juce::Colour(0xffe6e1d6));
+
+    const int presetCount = processorRef.getNumPresets();
+    for (int index = 0; index < presetCount; ++index)
+        presetBox.addItem(juce::String(processorRef.getPresetName(index)), index + 1);
+
+    presetBox.onChange = [this]()
+    {
+        const int presetIndex = presetBox.getSelectedId() - 1;
+        if (presetIndex >= 0)
+            processorRef.loadPreset(presetIndex);
+    };
 
     setSize(720, 420);
 }
@@ -71,4 +94,5 @@ void MonumentAudioProcessorEditor::resized()
     driftKnob.setBounds(cell(2, 0));
     gravityKnob.setBounds(cell(2, 1));
     freezeToggle.setBounds(cell(2, 2));
+    presetBox.setBounds(cell(2, 3));
 }

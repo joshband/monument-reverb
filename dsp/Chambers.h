@@ -33,11 +33,11 @@ private:
     juce::AudioBuffer<float> delayLines;
     std::array<float, kNumLines> delaySamples{};
     std::array<int, kNumLines> writePositions{};
-    std::array<int, kNumLines> freezeWritePositions{};
     std::array<float, kNumLines> lowpassState{};
     std::array<float, kNumLines> gravityLowpassState{};
     std::array<float, kNumLines> dampingCoefficients{};
     int delayBufferLength = 0;
+    float meanDelaySeconds = 0.0f;
 
     ParameterSmoother timeSmoother;
     ParameterSmoother massSmoother;
@@ -61,7 +61,9 @@ private:
     bool smoothersPrimed = false;
     bool isFrozen = false;
     bool wasFrozen = false;
+    bool freezeRampingDown = false;
     int freezeRampSamples = 0;
+    int freezeOutputFadeSamples = 0;
     int freezeRampRemaining = 0;
     float freezeRampStep = 1.0f;
     float freezeBlend = 1.0f;

@@ -1,7 +1,11 @@
 #pragma once
 
 #include <JuceHeader.h>
+
+#include <string>
+
 #include "dsp/DspModules.h"
+#include "PresetManager.h"
 
 class MonumentAudioProcessor : public juce::AudioProcessor
 {
@@ -37,9 +41,14 @@ public:
 
     APVTS& getAPVTS();
     static APVTS::ParameterLayout createParameterLayout();
+    int getNumPresets() const;
+    std::string getPresetName(int index) const;
+    void loadPreset(int index);
+    bool loadPresetByName(const std::string& name);
 
 private:
     APVTS parameters;
+    PresetManager presetManager;
     juce::AudioBuffer<float> dryBuffer;
     monument::dsp::Foundation foundation;
     monument::dsp::Pillars pillars;

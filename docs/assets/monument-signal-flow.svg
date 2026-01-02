@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="160" viewBox="0 0 960 160" role="img" aria-label="Monument signal flow">
+  <defs>
+    <style>
+      .label { font: 14px 'Palatino Linotype', 'Book Antiqua', Palatino, serif; fill: #e6e1d6; }
+      .box { fill: #14171b; stroke: #c98b45; stroke-width: 1.5; rx: 10; }
+      .arrow { stroke: #7f9ea8; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#7f9ea8" />
+    </marker>
+  </defs>
+  <rect width="960" height="160" fill="#0d0f12" />
+
+  <rect class="box" x="24" y="58" width="90" height="44" />
+  <text class="label" x="69" y="86" text-anchor="middle">Input</text>
+
+  <rect class="box" x="140" y="46" width="110" height="68" />
+  <text class="label" x="195" y="78" text-anchor="middle">Foundation</text>
+  <text class="label" x="195" y="96" text-anchor="middle">(prep)</text>
+
+  <rect class="box" x="276" y="46" width="110" height="68" />
+  <text class="label" x="331" y="78" text-anchor="middle">Pillars</text>
+  <text class="label" x="331" y="96" text-anchor="middle">(early)</text>
+
+  <rect class="box" x="412" y="46" width="120" height="68" />
+  <text class="label" x="472" y="78" text-anchor="middle">Chambers</text>
+  <text class="label" x="472" y="96" text-anchor="middle">(FDN)</text>
+
+  <rect class="box" x="560" y="46" width="110" height="68" />
+  <text class="label" x="615" y="78" text-anchor="middle">Weathering</text>
+  <text class="label" x="615" y="96" text-anchor="middle">(motion)</text>
+
+  <rect class="box" x="696" y="46" width="100" height="68" />
+  <text class="label" x="746" y="78" text-anchor="middle">Buttress</text>
+  <text class="label" x="746" y="96" text-anchor="middle">(safety)</text>
+
+  <rect class="box" x="820" y="46" width="100" height="68" />
+  <text class="label" x="870" y="78" text-anchor="middle">Facade</text>
+  <text class="label" x="870" y="96" text-anchor="middle">(image)</text>
+
+  <line class="arrow" x1="114" y1="80" x2="140" y2="80" />
+  <line class="arrow" x1="250" y1="80" x2="276" y2="80" />
+  <line class="arrow" x1="386" y1="80" x2="412" y2="80" />
+  <line class="arrow" x1="532" y1="80" x2="560" y2="80" />
+  <line class="arrow" x1="670" y1="80" x2="696" y2="80" />
+  <line class="arrow" x1="796" y1="80" x2="820" y2="80" />
+
+  <path class="arrow" d="M195,114 C195,130 70,130 70,102" />
+  <text class="label" x="110" y="138">Dry tap -> Mix</text>
+</svg>

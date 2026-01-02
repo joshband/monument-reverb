@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="420" viewBox="0 0 420 420" role="img" aria-label="Monument parameter compass">
+  <defs>
+    <style>
+      .ring { fill: none; stroke: #2a2f36; stroke-width: 2; }
+      .axis { stroke: #7f9ea8; stroke-width: 1.5; }
+      .label { font: 14px 'Palatino Linotype', 'Book Antiqua', Palatino, serif; fill: #e6e1d6; }
+      .dot { fill: #c98b45; }
+    </style>
+  </defs>
+  <rect width="420" height="420" fill="#0d0f12" />
+  <circle class="ring" cx="210" cy="210" r="140" />
+  <circle class="ring" cx="210" cy="210" r="90" />
+  <circle class="dot" cx="210" cy="210" r="4" />
+
+  <line class="axis" x1="210" y1="210" x2="210" y2="70" />
+  <line class="axis" x1="210" y1="210" x2="298" y2="102" />
+  <line class="axis" x1="210" y1="210" x2="352" y2="174" />
+  <line class="axis" x1="210" y1="210" x2="352" y2="246" />
+  <line class="axis" x1="210" y1="210" x2="298" y2="318" />
+  <line class="axis" x1="210" y1="210" x2="210" y2="350" />
+  <line class="axis" x1="210" y1="210" x2="122" y2="318" />
+  <line class="axis" x1="210" y1="210" x2="68" y2="246" />
+  <line class="axis" x1="210" y1="210" x2="68" y2="174" />
+  <line class="axis" x1="210" y1="210" x2="122" y2="102" />
+
+  <text class="label" x="210" y="52" text-anchor="middle">Time</text>
+  <text class="label" x="305" y="80" text-anchor="middle">Mass</text>
+  <text class="label" x="365" y="154" text-anchor="middle">Mix</text>
+  <text class="label" x="365" y="254" text-anchor="middle">Density</text>
+  <text class="label" x="305" y="338" text-anchor="middle">Bloom</text>
+  <text class="label" x="210" y="372" text-anchor="middle">Gravity</text>
+  <text class="label" x="115" y="338" text-anchor="middle">Warp</text>
+  <text class="label" x="55" y="254" text-anchor="middle">Drift</text>
+  <text class="label" x="55" y="154" text-anchor="middle">Air</text>
+  <text class="label" x="115" y="80" text-anchor="middle">Width</text>
+</svg>

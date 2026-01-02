@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monument User Manual</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f4efe6;
+      --ink-muted: #c9c2b6;
+      --shadow: rgba(0, 0, 0, 0.35);
+      --glow: rgba(201, 139, 69, 0.35);
+      --gold: #c98b45;
+      --steel: #7f9ea8;
+      --night: #0c0f13;
+      --night-2: #131820;
+      --night-3: #1a2029;
+      --panel: rgba(17, 20, 26, 0.82);
+      --border: rgba(201, 139, 69, 0.4);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Palatino Linotype", "Book Antiqua", Palatino, "URW Palladio L", serif;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(127, 158, 168, 0.18), transparent 45%),
+        radial-gradient(circle at 80% 20%, rgba(201, 139, 69, 0.22), transparent 45%),
+        linear-gradient(180deg, #0b0d11 0%, #10151c 50%, #0b0d11 100%);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    header.hero {
+      padding: 64px 8vw 48px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: -120px -80px auto auto;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(201, 139, 69, 0.25), transparent 70%);
+      filter: blur(0.5px);
+      pointer-events: none;
+    }
+
+    .hero-content {
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.35em;
+      font-size: 12px;
+      color: var(--steel);
+      margin: 0 0 18px;
+    }
+
+    h1 {
+      font-family: "Copperplate", "Copperplate Gothic Light", "Hoefler Text", serif;
+      font-size: clamp(32px, 4vw, 54px);
+      margin: 0 0 16px;
+      letter-spacing: 0.05em;
+    }
+
+    .lead {
+      font-size: clamp(16px, 2vw, 20px);
+      line-height: 1.6;
+      color: var(--ink-muted);
+      margin: 0 0 26px;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tag {
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--ink);
+      background: rgba(15, 18, 24, 0.6);
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+    }
+
+    main {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 8vw 80px;
+    }
+
+    section.panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 28px;
+      box-shadow: 0 18px 40px var(--shadow);
+      animation: rise 700ms ease both;
+    }
+
+    section.panel:nth-of-type(2) { animation-delay: 60ms; }
+    section.panel:nth-of-type(3) { animation-delay: 120ms; }
+    section.panel:nth-of-type(4) { animation-delay: 180ms; }
+    section.panel:nth-of-type(5) { animation-delay: 240ms; }
+    section.panel:nth-of-type(6) { animation-delay: 300ms; }
+    section.panel:nth-of-type(7) { animation-delay: 360ms; }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      font-family: "Copperplate", "Copperplate Gothic Light", "Hoefler Text", serif;
+      letter-spacing: 0.04em;
+      font-size: clamp(20px, 3vw, 28px);
+      margin-top: 0;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card {
+      background: var(--night-3);
+      border-radius: 14px;
+      padding: 16px;
+      border: 1px solid rgba(127, 158, 168, 0.25);
+      box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.35);
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      color: var(--gold);
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--ink-muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .pillars {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .pill {
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(127, 158, 168, 0.12);
+      border: 1px solid rgba(127, 158, 168, 0.35);
+      font-size: 13px;
+    }
+
+    .visual {
+      display: block;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(201, 139, 69, 0.4);
+      background: #0d0f12;
+    }
+
+    .callout {
+      background: linear-gradient(135deg, rgba(201, 139, 69, 0.22), rgba(15, 18, 24, 0.7));
+      border: 1px solid rgba(201, 139, 69, 0.4);
+      border-radius: 14px;
+      padding: 16px;
+      color: var(--ink);
+      box-shadow: 0 12px 24px var(--shadow);
+    }
+
+    pre {
+      background: #0b0d11;
+      border: 1px solid rgba(127, 158, 168, 0.3);
+      border-radius: 12px;
+      padding: 14px;
+      color: #e5e1d6;
+      overflow-x: auto;
+      font-size: 13px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px;
+      border-bottom: 1px solid rgba(127, 158, 168, 0.2);
+    }
+
+    th {
+      color: var(--gold);
+      font-weight: 600;
+    }
+
+    footer {
+      padding: 40px 8vw 60px;
+      color: var(--ink-muted);
+      text-align: center;
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      .grid.two,
+      .grid.three {
+        grid-template-columns: 1fr;
+      }
+
+      header.hero {
+        padding: 48px 8vw 36px;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-content">
+      <p class="eyebrow">Monument reverb</p>
+      <h1>Monument User Manual</h1>
+      <p class="lead">
+        Monument is an architectural reverb designed for impossible-scale spaces. Think weight, depth,
+        and slow-moving density rather than faithful room realism. This guide is practical and playful
+        so you can move quickly and still feel the monument shift around you.
+      </p>
+      <div class="tag-row">
+        <span class="tag">AU + VST3</span>
+        <span class="tag">macOS Apple Silicon</span>
+        <span class="tag">FDN core</span>
+        <span class="tag">Warp + Drift</span>
+        <span class="tag">Freeze safe</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" id="quick-start">
+      <h2>Quick start</h2>
+      <div class="grid two">
+        <div class="card">
+          <h3>1. Build and install</h3>
+          <p>Use the scripts for the shortest path to a running plugin.</p>
+          <pre>./scripts/build_macos.sh
+./scripts/install_macos.sh</pre>
+        </div>
+        <div class="card">
+          <h3>2. Load and listen</h3>
+          <p>Insert Monument on a send or insert, raise Mix, then lengthen Time to reveal the tail.</p>
+        </div>
+      </div>
+      <div class="callout" style="margin-top: 16px;">
+        Tip: Monument is not subtle by default. Start at Mix 20-30, Time around 0.6, Density around 0.5.
+      </div>
+    </section>
+
+    <section class="panel" id="signal-flow">
+      <h2>Signal flow</h2>
+      <p>Monument is modular. Each stage is real-time safe and designed for large-scale ambience.</p>
+      <img class="visual" src="assets/monument-signal-flow.svg" alt="Monument signal flow">
+      <div class="pillars" style="margin-top: 16px;">
+        <span class="pill">Foundation: input prep</span>
+        <span class="pill">Pillars: early reflections</span>
+        <span class="pill">Chambers: FDN core</span>
+        <span class="pill">Weathering: motion</span>
+        <span class="pill">Buttress: safety</span>
+        <span class="pill">Facade: image and tone</span>
+      </div>
+      <pre class="mermaid">flowchart LR
+  Input --> Foundation --> Pillars --> Chambers --> Weathering --> Buttress --> Facade --> Mix --> Output
+  Input -. Dry tap .-> Mix</pre>
+    </section>
+
+    <section class="panel" id="controls">
+      <h2>Control compass</h2>
+      <p>All controls are normalized [0, 1] unless noted. Mix is [0, 100].</p>
+      <div class="grid two" style="align-items: center;">
+        <div>
+          <img class="visual" src="assets/monument-parameter-compass.svg" alt="Monument parameter compass">
+        </div>
+        <div>
+          <table>
+            <thead>
+              <tr><th>Control</th><th>Intent</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Time</td><td>Overall decay length</td></tr>
+              <tr><td>Mass</td><td>Weight and darkness</td></tr>
+              <tr><td>Density</td><td>Reflection complexity</td></tr>
+              <tr><td>Bloom</td><td>Late swell after the source stops</td></tr>
+              <tr><td>Air</td><td>Upper-band openness</td></tr>
+              <tr><td>Width</td><td>Stereo reach of the wet field</td></tr>
+              <tr><td>Gravity</td><td>Spectral tilt and decay weighting</td></tr>
+              <tr><td>Warp</td><td>Slow topology bending</td></tr>
+              <tr><td>Drift</td><td>Micro motion in the tail</td></tr>
+              <tr><td>Mix</td><td>Wet/dry balance</td></tr>
+              <tr><td>Freeze</td><td>Infinite hold of the current state</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="callout" style="margin-top: 16px;">
+        Freeze holds the late field with unity feedback and no new input. Warp and Drift pause during Freeze
+        and ramp back in smoothly on release.
+      </div>
+    </section>
+
+    <section class="panel" id="freeze">
+      <h2>Freeze transitions</h2>
+      <p>Freeze crossfades between the live wet path and the frozen wet path to avoid clicks.</p>
+      <img class="visual" src="assets/monument-freeze-crossfade.svg" alt="Freeze crossfade diagram">
+      <pre class="mermaid">stateDiagram-v2
+  [*] --> Live
+  Live --> Freezing: Freeze on
+  Freezing --> Frozen: outputBlend -> 0
+  Frozen --> Releasing: Freeze off
+  Releasing --> Live: outputBlend -> 1</pre>
+    </section>
+
+    <section class="panel" id="presets">
+      <h2>Preset gallery</h2>
+      <div class="grid three">
+        <div class="card"><h3>Cathedral of Glass</h3><p>Long, bright, high density shimmer.</p></div>
+        <div class="card"><h3>Event Horizon</h3><p>Dark, swelling tail with bent geometry.</p></div>
+        <div class="card"><h3>Folded Atrium</h3><p>Medium time, strong warp, tight bloom.</p></div>
+        <div class="card"><h3>Monumental Void</h3><p>Massive, sparse, and hollow.</p></div>
+        <div class="card"><h3>Zero-G Garden</h3><p>Short, blooming, weightless room.</p></div>
+        <div class="card"><h3>Hall of Mirrors</h3><p>Warped reflections, medium density.</p></div>
+        <div class="card"><h3>Tesseract Chamber</h3><p>Long, low density, high drift.</p></div>
+        <div class="card"><h3>Stone Circles</h3><p>Tight, dry, grounded echo.</p></div>
+        <div class="card"><h3>Frozen Monument (Engage Freeze)</h3><p>Designed to be held by Freeze.</p></div>
+      </div>
+    </section>
+
+    <section class="panel" id="recipes">
+      <h2>Space recipes</h2>
+      <div class="grid two">
+        <div class="card">
+          <h3>Slow tectonic swell</h3>
+          <p>Time 0.85, Mass 0.7, Density 0.6, Bloom 0.7, Gravity 0.6, Warp 0.2, Drift 0.2, Mix 35.</p>
+        </div>
+        <div class="card">
+          <h3>Frozen diorama</h3>
+          <p>Time 0.7, Density 0.5, Bloom 0.4, Gravity 0.4, Mix 40. Engage Freeze on a sustained chord.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="build">
+      <h2>Build and install notes</h2>
+      <div class="grid two">
+        <div class="card">
+          <h3>CMake build</h3>
+          <pre>cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64
+cmake --build build --config Release</pre>
+        </div>
+        <div class="card">
+          <h3>Tests</h3>
+          <pre>ctest --test-dir build -C Release</pre>
+        </div>
+      </div>
+      <div class="callout" style="margin-top: 16px;">
+        Artifacts land in build/Monument_artefacts. Install using scripts/install_macos.sh.
+      </div>
+    </section>
+
+    <section class="panel" id="troubleshooting">
+      <h2>Troubleshooting</h2>
+      <div class="grid two">
+        <div class="card">
+          <h3>No reverb sound</h3>
+          <p>Raise Mix and ensure Freeze is off. Check that Density is above 0.2 for a continuous tail.</p>
+        </div>
+        <div class="card">
+          <h3>Tail is too long</h3>
+          <p>Lower Time or increase Mass and Gravity to reduce high band sustain.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Monument is MIT licensed. For deep DSP notes, see docs/PARAMETER_BEHAVIOR.md and docs/DSP_ARCHITECTURE.md.
+  </footer>
+</body>
+</html>

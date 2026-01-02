@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="240" viewBox="0 0 960 240" role="img" aria-label="Freeze crossfade diagram">
+  <defs>
+    <style>
+      .label { font: 14px 'Palatino Linotype', 'Book Antiqua', Palatino, serif; fill: #e6e1d6; }
+      .axis { stroke: #7f9ea8; stroke-width: 2; }
+      .tick { stroke: #2a2f36; stroke-width: 1; }
+      .live { stroke: #c98b45; stroke-width: 3; fill: none; }
+      .frozen { stroke: #8ab6c2; stroke-width: 3; fill: none; stroke-dasharray: 6 6; }
+      .blend { fill: rgba(201, 139, 69, 0.12); stroke: #c98b45; stroke-width: 1; }
+    </style>
+  </defs>
+  <rect width="960" height="240" fill="#0d0f12" />
+
+  <line class="axis" x1="60" y1="190" x2="900" y2="190" />
+  <line class="axis" x1="120" y1="40" x2="120" y2="200" />
+  <line class="axis" x1="520" y1="40" x2="520" y2="200" />
+
+  <line class="tick" x1="120" y1="190" x2="120" y2="198" />
+  <line class="tick" x1="520" y1="190" x2="520" y2="198" />
+
+  <text class="label" x="80" y="30">Live</text>
+  <text class="label" x="112" y="215">Freeze on</text>
+  <text class="label" x="500" y="215">Freeze off</text>
+  <text class="label" x="820" y="30">Frozen</text>
+
+  <path class="blend" d="M120,60 L520,60 L520,190 L120,190 Z" />
+
+  <path class="live" d="M60,80 C160,80 240,90 320,110 C420,135 500,170 520,190 C620,190 720,190 900,190" />
+  <path class="frozen" d="M60,190 C140,190 220,170 320,135 C420,105 500,70 520,60 C620,60 720,60 900,60" />
+
+  <text class="label" x="240" y="85">Live wet fades out</text>
+  <text class="label" x="260" y="155">Frozen wet fades in</text>
+  <text class="label" x="620" y="120">Hold state</text>
+</svg>

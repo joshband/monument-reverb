@@ -1,4 +1,78 @@
 # Changelog
 
-## Unreleased
-Chambers output mixing now uses constant-power pan weights to keep all eight FDN taps present in mono while preserving stereo width, and Gravity now applies a first-order high-pass inside the feedback loop to contain low-frequency buildup without further darkening the tail. True Freeze has been hardened: delay indices lock, all processing is bypassed, and a hard limiter clamps the held state with a ramped return to normal. Bloom now shapes the late-field envelope by blending an exponential decay with a plateau/decay curve, triggered by input transients and bypassed during Freeze for stable holds. Added Warp to morph the FDN feedback matrix between orthogonal topologies with long smoothing and freeze-safe ramping. Added Drift micro-modulation to gently animate delay lengths with per-line LFOs that pause during Freeze and re-enter smoothly.
+All notable changes to this project will be documented in this file.
+The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
+
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Fixed
+
+## [0.1.7] - 2026-01-01
+
+### Added
+- Preset manager with indexed and name-based loading, plus a curated preset list for core parameters.
+- Editor preset picker for quick auditioning of curated spaces.
+- Visual manual (HTML) and infographic assets for signal flow, control compass, and freeze transitions.
+
+### Changed
+- README expanded into a concise user guide with diagrams, parameter tables, and build/install steps.
+- Time mapping extended for minute-scale T60 targets.
+
+### Fixed
+- Freeze transitions now crossfade between live and frozen wet paths to eliminate clicks.
+- Freeze release now ramps early mix and envelope return instead of hard resets.
+
+## [0.1.6] - 2026-01-01
+
+### Added
+- Drift micro-modulation with per-line LFOs for subtle, living tails.
+
+## [0.1.5] - 2026-01-01
+
+### Added
+- Warp control with orthogonal FDN matrix morphing for slow spatial motion.
+
+## [0.1.4] - 2026-01-01
+
+### Added
+- True Freeze semantics in Chambers with state hold and unity feedback.
+
+### Fixed
+- Hardened Freeze state hold for stability under sustained feedback.
+
+## [0.1.3] - 2026-01-01
+
+### Changed
+- Mono-safe output mixing with constant-power balance across FDN taps.
+- Gravity low-end control tuning for tighter decay behavior.
+
+## [0.1.2] - 2026-01-01
+
+### Added
+- Per-parameter smoothing in Chambers to prevent zipper noise.
+
+## [0.1.1] - 2026-01-01
+
+### Added
+- Monument DSP architecture and tooling scaffold.
+
+## [0.1.0] - 2026-01-01
+
+### Added
+- Initial JUCE plugin skeleton with macOS build scripts and CMake workflow.
+- CI workflows with cache and build artifacts, plus CTest smoke coverage.
+- Baseline documentation: manifesto, DSP architecture, parameter behavior, and C++ standard alignment.
+
+[Unreleased]: https://github.com/joshband/monument-reverb/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/joshband/monument-reverb/releases/tag/v0.1.7
+[0.1.6]: https://github.com/joshband/monument-reverb/releases/tag/v0.1.6
+[0.1.5]: https://github.com/joshband/monument-reverb/releases/tag/v0.1.5
+[0.1.4]: https://github.com/joshband/monument-reverb/releases/tag/v0.1.4
+[0.1.3]: https://github.com/joshband/monument-reverb/releases/tag/v0.1.3
+[0.1.2]: https://github.com/joshband/monument-reverb/releases/tag/v0.1.2
+[0.1.1]: https://github.com/joshband/monument-reverb/releases/tag/v0.1.1
+[0.1.0]: https://github.com/joshband/monument-reverb/releases/tag/v0.1.0

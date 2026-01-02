@@ -29,6 +29,7 @@ private:
     MonumentKnob driftKnob;
     MonumentKnob gravityKnob;
     MonumentToggle freezeToggle;
+    juce::ComboBox presetBox;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MonumentAudioProcessorEditor)
 };

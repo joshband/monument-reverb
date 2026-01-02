@@ -53,6 +53,8 @@ target_sources(Monument
   PRIVATE
     plugin/PluginProcessor.h
     plugin/PluginProcessor.cpp
+    plugin/PresetManager.h
+    plugin/PresetManager.cpp
     plugin/PluginEditor.h
     plugin/PluginEditor.cpp
     dsp/DspModule.h
