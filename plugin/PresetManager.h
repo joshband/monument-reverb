@@ -46,7 +46,7 @@ public:
 
     juce::File getDefaultUserPresetDirectory() const;
 
-    static constexpr size_t kNumFactoryPresets = 11;
+    static constexpr size_t kNumFactoryPresets = 18;
     static const std::array<Preset, kNumFactoryPresets>& getFactoryPresets();
 
 private:
