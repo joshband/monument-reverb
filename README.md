@@ -76,6 +76,8 @@ Artifacts are placed under `build/Monument_artefacts/Release` or `build/Monument
 flowchart LR
   Input --> Foundation --> Pillars --> Chambers --> Weathering --> Buttress --> Facade --> Mix --> Output
   Input -. Dry tap .-> Mix
+  Chambers -- Wet tap --> MemoryEchoes
+  MemoryEchoes -- Inject --> Chambers
 ```
 
 ![Monument signal flow](docs/assets/monument-signal-flow.svg)
@@ -129,6 +131,23 @@ All parameters are normalized to [0, 1] unless noted. Mix is [0, 100].
 | Freeze | Infinite hold | Locks FDN state, mutes input, smooth crossfade |
 | Pillar Shape | Early reflection spacing | Compresses or expands tap intervals |
 | Pillar Mode | Early reflection palette | Glass, Stone, Fog tap profiles |
+| Memory | Reverb memory amount | 0 disables capture/recall, >0 enables Memory Echoes |
+| Memory Depth | Recent vs distant bias | 0 = recent memory, 1 = distant memory |
+| Memory Decay | Age degradation | Darker, softer, quieter as memories age |
+| Memory Drift | Pitch instability | Slow random walk up to +/-15 cents |
+
+## Memory Echoes (Phase 2)
+
+Memory Echoes is a subtle internal recall of the reverb itself. It is off by default and has no UI controls yet.
+
+Enable or disable:
+- Enable by setting `Memory` > 0 via host automation or preset JSON.
+- Disable by setting `Memory` = 0 (capture and recall stop).
+
+Behavior notes:
+- Memory taps post-Chambers wet output and injects pre-Chambers input.
+- Capture pauses during Freeze; recall may continue without disturbing the frozen tail.
+- Memory buffers are never serialized; only parameters are stored in presets or session state.
 
 ## Preset gallery
 
@@ -144,6 +163,7 @@ Monument ships with curated, whimsical presets that explore extremes and hybrids
 - Tesseract Chamber: long, low density, high drift
 - Stone Circles: tight, dry, and grounded
 - Frozen Monument (Engage Freeze): tuned for Freeze captures
+- Ruined Monument (Remembers): faint Memory Echoes resurfacing
 
 User presets can be saved as JSON in `~/Documents/MonumentPresets/`.
 
@@ -161,7 +181,8 @@ flowchart LR
 
 ## Testing and validation
 
-- pluginval: run `./scripts/run_pluginval.sh` (see `docs/TESTING.md` for setup).
+- Automated: pluginval via `./scripts/run_pluginval.sh` (see `docs/TESTING.md` for setup).
+- Optional logging: enable `MONUMENT_TESTING` to print peak and block timing per buffer.
 - REAPER Performance Monitor: load 50-100 instances and compare CPU usage.
 - Instrumentation: use Instruments, AddressSanitizer, or Valgrind for leak checks.
 
