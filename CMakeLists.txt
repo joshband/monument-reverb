@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(Monument VERSION 0.1.0 LANGUAGES CXX)
+project(Monument VERSION 0.1.0 LANGUAGES CXX C)
 
 if(APPLE)
   if(NOT CMAKE_OSX_ARCHITECTURES)
@@ -27,13 +27,14 @@ else()
   FetchContent_Declare(
     juce
     GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-    GIT_TAG 7.0.9
+    GIT_TAG 8.0.12
   )
   FetchContent_MakeAvailable(juce)
 endif()
 
 juce_add_plugin(Monument
   COMPANY_NAME "Monument Audio"
+  BUNDLE_ID "com.monumentaudio.monument"
   IS_SYNTH FALSE
   NEEDS_MIDI_INPUT FALSE
   NEEDS_MIDI_OUTPUT FALSE
@@ -54,6 +55,17 @@ target_sources(Monument
     plugin/PluginProcessor.cpp
     plugin/PluginEditor.h
     plugin/PluginEditor.cpp
+    dsp/DspModule.h
+    dsp/DspModules.h
+    dsp/DspModules.cpp
+    dsp/AllpassDiffuser.h
+    dsp/AllpassDiffuser.cpp
+    dsp/Chambers.h
+    dsp/Chambers.cpp
+    ui/MonumentKnob.h
+    ui/MonumentKnob.cpp
+    ui/MonumentToggle.h
+    ui/MonumentToggle.cpp
 )
 
 target_include_directories(Monument
@@ -71,6 +83,7 @@ target_compile_definitions(Monument
 target_link_libraries(Monument
   PRIVATE
     juce::juce_audio_utils
+    juce::juce_dsp
   PUBLIC
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags

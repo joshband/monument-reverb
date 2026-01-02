@@ -2,26 +2,32 @@
 
 MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcessor& p)
     : juce::AudioProcessorEditor(&p),
-      processor(p),
-      mixAttachment(processor.getAPVTS(), "mix", mixSlider),
-      timeAttachment(processor.getAPVTS(), "time", timeSlider),
-      massAttachment(processor.getAPVTS(), "mass", massSlider)
+      processorRef(p),
+      mixKnob(processorRef.getAPVTS(), "mix", "Mix"),
+      timeKnob(processorRef.getAPVTS(), "time", "Time"),
+      massKnob(processorRef.getAPVTS(), "mass", "Mass"),
+      densityKnob(processorRef.getAPVTS(), "density", "Density"),
+      bloomKnob(processorRef.getAPVTS(), "bloom", "Bloom"),
+      airKnob(processorRef.getAPVTS(), "air", "Air"),
+      widthKnob(processorRef.getAPVTS(), "width", "Width"),
+      warpKnob(processorRef.getAPVTS(), "warp", "Warp"),
+      driftKnob(processorRef.getAPVTS(), "drift", "Drift"),
+      gravityKnob(processorRef.getAPVTS(), "gravity", "Gravity"),
+      freezeToggle(processorRef.getAPVTS(), "freeze", "Freeze")
 {
-    auto setupSlider = [this](juce::Slider& slider, juce::Label& label, const juce::String& text) {
-        slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 72, 20);
-        addAndMakeVisible(slider);
+    addAndMakeVisible(mixKnob);
+    addAndMakeVisible(timeKnob);
+    addAndMakeVisible(massKnob);
+    addAndMakeVisible(densityKnob);
+    addAndMakeVisible(bloomKnob);
+    addAndMakeVisible(airKnob);
+    addAndMakeVisible(widthKnob);
+    addAndMakeVisible(warpKnob);
+    addAndMakeVisible(driftKnob);
+    addAndMakeVisible(gravityKnob);
+    addAndMakeVisible(freezeToggle);
 
-        label.setText(text, juce::dontSendNotification);
-        label.setJustificationType(juce::Justification::centred);
-        addAndMakeVisible(label);
-    };
-
-    setupSlider(mixSlider, mixLabel, "Mix");
-    setupSlider(timeSlider, timeLabel, "Time");
-    setupSlider(massSlider, massLabel, "Mass");
-
-    setSize(600, 240);
+    setSize(720, 420);
 }
 
 MonumentAudioProcessorEditor::~MonumentAudioProcessorEditor() = default;
@@ -30,7 +36,7 @@ void MonumentAudioProcessorEditor::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colour(0xff0d0f12));
     g.setColour(juce::Colour(0xffe6e1d6));
-    g.setFont(juce::Font(20.0f, juce::Font::bold));
+    g.setFont(juce::Font(juce::FontOptions(20.0f, juce::Font::bold)));
     g.drawFittedText("Monument", getLocalBounds().removeFromTop(30), juce::Justification::centred, 1);
 }
 
@@ -39,18 +45,30 @@ void MonumentAudioProcessorEditor::resized()
     auto area = getLocalBounds().reduced(24);
     area.removeFromTop(30);
 
-    auto sliderArea = area.reduced(10);
-    const auto columnWidth = sliderArea.getWidth() / 3;
+    auto gridArea = area.reduced(10);
+    const auto columnWidth = gridArea.getWidth() / 4;
+    const auto rowHeight = gridArea.getHeight() / 3;
 
-    auto mixArea = sliderArea.removeFromLeft(columnWidth);
-    mixLabel.setBounds(mixArea.removeFromTop(20));
-    mixSlider.setBounds(mixArea.reduced(10));
+    auto cell = [&](int row, int column)
+    {
+        return juce::Rectangle<int>(gridArea.getX() + column * columnWidth,
+                                    gridArea.getY() + row * rowHeight,
+                                    columnWidth,
+                                    rowHeight)
+            .reduced(6);
+    };
 
-    auto timeArea = sliderArea.removeFromLeft(columnWidth);
-    timeLabel.setBounds(timeArea.removeFromTop(20));
-    timeSlider.setBounds(timeArea.reduced(10));
+    mixKnob.setBounds(cell(0, 0));
+    timeKnob.setBounds(cell(0, 1));
+    massKnob.setBounds(cell(0, 2));
+    densityKnob.setBounds(cell(0, 3));
 
-    auto massArea = sliderArea;
-    massLabel.setBounds(massArea.removeFromTop(20));
-    massSlider.setBounds(massArea.reduced(10));
+    bloomKnob.setBounds(cell(1, 0));
+    airKnob.setBounds(cell(1, 1));
+    widthKnob.setBounds(cell(1, 2));
+    warpKnob.setBounds(cell(1, 3));
+
+    driftKnob.setBounds(cell(2, 0));
+    gravityKnob.setBounds(cell(2, 1));
+    freezeToggle.setBounds(cell(2, 2));
 }

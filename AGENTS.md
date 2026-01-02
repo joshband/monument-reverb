@@ -1,39 +1,31 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This repository is currently empty, so there is no established layout yet. When adding code, use a conventional layout to keep navigation predictable:
+Current layout:
 
-- `src/` for application or library source
-- `tests/` for automated tests mirroring `src/`
-- `assets/` for static files (images, audio, etc.)
-- `scripts/` for one-off maintenance or tooling
-
-Document any deviations here as the structure solidifies.
+- `plugin/` for JUCE processor/editor sources
+- `dsp/` for DSP modules
+- `ui/` for UI components
+- `tests/` for automated tests
+- `scripts/` for maintenance or tooling
+- `docs/` for documentation
 
 ## Build, Test, and Development Commands
-No build or test tooling is configured yet. Once a toolchain is chosen, list the canonical commands here. Examples (update to match actual tooling):
+Canonical commands:
 
-- `npm run dev` - start the local dev server
-- `npm test` - run the full test suite
-- `npm run build` - produce production artifacts
+- `./scripts/build_macos.sh` - configure and build Debug + Release
+- `./scripts/open_xcode.sh` - generate and open the Xcode project
+- `cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64` - configure
+- `cmake --build build --config Release` - build Release
+- `ctest --test-dir build -C Release` - run tests
 
 Include the command list in `README.md` as well if it becomes user-facing.
 
 ## Coding Style & Naming Conventions
-No style rules are enforced yet. When you introduce a language/tooling stack, add the exact formatting and linting commands and key conventions. Recommended defaults until then:
-
-- Indentation: 2 spaces for JS/TS, 4 spaces for Python
-- File naming: `kebab-case` for filenames, `PascalCase` for components/classes
-- Lint/format: add Prettier, ESLint, or equivalent as appropriate
+Formatting uses `.clang-format`. C++ standard is C++17.
 
 ## Testing Guidelines
-No testing framework is configured yet. When tests are added, specify:
-
-- Framework (e.g., Jest, Vitest, pytest)
-- Test file naming (e.g., `*.test.ts`, `test_*.py`)
-- Minimum coverage targets (if any)
-
-Include a short “how to run tests” section once tooling exists.
+Tests use CTest and live under `tests/`.
 
 ## Commit & Pull Request Guidelines
 There is no Git history yet, so no existing commit conventions to summarize. Until standards are set, use Conventional Commits (e.g., `feat: add reverb preset loader`).

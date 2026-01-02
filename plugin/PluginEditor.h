@@ -3,6 +3,8 @@
 #include <JuceHeader.h>
 
 #include "PluginProcessor.h"
+#include "ui/MonumentKnob.h"
+#include "ui/MonumentToggle.h"
 
 class MonumentAudioProcessorEditor : public juce::AudioProcessorEditor
 {
@@ -14,21 +16,19 @@ public:
     void resized() override;
 
 private:
-    MonumentAudioProcessor& processor;
+    MonumentAudioProcessor& processorRef;
 
-    using Attachment = juce::AudioProcessorValueTreeState::SliderAttachment;
-
-    juce::Slider mixSlider;
-    juce::Slider timeSlider;
-    juce::Slider massSlider;
-
-    juce::Label mixLabel;
-    juce::Label timeLabel;
-    juce::Label massLabel;
-
-    Attachment mixAttachment;
-    Attachment timeAttachment;
-    Attachment massAttachment;
+    MonumentKnob mixKnob;
+    MonumentKnob timeKnob;
+    MonumentKnob massKnob;
+    MonumentKnob densityKnob;
+    MonumentKnob bloomKnob;
+    MonumentKnob airKnob;
+    MonumentKnob widthKnob;
+    MonumentKnob warpKnob;
+    MonumentKnob driftKnob;
+    MonumentKnob gravityKnob;
+    MonumentToggle freezeToggle;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MonumentAudioProcessorEditor)
 };

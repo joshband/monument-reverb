@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "dsp/DspModules.h"
 
 class MonumentAudioProcessor : public juce::AudioProcessor
 {
@@ -40,6 +41,12 @@ public:
 private:
     APVTS parameters;
     juce::AudioBuffer<float> dryBuffer;
+    monument::dsp::Foundation foundation;
+    monument::dsp::Pillars pillars;
+    monument::dsp::Chambers chambers;
+    monument::dsp::Weathering weathering;
+    monument::dsp::Buttress buttress;
+    monument::dsp::Facade facade;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MonumentAudioProcessor)
 };

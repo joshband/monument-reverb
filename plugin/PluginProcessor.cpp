@@ -63,12 +63,26 @@ void MonumentAudioProcessor::changeProgramName(int, const juce::String&)
 
 void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    juce::ignoreUnused(sampleRate);
-    dryBuffer.setSize(getTotalNumOutputChannels(), samplesPerBlock, false, false, true);
+    const auto numChannels = getTotalNumOutputChannels();
+    dryBuffer.setSize(numChannels, samplesPerBlock, false, false, true);
+    dryBuffer.clear();
+
+    foundation.prepare(sampleRate, samplesPerBlock, numChannels);
+    pillars.prepare(sampleRate, samplesPerBlock, numChannels);
+    chambers.prepare(sampleRate, samplesPerBlock, numChannels);
+    weathering.prepare(sampleRate, samplesPerBlock, numChannels);
+    buttress.prepare(sampleRate, samplesPerBlock, numChannels);
+    facade.prepare(sampleRate, samplesPerBlock, numChannels);
 }
 
 void MonumentAudioProcessor::releaseResources()
 {
+    foundation.reset();
+    pillars.reset();
+    chambers.reset();
+    weathering.reset();
+    buttress.reset();
+    facade.reset();
 }
 
 bool MonumentAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -96,27 +110,64 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const auto mixPercent = parameters.getRawParameterValue("mix")->load();
     const auto time = parameters.getRawParameterValue("time")->load();
     const auto mass = parameters.getRawParameterValue("mass")->load();
+    const auto density = parameters.getRawParameterValue("density")->load();
+    const auto bloom = parameters.getRawParameterValue("bloom")->load();
+    const auto air = parameters.getRawParameterValue("air")->load();
+    const auto width = parameters.getRawParameterValue("width")->load();
+    const auto warp = parameters.getRawParameterValue("warp")->load();
+    const auto drift = parameters.getRawParameterValue("drift")->load();
+    const auto gravity = parameters.getRawParameterValue("gravity")->load();
+    const auto freeze = parameters.getRawParameterValue("freeze")->load() > 0.5f;
 
-    juce::ignoreUnused(time, mass);
+    pillars.setDensity(density);
+    chambers.setTime(time);
+    chambers.setMass(mass);
+    chambers.setDensity(density);
+    chambers.setBloom(bloom);
+    chambers.setGravity(gravity);
+    chambers.setFreeze(freeze);
+    weathering.setWarp(warp);
+    weathering.setDrift(drift);
+    buttress.setDrive(juce::jmap(mass, 0.9f, 1.6f));
+    buttress.setFreeze(freeze);
+    facade.setAir(air);
+    facade.setWidth(juce::jmap(width, 0.0f, 2.0f));
 
     const auto mix = juce::jlimit(0.0f, 100.0f, mixPercent) / 100.0f;
     const auto dryGain = std::cos(mix * juce::MathConstants<float>::halfPi);
     const auto wetGain = std::sin(mix * juce::MathConstants<float>::halfPi);
 
-    if (dryBuffer.getNumChannels() != buffer.getNumChannels()
-        || dryBuffer.getNumSamples() < buffer.getNumSamples())
+    const auto numChannels = buffer.getNumChannels();
+    const auto numSamples = buffer.getNumSamples();
+    const bool dryReady = dryBuffer.getNumChannels() >= numChannels
+        && dryBuffer.getNumSamples() >= numSamples;
+
+    jassert(dryReady);
+    if (dryReady)
     {
-        dryBuffer.setSize(buffer.getNumChannels(), buffer.getNumSamples(), false, false, true);
+        for (int channel = 0; channel < numChannels; ++channel)
+            dryBuffer.copyFrom(channel, 0, buffer, channel, 0, numSamples);
     }
 
-    dryBuffer.makeCopyOf(buffer);
+    foundation.process(buffer);
+    pillars.process(buffer);
+    chambers.process(buffer);
+    weathering.process(buffer);
+    buttress.process(buffer);
+    facade.process(buffer);
 
-    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+    if (!dryReady)
+    {
+        buffer.applyGain(wetGain);
+        return;
+    }
+
+    for (int channel = 0; channel < numChannels; ++channel)
     {
         const auto* dry = dryBuffer.getReadPointer(channel);
         auto* wet = buffer.getWritePointer(channel);
 
-        for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+        for (int sample = 0; sample < numSamples; ++sample)
             wet[sample] = dry[sample] * dryGain + wet[sample] * wetGain;
     }
 }
@@ -171,6 +222,53 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
         "Mass",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "density",
+        "Density",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.5f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "bloom",
+        "Bloom",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.5f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "air",
+        "Air",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.5f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "width",
+        "Width",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.5f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "warp",
+        "Warp",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.3f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "drift",
+        "Drift",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.3f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "gravity",
+        "Gravity",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.5f));
+
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        "freeze",
+        "Freeze",
+        false));
 
     return {params.begin(), params.end()};
 }
