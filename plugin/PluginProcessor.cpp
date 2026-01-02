@@ -76,6 +76,7 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     foundation.prepare(sampleRate, samplesPerBlock, numChannels);
     pillars.prepare(sampleRate, samplesPerBlock, numChannels);
     chambers.prepare(sampleRate, samplesPerBlock, numChannels);
+    memoryEchoes.prepare(sampleRate, samplesPerBlock, numChannels);
     weathering.prepare(sampleRate, samplesPerBlock, numChannels);
     buttress.prepare(sampleRate, samplesPerBlock, numChannels);
     facade.prepare(sampleRate, samplesPerBlock, numChannels);
@@ -93,6 +94,7 @@ void MonumentAudioProcessor::releaseResources()
     foundation.reset();
     pillars.reset();
     chambers.reset();
+    memoryEchoes.reset();
     weathering.reset();
     buttress.reset();
     facade.reset();
@@ -136,6 +138,8 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const auto gravity = parameters.getRawParameterValue("gravity")->load();
     const auto pillarShape = parameters.getRawParameterValue("pillarShape")->load();
     const auto pillarModeRaw = parameters.getRawParameterValue("pillarMode")->load();
+    const auto memory = parameters.getRawParameterValue("memory")->load();
+    const auto memoryDepth = parameters.getRawParameterValue("memoryDepth")->load();
     const auto freeze = parameters.getRawParameterValue("freeze")->load() > 0.5f;
 
     const float mixPercent = std::isfinite(mixPercentRaw) ? mixPercentRaw : 0.0f;
@@ -158,6 +162,9 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     chambers.setBloom(bloom);
     chambers.setGravity(gravity);
     chambers.setFreeze(freeze);
+    memoryEchoes.setMemory(memory);
+    memoryEchoes.setDepth(memoryDepth);
+    memoryEchoes.setFreeze(freeze);
     weathering.setWarp(warp);
     weathering.setDrift(drift);
     buttress.setDrive(juce::jmap(mass, 0.9f, 1.6f));
@@ -183,7 +190,10 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 
     foundation.process(buffer);
     pillars.process(buffer);
+    // Memory Echoes injects faint recall fragments before Chambers and captures after.
+    memoryEchoes.process(buffer);
     chambers.process(buffer);
+    memoryEchoes.captureWet(buffer);
     weathering.process(buffer);
     buttress.process(buffer);
     facade.process(buffer);
@@ -234,6 +244,7 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
             foundation.reset();
             pillars.reset();
             chambers.reset();
+            memoryEchoes.reset();
             weathering.reset();
             buttress.reset();
             facade.reset();
@@ -398,6 +409,18 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
         "Drift",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.3f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "memory",
+        "Memory",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.0f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "memoryDepth",
+        "Memory Depth",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.5f));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "gravity",

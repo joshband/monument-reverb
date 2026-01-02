@@ -16,6 +16,8 @@ public:
         float gravity = 0.5f;
         float warp = 0.0f;
         float drift = 0.0f;
+        float memory = 0.0f;
+        float memoryDepth = 0.5f;
         float mix = 0.5f;
     };
 
@@ -42,7 +44,7 @@ public:
 
     juce::File getDefaultUserPresetDirectory() const;
 
-    static constexpr size_t kNumFactoryPresets = 10;
+    static constexpr size_t kNumFactoryPresets = 11;
     static const std::array<Preset, kNumFactoryPresets>& getFactoryPresets();
 
 private:

@@ -5,6 +5,7 @@
 #include <atomic>
 
 #include "dsp/DspModules.h"
+#include "dsp/MemoryEchoes.h"
 #include "PresetManager.h"
 
 class MonumentAudioProcessor : public juce::AudioProcessor
@@ -66,6 +67,7 @@ private:
     monument::dsp::Foundation foundation;
     monument::dsp::Pillars pillars;
     monument::dsp::Chambers chambers;
+    monument::dsp::MemoryEchoes memoryEchoes;
     monument::dsp::Weathering weathering;
     monument::dsp::Buttress buttress;
     monument::dsp::Facade facade;
