@@ -81,6 +81,15 @@ void Pillars::prepare(double sampleRate, int blockSize, int numChannels)
 
     updateModeTuning();
     updateTapLayout();
+
+    // Initialize tap coefficient/gain smoothers (15ms = responsive but click-free)
+    for (size_t i = 0; i < kMaxTaps; ++i)
+    {
+        tapGainSmoothers[i].reset(sampleRateHz, 0.015);
+        tapCoeffSmoothers[i].reset(sampleRateHz, 0.015);
+        tapGainSmoothers[i].setCurrentAndTargetValue(tapGains[i]);
+        tapCoeffSmoothers[i].setCurrentAndTargetValue(tapAllpassCoeff[i]);
+    }
 }
 
 void Pillars::reset()
@@ -123,11 +132,45 @@ void Pillars::process(juce::AudioBuffer<float>& buffer)
         mutationIntervalSamples = 0;
     }
 
-    if (tapsDirty)
+    // Track peak input magnitude to defer tap updates during active audio.
+    // This prevents clicks from tap position discontinuities when Topology/Shape changes.
+    // Only update tap layout when signal is below threshold (~-60dB).
+    inputPeakMagnitude = 0.0f;
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        const float* channelData = buffer.getReadPointer(ch);
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            inputPeakMagnitude = juce::jmax(inputPeakMagnitude, std::abs(channelData[sample]));
+        }
+    }
+
+    // Defer tap layout updates until input is quiet to avoid clicks
+    if (tapsDirty && inputPeakMagnitude < kTapUpdateThreshold)
+    {
         updateTapLayout();
+        // Update smoother targets after tap layout recalculation
+        for (int tap = 0; tap < tapCount; ++tap)
+        {
+            const auto tapIndex = static_cast<size_t>(tap);
+            tapGainSmoothers[tapIndex].setTargetValue(tapGains[tapIndex]);
+            tapCoeffSmoothers[tapIndex].setTargetValue(tapAllpassCoeff[tapIndex]);
+        }
+        tapsDirty = false;
+    }
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
+        // Advance smoothers once per sample (not per channel) to avoid fast ramps
+        std::array<float, kMaxTaps> smoothedCoeffs;
+        std::array<float, kMaxTaps> smoothedGains;
+        for (int tap = 0; tap < tapCount; ++tap)
+        {
+            const auto tapIndex = static_cast<size_t>(tap);
+            smoothedCoeffs[tapIndex] = tapCoeffSmoothers[tapIndex].getNextValue();
+            smoothedGains[tapIndex] = tapGainSmoothers[tapIndex].getNextValue();
+        }
+
         for (int channel = 0; channel < numChannels; ++channel)
         {
             auto* channelData = buffer.getWritePointer(channel);
@@ -146,8 +189,9 @@ void Pillars::process(juce::AudioBuffer<float>& buffer)
                     readPos += delayBufferLength;
 
                 const float tapIn = delayData[readPos];
-                const float tapOut = applyAllpass(tapIn, tapAllpassCoeff[tapIndex], apState[tap]);
-                acc += tapOut * tapGains[tapIndex] * densityScale;
+                // Use pre-computed smoothed values from outer loop
+                const float tapOut = applyAllpass(tapIn, smoothedCoeffs[tapIndex], apState[tap]);
+                acc += tapOut * smoothedGains[tapIndex] * densityScale;
             }
 
             delayData[writePosition] = input;
@@ -559,7 +603,11 @@ void Facade::prepare(double sampleRate, int blockSize, int numChannels)
     const auto x = std::exp(-2.0f * juce::MathConstants<float>::pi
                             * cutoffHz / static_cast<float>(sampleRateHz));
     airCoefficient = 1.0f - x;
+
+    // Initialize airGain smoother for per-sample interpolation (10ms ramp)
+    airGainSmoother.reset(sampleRate, 0.01);  // 10ms smoothing
     setAir(air);
+    airGainSmoother.setCurrentAndTargetValue(juce::jmap(air, -0.3f, 0.35f));
 }
 
 void Facade::reset()
@@ -585,7 +633,8 @@ void Facade::process(juce::AudioBuffer<float>& buffer)
             const float input = channelData[sample];
             state += airCoefficient * (input - state);
             const float high = input - state;
-            channelData[sample] = input + high * airGain;
+            const float currentAirGain = airGainSmoother.getNextValue();  // Per-sample interpolation
+            channelData[sample] = input + high * currentAirGain;
         }
 
         stateData[0] = state;
@@ -623,7 +672,8 @@ void Facade::setAir(float airAmount)
     if (!std::isfinite(airAmount))
         return;
     air = juce::jlimit(0.0f, 1.0f, airAmount);
-    airGain = juce::jmap(air, -0.3f, 0.35f);
+    const float targetGain = juce::jmap(air, -0.3f, 0.35f);
+    airGainSmoother.setTargetValue(targetGain);
 }
 
 void Facade::setOutputGain(float gainLinear)

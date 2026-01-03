@@ -3,6 +3,14 @@
 MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcessor& p)
     : juce::AudioProcessorEditor(&p),
       processorRef(p),
+      // Macro Controls
+      materialKnob(processorRef.getAPVTS(), "material", "Material"),
+      topologyKnob(processorRef.getAPVTS(), "topology", "Topology"),
+      viscosityKnob(processorRef.getAPVTS(), "viscosity", "Viscosity"),
+      evolutionKnob(processorRef.getAPVTS(), "evolution", "Evolution"),
+      chaosKnob(processorRef.getAPVTS(), "chaos", "Chaos"),
+      elasticityKnob(processorRef.getAPVTS(), "elasticity", "Elasticity"),
+      // Base Parameters
       mixKnob(processorRef.getAPVTS(), "mix", "Mix"),
       timeKnob(processorRef.getAPVTS(), "time", "Time"),
       massKnob(processorRef.getAPVTS(), "mass", "Mass"),
@@ -15,6 +23,15 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
       gravityKnob(processorRef.getAPVTS(), "gravity", "Gravity"),
       freezeToggle(processorRef.getAPVTS(), "freeze", "Freeze")
 {
+    // Add macro controls (primary interface)
+    addAndMakeVisible(materialKnob);
+    addAndMakeVisible(topologyKnob);
+    addAndMakeVisible(viscosityKnob);
+    addAndMakeVisible(evolutionKnob);
+    addAndMakeVisible(chaosKnob);
+    addAndMakeVisible(elasticityKnob);
+
+    // Add base parameters
     addAndMakeVisible(mixKnob);
     addAndMakeVisible(timeKnob);
     addAndMakeVisible(massKnob);
@@ -56,7 +73,8 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     addSection("Foundational Spaces", 0, 5);
     addSection("Living Spaces", 6, 11);
     addSection("Remembering Spaces", 12, 14);
-    addSection("Time-Bent / Abstract", 15, presetCount - 1);
+    addSection("Time-Bent / Abstract", 15, 17);
+    addSection("Evolving Spaces", 18, presetCount - 1);
 
     presetBox.onChange = [this]()
     {
@@ -65,7 +83,7 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
             processorRef.loadFactoryPreset(presetIndex);
     };
 
-    setSize(720, 420);
+    setSize(900, 580);
 }
 
 MonumentAudioProcessorEditor::~MonumentAudioProcessorEditor() = default;
@@ -74,15 +92,49 @@ void MonumentAudioProcessorEditor::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colour(0xff0d0f12));
     g.setColour(juce::Colour(0xffe6e1d6));
+
+    // Title
     g.setFont(juce::Font(juce::FontOptions(20.0f, juce::Font::bold)));
-    g.drawFittedText("Monument", getLocalBounds().removeFromTop(30), juce::Justification::centred, 1);
+    g.drawFittedText("Monument", getLocalBounds().removeFromTop(35), juce::Justification::centred, 1);
+
+    // Macro section label
+    g.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
+    g.setColour(juce::Colour(0xffa8a49c));
+    g.drawFittedText("MACRO CONTROLS", juce::Rectangle<int>(24, 45, getWidth() - 48, 20),
+                     juce::Justification::centredLeft, 1);
+
+    // Separator line after macros
+    g.setColour(juce::Colour(0xff3a3f46));
+    g.drawLine(24.0f, 185.0f, static_cast<float>(getWidth() - 24), 185.0f, 1.0f);
+
+    // Base parameters label
+    g.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
+    g.setColour(juce::Colour(0xffa8a49c));
+    g.drawFittedText("BASE PARAMETERS", juce::Rectangle<int>(24, 195, getWidth() - 48, 20),
+                     juce::Justification::centredLeft, 1);
 }
 
 void MonumentAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(24);
-    area.removeFromTop(30);
+    area.removeFromTop(35);  // Title space
 
+    // Macro Controls Section
+    area.removeFromTop(25);  // Label space
+    auto macroArea = area.removeFromTop(115);
+    const auto macroWidth = macroArea.getWidth() / 6;
+
+    materialKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
+    topologyKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
+    viscosityKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
+    evolutionKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
+    chaosKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
+    elasticityKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
+
+    area.removeFromTop(10);  // Separator space
+    area.removeFromTop(25);  // Base params label space
+
+    // Base Parameters Grid (4x3)
     auto gridArea = area.reduced(10);
     const auto columnWidth = gridArea.getWidth() / 4;
     const auto rowHeight = gridArea.getHeight() / 3;

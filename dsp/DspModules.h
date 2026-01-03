@@ -70,6 +70,10 @@ private:
     std::array<float, kMaxTaps> tapAllpassCoeff{};
     juce::AudioBuffer<float> tapAllpassState;
 
+    // Per-sample smoothing for tap coefficients/gains to prevent clicks
+    std::array<juce::SmoothedValue<float>, kMaxTaps> tapGainSmoothers;
+    std::array<juce::SmoothedValue<float>, kMaxTaps> tapCoeffSmoothers;
+
     juce::AudioBuffer<float> delayBuffer;
     int delayBufferLength = 0;
     int writePosition = 0;
@@ -93,6 +97,10 @@ private:
     juce::AudioBuffer<float> irBuffer;
     int irLengthSamples = 0;
     bool irLoaded = false;
+
+    // Signal threshold for deferred tap updates (prevents clicks during active audio)
+    float inputPeakMagnitude = 0.0f;
+    static constexpr float kTapUpdateThreshold = 0.001f;  // ~-60dB
 };
 
 class Weathering final : public DSPModule
@@ -157,7 +165,7 @@ private:
     float outputGain = 1.0f;
     juce::AudioBuffer<float> airState;
     float airCoefficient = 0.0f;
-    float airGain = 0.0f;
+    juce::SmoothedValue<float> airGainSmoother;  // Per-sample smoothing for airGain
 };
 
 } // namespace dsp

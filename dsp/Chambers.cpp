@@ -306,6 +306,12 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
     driftSmoother.setSmoothingTimeMs(kDriftSmoothingMs); // Drift stays gentle and motion-safe.
     driftSmoother.setTarget(driftTarget);
 
+    // Initialize diffuser coefficient smoothers (8ms = fast but click-free)
+    for (auto& smoother : inputDiffuserCoeffSmoothers)
+        smoother.reset(sampleRateHz, 0.008);
+    for (auto& smoother : lateDiffuserCoeffSmoothers)
+        smoother.reset(sampleRateHz, 0.008);
+
     warpSmoothed = warpTarget;
     computeWarpMatrix(warpSmoothed, warpMatrix);
     warpMatrixFrozen = warpMatrix;
@@ -375,6 +381,21 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         bloomSmoother.reset(bloomTarget);
         warpSmoother.reset(warpTarget);
         driftSmoother.reset(driftTarget);
+
+        // Initialize diffuser coefficient smoothers with current density values
+        const float initialDensityShaped = juce::jmap(densityTarget, 0.05f, 1.0f);
+        const float initialInputCoeff = juce::jmap(initialDensityShaped, 0.12f, 0.6f);
+        const float initialLateCoeffBase = juce::jmap(initialDensityShaped, 0.18f, 0.7f);
+        for (auto& smoother : inputDiffuserCoeffSmoothers)
+            smoother.setCurrentAndTargetValue(initialInputCoeff);
+        for (size_t i = 0; i < kNumLines; ++i)
+        {
+            const float initialCoeff = initialLateCoeffBase * (1.0f + kLateDiffuserCoeffOffsets[i]);
+            lateDiffuserCoeffSmoothers[i].setCurrentAndTargetValue(juce::jlimit(0.05f, 0.74f, initialCoeff));
+        }
+        lastInputCoeffTarget = initialInputCoeff;
+        lastLateCoeffBase = initialLateCoeffBase;
+
         warpSmoothed = warpTarget;
         computeWarpMatrix(warpSmoothed, warpMatrix);
         warpMatrixFrozen = warpMatrix;
@@ -485,15 +506,32 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         const float densityEarlyMix = juce::jmap(densityShaped, 0.45f, 0.25f);
 
         // Density drives diffusion strength; coefficients stay below 0.75 for stability.
-        const float inputCoeff = juce::jmap(densityShaped, 0.12f, 0.6f);
+        // Per-sample smoothing prevents clicks in feedback path.
+        // Only update targets when they change significantly to avoid constant ramp interruption.
+        const float inputCoeffTarget = juce::jmap(densityShaped, 0.12f, 0.6f);
         const float lateCoeffBase = juce::jmap(densityShaped, 0.18f, 0.7f);
-        inputDiffusers[0].setCoefficient(inputCoeff);
-        inputDiffusers[1].setCoefficient(inputCoeff);
-        for (size_t i = 0; i < kNumLines; ++i)
+
+        constexpr float kCoeffTargetEpsilon = 0.001f;
+        if (std::abs(inputCoeffTarget - lastInputCoeffTarget) > kCoeffTargetEpsilon)
         {
-            const float coeff = lateCoeffBase * (1.0f + kLateDiffuserCoeffOffsets[i]);
-            lateDiffusers[i].setCoefficient(juce::jlimit(0.05f, 0.74f, coeff));
+            inputDiffuserCoeffSmoothers[0].setTargetValue(inputCoeffTarget);
+            inputDiffuserCoeffSmoothers[1].setTargetValue(inputCoeffTarget);
+            lastInputCoeffTarget = inputCoeffTarget;
         }
+        inputDiffusers[0].setCoefficient(inputDiffuserCoeffSmoothers[0].getNextValue());
+        inputDiffusers[1].setCoefficient(inputDiffuserCoeffSmoothers[1].getNextValue());
+
+        if (std::abs(lateCoeffBase - lastLateCoeffBase) > kCoeffTargetEpsilon)
+        {
+            for (size_t i = 0; i < kNumLines; ++i)
+            {
+                const float coeffTarget = lateCoeffBase * (1.0f + kLateDiffuserCoeffOffsets[i]);
+                lateDiffuserCoeffSmoothers[i].setTargetValue(juce::jlimit(0.05f, 0.74f, coeffTarget));
+            }
+            lastLateCoeffBase = lateCoeffBase;
+        }
+        for (size_t i = 0; i < kNumLines; ++i)
+            lateDiffusers[i].setCoefficient(lateDiffuserCoeffSmoothers[i].getNextValue());
 
         const float feedbackLocal = freezeActive
             ? 1.0f

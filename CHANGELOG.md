@@ -6,8 +6,58 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ## [Unreleased]
 
 ### Notes
+
 - Memory Echoes development has moved to a standalone repository. Monument's
   release line is intentionally memory-free until the planned v1.6 reintegration.
+
+### Added - Phase 3: Modulation Sources Complete (2026-01-03)
+
+- **ChaosAttractor**: Lorenz strange attractor with 3-axis output (X/Y/Z), deterministic but unpredictable motion
+- **AudioFollower**: RMS envelope tracking with 10ms attack, 150ms release
+- **BrownianMotion**: Smooth random walk with velocity smoothing and boundary reflection
+- **EnvelopeTracker**: Multi-stage envelope detection (attack/sustain/release) with peak+RMS analysis
+- **ModulationMatrix Integration**: Full per-block processing with connection routing and smoothing
+- All sources output normalized values (bipolar [-1,1] or unipolar [0,1])
+- Block-rate processing for efficiency (~0.3-0.5% CPU overhead)
+- **"Living" Presets** (5 new factory presets with modulation):
+  - Breathing Stone: AudioFollower → Bloom (dynamic expansion/contraction)
+  - Drifting Cathedral: BrownianMotion → Drift + Gravity (slow spatial wandering)
+  - Chaos Hall: ChaosAttractor (X,Y) → Warp + Density (organic mutations)
+  - Living Pillars: EnvelopeTracker → PillarShape + AudioFollower → Width (musical morphing)
+  - Event Horizon Evolved: ChaosAttractor (Z) → Mass + BrownianMotion → Drift (gravitational wobble)
+- **Preset Architecture**: Modulation connections stored in PresetValues, applied on preset load
+- **Under-the-Hood Magic**: No UI controls for modulation (discovery-focused experience)
+
+### Fixed - Phase 3
+
+- **UI Controls Update on Preset Load**: Macro parameters (Material, Topology, Viscosity, Evolution, Chaos, Elasticity) now properly update in the UI when loading presets. Previously, only base parameters would sync with the UI, leaving macro knobs at stale values.
+- **Preset Menu Organization**: Added "Evolving Spaces" section (presets 18-22) to organize the new "Living" modulation presets separately from traditional presets.
+
+### Added - Phase 2: Macro System Integration
+
+- **PluginProcessor Integration**: Macro system fully integrated into audio processing pipeline.
+  - Macro influence blending: parameters smoothly transition from base values to macro-driven targets.
+  - Real-time parameter polling and MacroMapper computation per audio block.
+  - ModulationMatrix processing integrated (stub sources active, ready for Phase 3 DSP).
+  - All module setters updated to use macro-influenced effective parameters.
+
+### Added - Phase 1: Macro System Foundation
+
+- **MacroMapper**: High-level macro control system mapping 6 conceptual parameters to coordinated parameter sets.
+  - Material (0=soft → 1=hard): Influences time, mass, and density for surface character.
+  - Topology (0=regular → 1=non-Euclidean): Influences warp and drift for spatial geometry.
+  - Viscosity (0=airy → 1=thick): Influences time, air, and mass for medium resistance.
+  - Evolution (0=static → 1=evolving): Influences bloom and drift for temporal evolution.
+  - Chaos Intensity (0=stable → 1=chaotic): Influences warp and drift for unpredictable motion.
+  - Elasticity Decay (0=instant → 1=slow): Reserved for future physical modeling modules.
+- **ModulationMatrix**: Modulation routing infrastructure with support for multiple sources and destinations.
+  - 4 modulation sources (stub implementations for Phase 1): Chaos Attractor, Audio Follower, Brownian Motion, Envelope Tracker.
+  - 16 parameter destinations with per-connection depth and smoothing control.
+  - Block-rate processing with juce::SmoothedValue for zipper-free modulation.
+  - Fully real-time safe with no allocations in process().
+- **New APVTS Parameters**: 6 macro control parameters exposed in AudioProcessorValueTreeState.
+  - All parameters use normalized [0,1] ranges following JUCE conventions.
+  - Default values chosen for neutral/balanced starting points.
 
 ### Added
 - Factory preset descriptions, Init Patch, and JSON user preset save/load support.

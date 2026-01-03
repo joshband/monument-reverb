@@ -6,6 +6,8 @@
 
 #include "dsp/DspModules.h"
 #include "dsp/MemoryEchoes.h"
+#include "dsp/MacroMapper.h"
+#include "dsp/ModulationMatrix.h"
 #include "PresetManager.h"
 
 class MonumentAudioProcessor : public juce::AudioProcessor
@@ -71,6 +73,21 @@ private:
     monument::dsp::Weathering weathering;
     monument::dsp::Buttress buttress;
     monument::dsp::Facade facade;
+    monument::dsp::MacroMapper macroMapper;
+    monument::dsp::ModulationMatrix modulationMatrix;
+
+    // JUCE SmoothedValue for block-rate parameter smoothing (prevents zipper noise)
+    juce::SmoothedValue<float> timeSmoother;
+    juce::SmoothedValue<float> massSmoother;
+    juce::SmoothedValue<float> densitySmoother;
+    juce::SmoothedValue<float> bloomSmoother;
+    juce::SmoothedValue<float> airSmoother;
+    juce::SmoothedValue<float> widthSmoother;
+    juce::SmoothedValue<float> warpSmoother;
+    juce::SmoothedValue<float> driftSmoother;
+    juce::SmoothedValue<float> gravitySmoother;
+    juce::SmoothedValue<float> pillarShapeSmoother;
+
     std::atomic<bool> presetResetRequested{false};
     PresetTransitionState presetTransition = PresetTransitionState::None;
     int presetFadeSamples = 0;

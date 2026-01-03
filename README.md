@@ -27,6 +27,7 @@ intentionally memory-free until the planned v1.6 reintegration.
 - docs/ADVANCED_FEATURES.md
 - docs/Monument_v1.0_Pre-Memory_Validation.md
 - MONUMENT_MANIFEST.md
+- **MODULATION_TESTING_GUIDE.md** - Phase 3 "Living" Presets Guide (NEW)
 
 ## Quick start (macOS, Apple Silicon)
 
@@ -134,6 +135,21 @@ All parameters are normalized to [0, 1] unless noted. Mix is [0, 100].
 | Freeze | Infinite hold | Locks FDN state, mutes input, smooth crossfade |
 | Pillar Shape | Early reflection spacing | Compresses or expands tap intervals |
 | Pillar Mode | Early reflection palette | Glass, Stone, Fog tap profiles |
+
+### Macro controls (Phase 2 - integrated)
+
+Monument includes a high-level macro system that coordinates multiple parameters for conceptual sound design. The system is fully integrated with automatic blending between base and macro-driven parameters.
+
+| Macro | Meaning | Influences |
+| --- | --- | --- |
+| Material | Surface character (soft → hard) | Time, Mass, Density |
+| Topology | Spatial geometry (regular → non-Euclidean) | Warp, Drift |
+| Viscosity | Medium resistance (airy → thick) | Time, Air, Mass |
+| Evolution | Temporal change (static → evolving) | Bloom, Drift |
+| Chaos | Unpredictable motion (stable → chaotic) | Warp, Drift |
+| Elasticity | Deformation speed (instant → slow) | Reserved for future physical modeling |
+
+The macro system uses a modulation matrix with support for 4 source types (Chaos Attractor, Audio Follower, Brownian Motion, Envelope Tracker) routing to 16 parameter destinations. Phase 3-4 will implement the full modulation source DSP and physical modeling modules.
 
 ## Memory Echoes (extracted)
 

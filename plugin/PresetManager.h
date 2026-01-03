@@ -3,12 +3,16 @@
 #include <JuceHeader.h>
 
 #include <array>
+#include <vector>
+
+#include "dsp/ModulationMatrix.h"
 
 class PresetManager
 {
 public:
     struct PresetValues
     {
+        // Base parameters
         float time = 0.5f;
         float mass = 0.5f;
         float density = 0.5f;
@@ -21,6 +25,17 @@ public:
         float memoryDecay = 0.4f;
         float memoryDrift = 0.3f;
         float mix = 0.5f;
+
+        // Phase 2: Macro parameters (added so UI updates on preset load)
+        float material = 0.5f;
+        float topology = 0.5f;
+        float viscosity = 0.5f;
+        float evolution = 0.5f;
+        float chaosIntensity = 0.0f;
+        float elasticityDecay = 0.0f;
+
+        // Phase 3: Modulation connections for "living" presets
+        std::vector<monument::dsp::ModulationMatrix::Connection> modulationConnections;
     };
 
     struct Preset
@@ -38,6 +53,12 @@ public:
     bool loadFactoryPreset(int index);
     bool loadFactoryPresetByName(const juce::String& name);
 
+    // Phase 3: Get modulation connections from most recently loaded preset
+    const std::vector<monument::dsp::ModulationMatrix::Connection>& getLastLoadedModulationConnections() const
+    {
+        return lastLoadedModulationConnections;
+    }
+
     void saveUserPreset(const juce::String& name, const juce::String& description);
     void saveUserPreset(const juce::File& targetFile,
                         const juce::String& name,
@@ -46,7 +67,7 @@ public:
 
     juce::File getDefaultUserPresetDirectory() const;
 
-    static constexpr size_t kNumFactoryPresets = 18;
+    static constexpr size_t kNumFactoryPresets = 23;  // 18 original + 5 "Living" presets (Phase 3)
     static const std::array<Preset, kNumFactoryPresets>& getFactoryPresets();
 
 private:
@@ -56,4 +77,7 @@ private:
 
     juce::AudioProcessorValueTreeState& parameters;
     static const std::array<Preset, kNumFactoryPresets> kFactoryPresets;
+
+    // Phase 3: Cache modulation connections from last loaded preset
+    std::vector<monument::dsp::ModulationMatrix::Connection> lastLoadedModulationConnections;
 };

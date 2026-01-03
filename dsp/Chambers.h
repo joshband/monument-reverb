@@ -47,6 +47,13 @@ private:
     ParameterSmoother bloomSmoother;
     ParameterSmoother warpSmoother;
     ParameterSmoother driftSmoother;
+
+    // Per-sample smoothing for diffuser coefficients to prevent clicks
+    std::array<juce::SmoothedValue<float>, 2> inputDiffuserCoeffSmoothers;
+    std::array<juce::SmoothedValue<float>, kNumLines> lateDiffuserCoeffSmoothers;
+    float lastInputCoeffTarget = 0.0f;
+    float lastLateCoeffBase = 0.0f;
+
     float timeTarget = 0.55f;
     float massTarget = 0.5f;
     float densityTarget = 0.5f;
