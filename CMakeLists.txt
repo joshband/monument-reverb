@@ -69,6 +69,10 @@ target_sources(Monument
     dsp/ParameterSmoother.cpp
     dsp/Chambers.h
     dsp/Chambers.cpp
+    dsp/MacroMapper.h
+    dsp/MacroMapper.cpp
+    dsp/ModulationMatrix.h
+    dsp/ModulationMatrix.cpp
     ui/MonumentKnob.h
     ui/MonumentKnob.cpp
     ui/MonumentToggle.h

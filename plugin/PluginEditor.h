@@ -18,6 +18,15 @@ public:
 private:
     MonumentAudioProcessor& processorRef;
 
+    // Macro Controls (Primary Interface)
+    MonumentKnob materialKnob;
+    MonumentKnob topologyKnob;
+    MonumentKnob viscosityKnob;
+    MonumentKnob evolutionKnob;
+    MonumentKnob chaosKnob;
+    MonumentKnob elasticityKnob;
+
+    // Base Parameters
     MonumentKnob mixKnob;
     MonumentKnob timeKnob;
     MonumentKnob massKnob;

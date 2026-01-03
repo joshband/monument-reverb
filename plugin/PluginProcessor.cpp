@@ -111,6 +111,20 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     weathering.prepare(sampleRate, samplesPerBlock, numChannels);
     buttress.prepare(sampleRate, samplesPerBlock, numChannels);
     facade.prepare(sampleRate, samplesPerBlock, numChannels);
+    modulationMatrix.prepare(sampleRate, samplesPerBlock, numChannels);
+
+    // Initialize JUCE SmoothedValue for macro parameter smoothing (50ms ramp time)
+    const double smoothingRampSeconds = 0.05;  // 50ms = smooth but responsive
+    timeSmoother.reset(sampleRate, smoothingRampSeconds);
+    massSmoother.reset(sampleRate, smoothingRampSeconds);
+    densitySmoother.reset(sampleRate, smoothingRampSeconds);
+    bloomSmoother.reset(sampleRate, smoothingRampSeconds);
+    airSmoother.reset(sampleRate, smoothingRampSeconds);
+    widthSmoother.reset(sampleRate, smoothingRampSeconds);
+    warpSmoother.reset(sampleRate, smoothingRampSeconds);
+    driftSmoother.reset(sampleRate, smoothingRampSeconds);
+    gravitySmoother.reset(sampleRate, smoothingRampSeconds);
+    pillarShapeSmoother.reset(sampleRate, smoothingRampSeconds);
 
     presetFadeSamples = juce::jmax(
         1, static_cast<int>(std::round(sampleRate * (kPresetFadeMs / 1000.0f))));
@@ -134,6 +148,7 @@ void MonumentAudioProcessor::releaseResources()
     weathering.reset();
     buttress.reset();
     facade.reset();
+    modulationMatrix.reset();
 }
 
 bool MonumentAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -192,6 +207,97 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const auto memoryDrift = parameters.getRawParameterValue("memoryDrift")->load();
     const auto freeze = parameters.getRawParameterValue("freeze")->load() > 0.5f;
 
+    // Phase 2: Poll macro parameters
+    const auto material = parameters.getRawParameterValue("material")->load();
+    const auto topology = parameters.getRawParameterValue("topology")->load();
+    const auto viscosity = parameters.getRawParameterValue("viscosity")->load();
+    const auto evolution = parameters.getRawParameterValue("evolution")->load();
+    const auto chaosIntensity = parameters.getRawParameterValue("chaosIntensity")->load();
+    const auto elasticityDecay = parameters.getRawParameterValue("elasticityDecay")->load();
+
+    // Compute macro-driven parameter targets
+    const auto macroTargets = macroMapper.computeTargets(
+        material, topology, viscosity, evolution, chaosIntensity, elasticityDecay);
+
+    // Process modulation matrix (stub sources for Phase 2, returns 0 for all destinations)
+    modulationMatrix.process(buffer, buffer.getNumSamples());
+
+    // Calculate macro influence: how far are macros from their defaults?
+    // Defaults: material=0.5, topology=0.5, viscosity=0.5, evolution=0.5, chaos=0.0, elasticity=0.0
+    const float materialDelta = std::abs(material - 0.5f);
+    const float topologyDelta = std::abs(topology - 0.5f);
+    const float viscosityDelta = std::abs(viscosity - 0.5f);
+    const float evolutionDelta = std::abs(evolution - 0.5f);
+    const float chaosDelta = std::abs(chaosIntensity - 0.0f);
+    const float elasticityDelta = std::abs(elasticityDecay - 0.0f);
+
+    // Macro influence: 0 = all at defaults, 1 = at least one macro significantly moved
+    const float macroInfluence = juce::jmin(1.0f,
+        (materialDelta + topologyDelta + viscosityDelta + evolutionDelta + chaosDelta + elasticityDelta) * 2.0f);
+
+    // Blend base parameters with macro targets based on macro influence
+    // When macroInfluence = 0, use base parameters; when = 1, use macro targets
+    // Set target values on JUCE SmoothedValue (50ms ramp)
+    timeSmoother.setTargetValue(juce::jmap(macroInfluence, time, macroTargets.time));
+    massSmoother.setTargetValue(juce::jmap(macroInfluence, mass, macroTargets.mass));
+    densitySmoother.setTargetValue(juce::jmap(macroInfluence, density, macroTargets.density));
+    bloomSmoother.setTargetValue(juce::jmap(macroInfluence, bloom, macroTargets.bloom));
+    airSmoother.setTargetValue(juce::jmap(macroInfluence, air, macroTargets.air));
+    widthSmoother.setTargetValue(juce::jmap(macroInfluence, width, macroTargets.width));
+    warpSmoother.setTargetValue(juce::jmap(macroInfluence, warp, macroTargets.warp));
+    driftSmoother.setTargetValue(juce::jmap(macroInfluence, drift, macroTargets.drift));
+    gravitySmoother.setTargetValue(juce::jmap(macroInfluence, gravity, macroTargets.gravity));
+    pillarShapeSmoother.setTargetValue(juce::jmap(macroInfluence, pillarShape, macroTargets.pillarShape));
+
+    // Get current smoothed values (block-rate processing)
+    const float timeEffective = timeSmoother.getCurrentValue();
+    const float massEffective = massSmoother.getCurrentValue();
+    const float densityEffective = densitySmoother.getCurrentValue();
+    const float bloomEffectiveMacro = bloomSmoother.getCurrentValue();
+    const float airEffective = airSmoother.getCurrentValue();
+    const float widthEffective = widthSmoother.getCurrentValue();
+    const float warpEffectiveMacro = warpSmoother.getCurrentValue();
+    const float driftEffectiveMacro = driftSmoother.getCurrentValue();
+    const float gravityEffective = gravitySmoother.getCurrentValue();
+    const float pillarShapeEffective = pillarShapeSmoother.getCurrentValue();
+
+    // Advance smoothers for the block (ramp continues across samples)
+    timeSmoother.skip(buffer.getNumSamples());
+    massSmoother.skip(buffer.getNumSamples());
+    densitySmoother.skip(buffer.getNumSamples());
+    bloomSmoother.skip(buffer.getNumSamples());
+    airSmoother.skip(buffer.getNumSamples());
+    widthSmoother.skip(buffer.getNumSamples());
+    warpSmoother.skip(buffer.getNumSamples());
+    driftSmoother.skip(buffer.getNumSamples());
+    gravitySmoother.skip(buffer.getNumSamples());
+    pillarShapeSmoother.skip(buffer.getNumSamples());
+
+    // Phase 3: Apply modulation from ModulationMatrix
+    // Modulation values are bipolar [-1, +1], applied as offsets to macro-influenced parameters
+    const float modTime = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::Time);
+    const float modMass = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::Mass);
+    const float modDensity = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::Density);
+    const float modBloom = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::Bloom);
+    const float modAir = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::Air);
+    const float modWidth = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::Width);
+    const float modWarp = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::Warp);
+    const float modDrift = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::Drift);
+    const float modGravity = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::Gravity);
+    const float modPillarShape = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::PillarShape);
+
+    // Apply modulation offsets and clamp to valid [0, 1] range
+    const float timeModulated = juce::jlimit(0.0f, 1.0f, timeEffective + modTime);
+    const float massModulated = juce::jlimit(0.0f, 1.0f, massEffective + modMass);
+    const float densityModulated = juce::jlimit(0.0f, 1.0f, densityEffective + modDensity);
+    const float bloomModulated = juce::jlimit(0.0f, 1.0f, bloomEffectiveMacro + modBloom);
+    const float airModulated = juce::jlimit(0.0f, 1.0f, airEffective + modAir);
+    const float widthModulated = juce::jlimit(0.0f, 1.0f, widthEffective + modWidth);
+    const float warpModulated = juce::jlimit(0.0f, 1.0f, warpEffectiveMacro + modWarp);
+    const float driftModulated = juce::jlimit(0.0f, 1.0f, driftEffectiveMacro + modDrift);
+    const float gravityModulated = juce::jlimit(0.0f, 1.0f, gravityEffective + modGravity);
+    const float pillarShapeModulated = juce::jlimit(0.0f, 1.0f, pillarShapeEffective + modPillarShape);
+
 #if defined(MONUMENT_MEMORY_PROVE)
     const bool forceWet = kMemoryProveStage < 4;
     const bool forceFreezeOff = kMemoryProveStage < 5;
@@ -225,9 +331,10 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const float mixPercent = std::isfinite(mixPercentRaw) ? mixPercentRaw : 0.0f;
     const float mixPercentEffective = forceWet ? 100.0f : mixPercent;
     const bool freezeEffective = forceFreezeOff ? false : freeze;
-    const float warpEffective = allowModulation ? warp : 0.0f;
-    const float driftEffective = allowModulation ? drift : 0.0f;
-    const float bloomEffective = allowModulation ? bloom : 0.0f;
+    // Use modulated values (Phase 3: modulation system now active)
+    const float warpEffective = allowModulation ? warpModulated : 0.0f;
+    const float driftEffective = allowModulation ? driftModulated : 0.0f;
+    const float bloomEffective = allowModulation ? bloomModulated : 0.0f;
     float pillarModeSafe = std::isfinite(pillarModeRaw) ? pillarModeRaw : 0.0f;
     pillarModeSafe = juce::jlimit(0.0f, 2.0f, pillarModeSafe);
 
@@ -237,18 +344,19 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
         presetFadeRemaining = presetFadeSamples;
     }
 
-    pillars.setDensity(density);
+    // Apply modulated parameters to DSP modules (Phase 3: modulation system active)
+    pillars.setDensity(densityModulated);
     pillars.setWarp(warpEffective);
-    pillars.setShape(pillarShape);
+    pillars.setShape(pillarShapeModulated);
     pillars.setMode(static_cast<int>(std::round(pillarModeSafe)));
-    chambers.setTime(time);
-    chambers.setMass(mass);
-    chambers.setDensity(density);
+    chambers.setTime(timeModulated);
+    chambers.setMass(massModulated);
+    chambers.setDensity(densityModulated);
     chambers.setBloom(bloomEffective);
-    chambers.setGravity(gravity);
+    chambers.setGravity(gravityModulated);
     chambers.setFreeze(freezeEffective);
 #if defined(MONUMENT_ENABLE_MEMORY)
-    const float densityClamped = std::isfinite(density) ? juce::jlimit(0.0f, 1.0f, density) : 0.5f;
+    const float densityClamped = std::isfinite(densityEffective) ? juce::jlimit(0.0f, 1.0f, densityEffective) : 0.5f;
     const float densityShaped = juce::jmap(densityClamped, 0.05f, 1.0f);
     const float memoryInputGain = juce::jmap(densityShaped, 0.18f, 0.32f);
     memoryEchoes.setMemory(memory);
@@ -261,10 +369,10 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 #endif
     weathering.setWarp(warpEffective);
     weathering.setDrift(driftEffective);
-    buttress.setDrive(juce::jmap(mass, 0.9f, 1.6f));
+    buttress.setDrive(juce::jmap(massModulated, 0.9f, 1.6f));
     buttress.setFreeze(freezeEffective);
-    facade.setAir(air);
-    facade.setWidth(juce::jmap(width, 0.0f, 2.0f));
+    facade.setAir(airModulated);
+    facade.setWidth(juce::jmap(widthModulated, 0.0f, 2.0f));
 
     const auto mix = juce::jlimit(0.0f, 100.0f, mixPercentEffective) / 100.0f;
     const auto dryGain = std::cos(mix * juce::MathConstants<float>::halfPi);
@@ -368,6 +476,7 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
             weathering.reset();
             buttress.reset();
             facade.reset();
+            modulationMatrix.reset();
 
             presetTransition = PresetTransitionState::FadingIn;
             presetFadeRemaining = presetFadeSamples;
@@ -453,6 +562,11 @@ void MonumentAudioProcessor::loadFactoryPreset(int index)
         return;
     if (auto* param = parameters.getParameter("freeze"))
         param->setValueNotifyingHost(0.0f);
+
+    // Phase 3: Apply modulation connections from preset
+    const auto& modConnections = presetManager.getLastLoadedModulationConnections();
+    modulationMatrix.setConnections(modConnections);
+
     presetResetRequested.store(true, std::memory_order_release);
 }
 
@@ -474,6 +588,11 @@ void MonumentAudioProcessor::loadUserPreset(const juce::File& sourceFile)
         return;
     if (auto* param = parameters.getParameter("freeze"))
         param->setValueNotifyingHost(0.0f);
+
+    // Phase 3: Apply modulation connections from preset
+    const auto& modConnections = presetManager.getLastLoadedModulationConnections();
+    modulationMatrix.setConnections(modConnections);
+
     presetResetRequested.store(true, std::memory_order_release);
 }
 
@@ -581,6 +700,47 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
         "freeze",
         "Freeze",
         false));
+
+    // ========================================================================
+    // MACRO CONTROLS (Phase 1 - Monument v0.2.0)
+    // High-level, musically-meaningful controls that map to multiple parameters
+    // ========================================================================
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "material",
+        "Material",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.5f));  // 0 = soft, 1 = hard
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "topology",
+        "Topology",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.5f));  // 0 = regular, 1 = non-Euclidean
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "viscosity",
+        "Viscosity",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.5f));  // 0 = airy, 1 = thick
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "evolution",
+        "Evolution",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.5f));  // 0 = static, 1 = evolving
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "chaosIntensity",
+        "Chaos",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.0f));  // 0 = stable, 1 = chaotic
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "elasticityDecay",
+        "Elasticity",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.0f));  // 0 = instant recovery, 1 = slow deformation
 
     return {params.begin(), params.end()};
 }

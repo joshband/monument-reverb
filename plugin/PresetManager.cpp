@@ -31,9 +31,48 @@ PresetManager::PresetValues makePreset(float time,
     float memory = 0.0f,
     float memoryDepth = 0.5f,
     float memoryDecay = 0.4f,
-    float memoryDrift = 0.3f)
+    float memoryDrift = 0.3f,
+    float material = 0.5f,
+    float topology = 0.5f,
+    float viscosity = 0.5f,
+    float evolution = 0.5f,
+    float chaosIntensity = 0.0f,
+    float elasticityDecay = 0.0f)
 {
-    return {time, mass, density, bloom, gravity, warp, drift, memory, memoryDepth, memoryDecay, memoryDrift, mix};
+    return {time, mass, density, bloom, gravity, warp, drift, memory, memoryDepth, memoryDecay, memoryDrift, mix,
+            material, topology, viscosity, evolution, chaosIntensity, elasticityDecay};
+}
+
+// Phase 3: Helper to create modulation connections for "Living" presets
+monument::dsp::ModulationMatrix::Connection makeModConnection(
+    monument::dsp::ModulationMatrix::SourceType source,
+    monument::dsp::ModulationMatrix::DestinationType destination,
+    float depth,
+    int sourceAxis = 0,
+    float smoothingMs = 200.0f)
+{
+    monument::dsp::ModulationMatrix::Connection conn;
+    conn.source = source;
+    conn.destination = destination;
+    conn.sourceAxis = sourceAxis;
+    conn.depth = depth;
+    conn.smoothingMs = smoothingMs;
+    conn.enabled = true;
+    return conn;
+}
+
+PresetManager::PresetValues makePresetWithMod(
+    float time, float mass, float density, float bloom, float gravity,
+    float warp, float drift, float mix,
+    const std::vector<monument::dsp::ModulationMatrix::Connection>& modulations,
+    float memory = 0.0f, float memoryDepth = 0.5f, float memoryDecay = 0.4f, float memoryDrift = 0.3f,
+    float material = 0.5f, float topology = 0.5f, float viscosity = 0.5f,
+    float evolution = 0.5f, float chaosIntensity = 0.0f, float elasticityDecay = 0.0f)
+{
+    PresetManager::PresetValues preset{time, mass, density, bloom, gravity, warp, drift, memory, memoryDepth, memoryDecay, memoryDrift, mix,
+                                       material, topology, viscosity, evolution, chaosIntensity, elasticityDecay};
+    preset.modulationConnections = modulations;
+    return preset;
 }
 } // namespace
 
@@ -74,6 +113,41 @@ const std::array<PresetManager::Preset, PresetManager::kNumFactoryPresets> Prese
         makePreset(0.60f, 0.40f, 0.60f, 0.40f, 0.20f, 1.00f, 0.30f, 0.55f, 0.65f, 0.55f, 0.55f, 0.50f)},
     {"Tesseract Chamber", "The room turns in on itself; distant traces drift back, slightly misplaced in time.",
         makePreset(0.85f, 0.55f, 0.30f, 0.60f, 0.50f, 0.70f, 0.70f, 0.65f, 0.70f, 0.65f, 0.65f, 0.55f)},
+
+    // Phase 3: "Living" Presets with Modulation (Discovery-Focused, No UI Controls)
+    {"Breathing Stone", "The hall expands and contracts with your signal, as if the walls themselves are alive.",
+        makePresetWithMod(0.55f, 0.60f, 0.50f, 0.50f, 0.65f, 0.00f, 0.05f, 0.55f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::AudioFollower,
+                              monument::dsp::ModulationMatrix::DestinationType::Bloom, 0.30f, 0, 250.0f)})},
+
+    {"Drifting Cathedral", "The space wanders slowly, its character shifting like clouds overhead.",
+        makePresetWithMod(0.70f, 0.50f, 0.55f, 0.40f, 0.50f, 0.10f, 0.15f, 0.60f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::BrownianMotion,
+                              monument::dsp::ModulationMatrix::DestinationType::Drift, 0.35f, 0, 400.0f),
+             makeModConnection(monument::dsp::ModulationMatrix::SourceType::BrownianMotion,
+                              monument::dsp::ModulationMatrix::DestinationType::Gravity, 0.18f, 0, 600.0f)})},
+
+    {"Chaos Hall", "The room breathes with strange, organic patterns—alive but unknowable.",
+        makePresetWithMod(0.60f, 0.55f, 0.60f, 0.35f, 0.45f, 0.20f, 0.25f, 0.55f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::ChaosAttractor,
+                              monument::dsp::ModulationMatrix::DestinationType::Warp, 0.45f, 0, 300.0f),
+             makeModConnection(monument::dsp::ModulationMatrix::SourceType::ChaosAttractor,
+                              monument::dsp::ModulationMatrix::DestinationType::Density, 0.25f, 1, 350.0f)})},
+
+    {"Living Pillars", "The columns reshape themselves to the music, dancing in place.",
+        makePresetWithMod(0.50f, 0.50f, 0.65f, 0.45f, 0.55f, 0.15f, 0.10f, 0.55f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::EnvelopeTracker,
+                              monument::dsp::ModulationMatrix::DestinationType::PillarShape, 0.35f, 0, 200.0f),
+             makeModConnection(monument::dsp::ModulationMatrix::SourceType::AudioFollower,
+                              monument::dsp::ModulationMatrix::DestinationType::Width, 0.22f, 0, 300.0f)})},
+
+    {"Event Horizon Evolved", "The gravitational center shifts and wobbles, pulling the sound into ever-changing orbits.",
+        makePresetWithMod(1.00f, 0.85f, 0.55f, 0.85f, 0.50f, 0.30f, 0.50f, 0.70f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::ChaosAttractor,
+                              monument::dsp::ModulationMatrix::DestinationType::Mass, 0.18f, 2, 500.0f),
+             makeModConnection(monument::dsp::ModulationMatrix::SourceType::BrownianMotion,
+                              monument::dsp::ModulationMatrix::DestinationType::Drift, 0.50f, 0, 800.0f)},
+            0.75f, 0.70f, 0.70f, 0.70f)},
 }};
 
 PresetManager::PresetManager(juce::AudioProcessorValueTreeState& apvts)
@@ -228,6 +302,14 @@ PresetManager::PresetValues PresetManager::captureCurrentValues() const
     values.memoryDrift = readParam("memoryDrift", values.memoryDrift);
     values.mix = readParam("mix", values.mix);
 
+    // Phase 2: Capture macro parameters (so UI updates on preset load)
+    values.material = readParam("material", values.material);
+    values.topology = readParam("topology", values.topology);
+    values.viscosity = readParam("viscosity", values.viscosity);
+    values.evolution = readParam("evolution", values.evolution);
+    values.chaosIntensity = readParam("chaosIntensity", values.chaosIntensity);
+    values.elasticityDecay = readParam("elasticityDecay", values.elasticityDecay);
+
     return values;
 }
 
@@ -242,6 +324,9 @@ void PresetManager::applyPreset(const PresetValues& values)
     setParamNormalized(parameters, "gravity", init.gravity);
     setParamNormalized(parameters, "warp", init.warp);
     setParamNormalized(parameters, "drift", init.drift);
+
+    // Phase 3: Cache modulation connections for PluginProcessor to apply
+    lastLoadedModulationConnections = values.modulationConnections;
     setParamNormalized(parameters, "memory", init.memory);
     setParamNormalized(parameters, "memoryDepth", init.memoryDepth);
     setParamNormalized(parameters, "memoryDecay", init.memoryDecay);
@@ -259,6 +344,14 @@ void PresetManager::applyPreset(const PresetValues& values)
     setParamNormalized(parameters, "memoryDecay", values.memoryDecay);
     setParamNormalized(parameters, "memoryDrift", values.memoryDrift);
     setParamNormalized(parameters, "mix", values.mix);
+
+    // Phase 2: Apply macro parameters (so UI updates on preset load)
+    setParamNormalized(parameters, "material", values.material);
+    setParamNormalized(parameters, "topology", values.topology);
+    setParamNormalized(parameters, "viscosity", values.viscosity);
+    setParamNormalized(parameters, "evolution", values.evolution);
+    setParamNormalized(parameters, "chaosIntensity", values.chaosIntensity);
+    setParamNormalized(parameters, "elasticityDecay", values.elasticityDecay);
 }
 
 juce::File PresetManager::resolveUserPresetFile(const juce::File& targetFile, const juce::String& name) const
