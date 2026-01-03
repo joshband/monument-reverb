@@ -14,6 +14,27 @@ BUILD_DIR=build CONFIG=Release \
 - Reports are written to `build/pluginval-report` by default.
 - Check the report for NaN/denormal flags, parameter automation issues, and stress test failures.
 
+## Memory Echoes harness (isolated)
+
+Build the standalone harness to iterate on Memory Echoes outside the plugin:
+
+```sh
+cmake -S . -B build -G Ninja -DMONUMENT_ENABLE_TESTS=ON
+cmake --build build --target monument_memory_echoes_harness
+```
+
+Run the harness to render recall-only audio:
+
+```sh
+build/monument_memory_echoes_harness_artefacts/Release/monument_memory_echoes_harness \
+  --seconds 40 --memory 0.7 --depth 0.6 --decay 0.5 --drift 0.3 --signal piano
+```
+
+Optional:
+- `--input path.wav` to feed a file instead of the generated test bursts.
+- `--mix-input` to include the original input in the output render.
+- `--signal pad|pluck|piano` to switch the built-in generator.
+
 ## Performance benchmarking (REAPER)
 
 - Open REAPER, load a single Monument instance, and open Performance Monitor.

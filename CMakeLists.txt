@@ -98,6 +98,14 @@ target_link_libraries(Monument
 )
 
 option(MONUMENT_ENABLE_TESTS "Build Monument tests" ON)
+option(MONUMENT_ENABLE_MEMORY "Enable Memory Echoes in plugin" OFF)
+
+if(MONUMENT_ENABLE_MEMORY)
+  target_compile_definitions(Monument
+    PRIVATE
+      MONUMENT_ENABLE_MEMORY=1
+  )
+endif()
 
 if(MONUMENT_ENABLE_TESTS)
   enable_testing()
@@ -137,4 +145,35 @@ if(MONUMENT_ENABLE_TESTS)
       juce::juce_recommended_warning_flags
   )
   add_test(NAME monument_memory_echoes_test COMMAND monument_memory_echoes_test)
+
+  juce_add_console_app(monument_memory_echoes_harness
+    PRODUCT_NAME "Monument Memory Echoes Harness"
+  )
+  juce_generate_juce_header(monument_memory_echoes_harness)
+  target_sources(monument_memory_echoes_harness
+    PRIVATE
+      tests/MemoryEchoesHarness.cpp
+      dsp/MemoryEchoes.cpp
+      dsp/ParameterSmoother.cpp
+  )
+  target_include_directories(monument_memory_echoes_harness
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_compile_definitions(monument_memory_echoes_harness
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+  target_link_libraries(monument_memory_echoes_harness
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
 endif()

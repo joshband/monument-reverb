@@ -1,39 +1,58 @@
 #include "MemoryEchoes.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace
 {
-constexpr float kRecentMemorySeconds = 3.0f;
-constexpr float kDistantMemorySeconds = 20.0f;
-constexpr float kCaptureGain = 0.25f;
-constexpr float kCaptureClamp = 0.5f;
-constexpr float kCaptureThreshold = 2.0e-4f;
-constexpr int kCaptureStrideSamples = 4;
-constexpr float kEnvelopeAttackMs = 5.0f;
-constexpr float kEnvelopeReleaseMs = 180.0f;
-
-constexpr float kRecallMinSeconds = 1.0f;
-constexpr float kRecallMaxSeconds = 4.0f;
-constexpr float kFragmentMinMs = 150.0f;
-constexpr float kFragmentMaxMs = 400.0f;
-constexpr float kFragmentFadeMs = 20.0f;
-constexpr float kInjectionGainMax = 0.06f;
-constexpr float kInjectionClamp = 0.15f;
+constexpr float kShortMemorySeconds = 24.0f;
+constexpr float kLongMemorySeconds = 180.0f;
+constexpr float kShortTargetDecayDb = -18.0f;
+constexpr float kLongTargetDecayDb = -45.0f;
+constexpr float kShortCaptureGain = 0.35f;
+constexpr float kLongCaptureGain = 0.002f;
+constexpr float kFreezeCaptureScale = 0.1f;
 constexpr float kMemoryEpsilon = 1.0e-4f;
+constexpr float kCaptureRmsTimeMs = 250.0f;
 
-constexpr float kMemorySmoothingMs = 250.0f;
-constexpr float kDepthSmoothingMs = 250.0f;
-constexpr float kDecaySmoothingMs = 350.0f;
-constexpr float kDriftSmoothingMs = 350.0f;
+constexpr float kMemorySmoothingMs = 300.0f;
+constexpr float kDepthSmoothingMs = 300.0f;
+constexpr float kDecaySmoothingMs = 450.0f;
+constexpr float kDriftSmoothingMs = 450.0f;
+
+constexpr float kSurfaceQuietThreshold = 0.03f;
+constexpr float kSurfaceIntervalMinSeconds = 6.0f;
+constexpr float kSurfaceIntervalMaxSeconds = 18.0f;
+constexpr float kSurfaceCooldownMinSeconds = 2.0f;
+constexpr float kSurfaceCooldownMaxSeconds = 6.0f;
+
+constexpr float kSurfaceWidthMinMs = 200.0f;
+constexpr float kSurfaceWidthMaxMs = 800.0f;
+constexpr float kSurfaceWidthLongMinMs = 350.0f;
+constexpr float kSurfaceWidthLongMaxMs = 900.0f;
+
+constexpr float kSurfaceFadeMinSeconds = 1.0f;
+constexpr float kSurfaceFadeMaxSeconds = 3.0f;
+constexpr float kSurfaceHoldMinSeconds = 0.5f;
+constexpr float kSurfaceHoldMaxSeconds = 2.0f;
+
+constexpr float kSurfaceTargetPeakShort = 0.012f;
+constexpr float kSurfaceTargetPeakLong = 0.008f;
+constexpr float kSurfaceProbeMin = 0.0015f;
+constexpr float kSurfaceGainMax = 0.25f;
+
 constexpr float kLowpassMaxHz = 12000.0f;
 constexpr float kLowpassMinHz = 2500.0f;
-constexpr float kSaturationDriveMax = 1.4f;
+constexpr float kSaturationDriveMax = 1.6f;
+constexpr float kAgeGainReductionMax = 0.35f;
+
 constexpr float kDriftCentsMax = 15.0f;
-constexpr float kDriftUpdateMs = 120.0f;
-constexpr float kDriftSlewMs = 160.0f;
-constexpr float kRecallAgeScaleMax = 1.7f;
-constexpr float kRecallMemoryScaleMax = 2.4f;
+constexpr float kDriftUpdateMs = 140.0f;
+constexpr float kDriftSlewMs = 200.0f;
+
+#if defined(MONUMENT_TESTING)
+constexpr float kTestSurfaceRateScale = 3.0f;
+#endif
 
 inline float coeffFromMs(float timeMs, double sampleRate)
 {
@@ -47,6 +66,27 @@ inline float coeffFromHz(float cutoffHz, double sampleRate)
         * static_cast<double>(cutoffHz) / sampleRate;
     return static_cast<float>(1.0 - std::exp(-omega));
 }
+
+inline float forgetFactorFromDb(float targetDb, float durationSeconds, double sampleRate)
+{
+    const double linear = std::pow(10.0, static_cast<double>(targetDb) / 20.0);
+    return static_cast<float>(std::pow(linear, 1.0 / (durationSeconds * sampleRate)));
+}
+
+inline float clampFinite(float value)
+{
+    return std::isfinite(value) ? value : 0.0f;
+}
+
+inline float randomRange(juce::Random& random, float minValue, float maxValue)
+{
+    return minValue + (maxValue - minValue) * random.nextFloat();
+}
+
+inline int secondsToSamples(float seconds, double sampleRate)
+{
+    return juce::jmax(1, static_cast<int>(std::round(seconds * sampleRate)));
+}
 } // namespace
 
 namespace monument
@@ -59,23 +99,29 @@ void MemoryEchoes::prepare(double sampleRate, int blockSize, int numChannels)
     maxBlockSize = blockSize;
     channels = numChannels;
 
-    recentLengthSamples = juce::jmax(1, static_cast<int>(std::round(sampleRateHz * kRecentMemorySeconds)));
-    distantLengthSamples = juce::jmax(1, static_cast<int>(std::round(sampleRateHz * kDistantMemorySeconds)));
+    shortLengthSamples = juce::jmax(1, static_cast<int>(std::round(sampleRateHz * kShortMemorySeconds)));
+    longLengthSamples = juce::jmax(1, static_cast<int>(std::round(sampleRateHz * kLongMemorySeconds)));
 
-    const int bufferChannels = 2;
-    recentBuffer.setSize(bufferChannels, recentLengthSamples, false, false, true);
-    recentBuffer.clear();
-    distantBuffer.setSize(bufferChannels, distantLengthSamples, false, false, true);
-    distantBuffer.clear();
+    constexpr int shortChannels = 2;
+    constexpr int longChannels = 1;
+    shortBuffer.setSize(shortChannels, shortLengthSamples, false, false, true);
+    shortBuffer.clear();
+    longBuffer.setSize(longChannels, longLengthSamples, false, false, true);
+    longBuffer.clear();
+    recallBuffer.setSize(2, maxBlockSize, false, false, true);
+    recallBuffer.clear();
 
-    recentWritePos = 0;
-    distantWritePos = 0;
-    captureStride = kCaptureStrideSamples;
-    captureCounter = 0;
-    captureEnvelope = 0.0f;
-    captureThreshold = kCaptureThreshold;
-    captureAttackCoeff = coeffFromMs(kEnvelopeAttackMs, sampleRateHz);
-    captureReleaseCoeff = coeffFromMs(kEnvelopeReleaseMs, sampleRateHz);
+    shortWritePos = 0;
+    longWritePos = 0;
+    shortFilledSamples = 0;
+    longFilledSamples = 0;
+
+    shortForgetFactor = forgetFactorFromDb(kShortTargetDecayDb, kShortMemorySeconds, sampleRateHz);
+    longForgetFactor = forgetFactorFromDb(kLongTargetDecayDb, kLongMemorySeconds, sampleRateHz);
+    shortCaptureGain = kShortCaptureGain;
+    longCaptureGain = kLongCaptureGain;
+    captureRmsCoeff = coeffFromMs(kCaptureRmsTimeMs, sampleRateHz);
+    lastCaptureRms = 0.0f;
 
     memorySmoother.prepare(sampleRateHz);
     memorySmoother.setSmoothingTimeMs(kMemorySmoothingMs);
@@ -98,65 +144,56 @@ void MemoryEchoes::prepare(double sampleRate, int blockSize, int numChannels)
         static_cast<int>(std::round(sampleRateHz * (kDriftUpdateMs / 1000.0f))));
     driftUpdateRemaining = driftUpdateSamples;
 
-    smoothersPrimed = false;
-    memoryEnabled = false;
-    memoryAmountForCapture = 0.0f;
-    freezeEnabled = false;
-
-    samplesUntilRecall = 0;
-    fragmentActive = false;
-    blockHadFragment = false;
-    fragmentSamplesRemaining = 0;
-    fragmentLengthSamples = 0;
-    fragmentFadeSamples = 0;
-    fragmentGain = 0.0f;
-    fragmentReadPos = 0.0f;
-    fragmentAge = 0.0f;
-    fragmentLowpassCoeff = 0.0f;
-    fragmentLowpassStateL = 0.0f;
-    fragmentLowpassStateR = 0.0f;
-    fragmentSaturationDrive = 1.0f;
-    fragmentSaturationNorm = 1.0f;
-    fragmentDriftCents = 0.0f;
-    fragmentDriftTarget = 0.0f;
-    fragmentDriftCentsMax = 0.0f;
-    lastRecallAge = 0.0f;
+    reset();
 }
 
 void MemoryEchoes::reset()
 {
-    recentBuffer.clear();
-    distantBuffer.clear();
-    recentWritePos = 0;
-    distantWritePos = 0;
-    captureCounter = 0;
-    captureEnvelope = 0.0f;
+    shortBuffer.clear();
+    longBuffer.clear();
+    recallBuffer.clear();
+
+    shortWritePos = 0;
+    longWritePos = 0;
+    shortFilledSamples = 0;
+    longFilledSamples = 0;
+    lastCaptureRms = 0.0f;
+
     memoryEnabled = false;
     memoryAmountForCapture = 0.0f;
-    samplesUntilRecall = 0;
-    fragmentActive = false;
-    blockHadFragment = false;
-    fragmentSamplesRemaining = 0;
-    fragmentLengthSamples = 0;
-    fragmentFadeSamples = 0;
-    fragmentGain = 0.0f;
-    fragmentReadPos = 0.0f;
-    fragmentAge = 0.0f;
-    fragmentLowpassCoeff = 0.0f;
-    fragmentLowpassStateL = 0.0f;
-    fragmentLowpassStateR = 0.0f;
-    fragmentSaturationDrive = 1.0f;
-    fragmentSaturationNorm = 1.0f;
-    fragmentDriftCents = 0.0f;
-    fragmentDriftTarget = 0.0f;
-    fragmentDriftCentsMax = 0.0f;
+    freezeEnabled = false;
+
+    surfaceState = SurfaceState::Idle;
+    surfaceUsesLong = false;
+    surfaceCenterPos = 0.0f;
+    surfaceWidthSamples = 0;
+    surfaceTotalSamples = 0;
+    surfaceSamplesProcessed = 0;
+    surfaceBaseGain = 0.0f;
+    surfaceFadeInSamples = 0;
+    surfaceHoldSamples = 0;
+    surfaceFadeOutSamples = 0;
+    surfaceSamplesRemaining = 0;
+    surfaceGain = 0.0f;
+    surfaceGainStep = 0.0f;
+    surfaceCooldownSamples = 0;
+    surfacePlaybackPos = 0.0f;
+    surfacePlaybackStep = 0.0f;
+    surfaceLowpassStateL = 0.0f;
+    surfaceLowpassStateR = 0.0f;
+    surfaceDriftCents = 0.0f;
+    surfaceDriftTarget = 0.0f;
+    surfaceDriftCentsMax = 0.0f;
     driftUpdateRemaining = driftUpdateSamples;
-    lastRecallAge = 0.0f;
+
     smoothersPrimed = false;
+    chambersInputGain = 0.25f;
 }
 
 void MemoryEchoes::process(juce::AudioBuffer<float>& buffer)
 {
+    juce::ScopedNoDenormals noDenormals;
+
     const int numSamples = buffer.getNumSamples();
     const int numChannels = buffer.getNumChannels();
     if (numSamples == 0 || numChannels == 0)
@@ -171,155 +208,175 @@ void MemoryEchoes::process(juce::AudioBuffer<float>& buffer)
         smoothersPrimed = true;
     }
 
+    const bool recallReady = recallBuffer.getNumSamples() >= numSamples
+        && recallBuffer.getNumChannels() >= 2;
+    float* recallL = recallReady ? recallBuffer.getWritePointer(0) : nullptr;
+    float* recallR = recallReady ? recallBuffer.getWritePointer(1) : nullptr;
+    if (recallReady)
+    {
+        std::fill_n(recallL, numSamples, 0.0f);
+        std::fill_n(recallR, numSamples, 0.0f);
+    }
+
     auto* left = buffer.getWritePointer(0);
     auto* right = numChannels > 1 ? buffer.getWritePointer(1) : nullptr;
 
-    const auto* recentL = recentBuffer.getReadPointer(0);
-    const auto* recentR = recentBuffer.getReadPointer(1);
-    const auto* distantL = distantBuffer.getReadPointer(0);
-    const auto* distantR = distantBuffer.getReadPointer(1);
+    if (surfaceCooldownSamples > 0)
+        surfaceCooldownSamples = juce::jmax(0, surfaceCooldownSamples - numSamples);
 
-    blockHadFragment = false;
+    float memoryAmount = juce::jlimit(0.0f, 1.0f, memorySmoother.getNextValue());
+    float depth = juce::jlimit(0.0f, 1.0f, depthSmoother.getNextValue());
+    float decayAmount = juce::jlimit(0.0f, 1.0f, decaySmoother.getNextValue());
+    float driftAmount = juce::jlimit(0.0f, 1.0f, driftSmoother.getNextValue());
+
+    if (!freezeEnabled)
+        maybeStartSurface(numSamples, memoryAmount, depth, decayAmount, driftAmount);
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        const float memoryAmount = juce::jlimit(0.0f, 1.0f, memorySmoother.getNextValue());
-        const float depth = juce::jlimit(0.0f, 1.0f, depthSmoother.getNextValue());
-        const float decayAmount = juce::jlimit(0.0f, 1.0f, decaySmoother.getNextValue());
-        const float driftAmount = juce::jlimit(0.0f, 1.0f, driftSmoother.getNextValue());
+        if (sample > 0)
+        {
+            memoryAmount = juce::jlimit(0.0f, 1.0f, memorySmoother.getNextValue());
+            depth = juce::jlimit(0.0f, 1.0f, depthSmoother.getNextValue());
+            decayAmount = juce::jlimit(0.0f, 1.0f, decaySmoother.getNextValue());
+            driftAmount = juce::jlimit(0.0f, 1.0f, driftSmoother.getNextValue());
+        }
+
+        lastMemoryAmount = memoryAmount;
+        lastDepthAmount = depth;
+        lastDecayAmount = decayAmount;
+        lastDriftAmount = driftAmount;
         memoryAmountForCapture = memoryAmount;
+        memoryEnabled = memoryAmount > kMemoryEpsilon;
 
-        const bool enabledNow = memoryAmount > kMemoryEpsilon;
-        if (enabledNow != memoryEnabled)
-        {
-            memoryEnabled = enabledNow;
-            fragmentActive = memoryEnabled ? fragmentActive : false;
-            samplesUntilRecall = memoryEnabled ? samplesUntilRecall : 0;
-            if (memoryEnabled)
-                scheduleNextRecall(memoryAmount);
-            else
-                lastRecallAge = 0.0f;
-#if defined(MONUMENT_TESTING)
-            juce::Logger::writeToLog("Monument MemoryEchoes "
-                + juce::String(memoryEnabled ? "enabled" : "disabled")
-                + " memory=" + juce::String(memoryAmount, 3));
-#endif
-        }
+        float outL = 0.0f;
+        float outR = 0.0f;
 
-        if (memoryEnabled && !fragmentActive)
+        if (memoryEnabled && surfaceState != SurfaceState::Idle && !freezeEnabled)
         {
-            --samplesUntilRecall;
-            if (samplesUntilRecall <= 0)
+            float age = 0.0f;
+            float sampleL = 0.0f;
+            float sampleR = 0.0f;
+            const float readPos = surfaceCenterPos + surfacePlaybackPos;
+
+            if (surfaceUsesLong)
             {
-                startFragment(depth, memoryAmount, decayAmount, driftAmount);
-                scheduleNextRecall(memoryAmount);
-            }
-        }
-
-        float injectL = 0.0f;
-        float injectR = 0.0f;
-
-        if (fragmentActive)
-        {
-            blockHadFragment = true;
-            // Single fragment at a time: subtle recall, no overlap or granular spray.
-            const bool useDistant = activeBuffer == BufferChoice::Distant;
-            const int bufferLength = useDistant ? distantLengthSamples : recentLengthSamples;
-            if (bufferLength > 0)
-            {
-                int index0 = static_cast<int>(fragmentReadPos);
-                if (index0 >= bufferLength)
-                    index0 = 0;
-                int index1 = index0 + 1;
-                if (index1 >= bufferLength)
-                    index1 = 0;
-                const float frac = fragmentReadPos - static_cast<float>(index0);
-
-                float sourceL = useDistant ? distantL[index0] : recentL[index0];
-                float sourceR = useDistant ? distantR[index0] : recentR[index0];
-
-                if (frac > 0.0f && bufferLength > 1)
-                {
-                    const float nextL = useDistant ? distantL[index1] : recentL[index1];
-                    const float nextR = useDistant ? distantR[index1] : recentR[index1];
-                    sourceL += (nextL - sourceL) * frac;
-                    sourceR += (nextR - sourceR) * frac;
-                }
-
-                // Age shaping: older memories are darker, slightly saturated, and quieter.
-                fragmentLowpassStateL += fragmentLowpassCoeff * (sourceL - fragmentLowpassStateL);
-                fragmentLowpassStateR += fragmentLowpassCoeff * (sourceR - fragmentLowpassStateR);
-                sourceL = fragmentLowpassStateL;
-                sourceR = fragmentLowpassStateR;
-
-                if (fragmentSaturationDrive > 1.0f)
-                {
-                    sourceL = std::tanh(fragmentSaturationDrive * sourceL) * fragmentSaturationNorm;
-                    sourceR = std::tanh(fragmentSaturationDrive * sourceR) * fragmentSaturationNorm;
-                }
-
-                const int elapsed = fragmentLengthSamples - fragmentSamplesRemaining;
-                float fadeGain = 1.0f;
-                if (fragmentFadeSamples > 0)
-                {
-                    if (elapsed < fragmentFadeSamples)
-                        fadeGain = static_cast<float>(elapsed) / static_cast<float>(fragmentFadeSamples);
-                    else if (fragmentSamplesRemaining < fragmentFadeSamples)
-                        fadeGain = static_cast<float>(fragmentSamplesRemaining) / static_cast<float>(fragmentFadeSamples);
-                }
-
-                const float gain = fragmentGain * fadeGain;
-                injectL = juce::jlimit(-kInjectionClamp, kInjectionClamp, sourceL * gain);
-                injectR = juce::jlimit(-kInjectionClamp, kInjectionClamp, sourceR * gain);
-
-                // Drift is a slow random walk in cents to avoid audible modulation.
-                if (fragmentDriftCentsMax > 0.0f && !freezeEnabled)
-                {
-                    if (--driftUpdateRemaining <= 0)
-                    {
-                        driftUpdateRemaining = driftUpdateSamples;
-                        fragmentDriftTarget = (random.nextFloat() * 2.0f - 1.0f) * fragmentDriftCentsMax;
-                    }
-                    fragmentDriftCents = fragmentDriftTarget
-                        + driftSlewCoeff * (fragmentDriftCents - fragmentDriftTarget);
-                }
-                else if (fragmentDriftCentsMax <= 0.0f)
-                {
-                    fragmentDriftCents = 0.0f;
-                }
-
-                const float driftRatio = std::pow(2.0f, fragmentDriftCents / 1200.0f);
-                fragmentReadPos += driftRatio;
-                if (fragmentReadPos >= bufferLength)
-                    fragmentReadPos -= bufferLength;
-
-                --fragmentSamplesRemaining;
-                if (fragmentSamplesRemaining <= 0)
-                {
-                    fragmentActive = false;
-                    samplesUntilRecall = 0;
-                }
+                const float mono = readLongMemory(readPos, age);
+                sampleL = mono;
+                sampleR = mono;
             }
             else
             {
-                fragmentActive = false;
+                readShortMemory(readPos, age, sampleL, sampleR);
             }
+
+            const float ageWeight = juce::jlimit(0.0f, 1.0f, age * (0.35f + 0.65f * decayAmount));
+            const float cutoff = juce::jmap(ageWeight, kLowpassMaxHz, kLowpassMinHz);
+            const float lowpassCoeff = coeffFromHz(cutoff, sampleRateHz);
+
+            surfaceLowpassStateL += lowpassCoeff * (sampleL - surfaceLowpassStateL);
+            surfaceLowpassStateR += lowpassCoeff * (sampleR - surfaceLowpassStateR);
+            sampleL = surfaceLowpassStateL;
+            sampleR = surfaceLowpassStateR;
+
+            const float drive = juce::jmap(ageWeight, 1.0f, kSaturationDriveMax);
+            if (drive > 1.001f)
+            {
+                const float norm = 1.0f / std::tanh(drive);
+                sampleL = std::tanh(drive * sampleL) * norm;
+                sampleR = std::tanh(drive * sampleR) * norm;
+            }
+
+            float gainErosion = 1.0f - kAgeGainReductionMax * ageWeight;
+            if (surfaceUsesLong)
+                gainErosion *= 0.9f;
+
+            const float gain = surfaceBaseGain * surfaceGain * gainErosion;
+            outL = juce::jlimit(-1.0f, 1.0f, sampleL * gain);
+            outR = juce::jlimit(-1.0f, 1.0f, sampleR * gain);
+
+            if (surfaceDriftCentsMax > 0.0f)
+            {
+                if (--driftUpdateRemaining <= 0)
+                {
+                    driftUpdateRemaining = driftUpdateSamples;
+                    surfaceDriftTarget = (random.nextFloat() * 2.0f - 1.0f) * surfaceDriftCentsMax;
+                }
+                surfaceDriftCents = surfaceDriftTarget
+                    + driftSlewCoeff * (surfaceDriftCents - surfaceDriftTarget);
+            }
+            else
+            {
+                surfaceDriftCents = 0.0f;
+            }
+
+            const float driftRatio = std::pow(2.0f, surfaceDriftCents / 1200.0f);
+            surfacePlaybackPos += surfacePlaybackStep * driftRatio;
+            const float halfWidth = 0.5f * static_cast<float>(surfaceWidthSamples);
+            if (surfacePlaybackPos > halfWidth)
+                surfacePlaybackPos = halfWidth;
+            else if (surfacePlaybackPos < -halfWidth)
+                surfacePlaybackPos = -halfWidth;
+
+            if (surfaceState == SurfaceState::FadeIn || surfaceState == SurfaceState::FadeOut)
+                surfaceGain = juce::jlimit(0.0f, 1.0f, surfaceGain + surfaceGainStep);
+
+            ++surfaceSamplesProcessed;
+            if (--surfaceSamplesRemaining <= 0)
+                advanceSurface();
+        }
+        else if (!memoryEnabled)
+        {
+            surfaceState = SurfaceState::Idle;
+            surfaceSamplesRemaining = 0;
+            surfaceGain = 0.0f;
         }
 
-        if (injectL != 0.0f || injectR != 0.0f)
+        if (recallReady)
         {
-            left[sample] += injectL;
+            recallL[sample] = outL;
+            recallR[sample] = outR;
+        }
+
+        if (injectToBuffer && (outL != 0.0f || outR != 0.0f))
+        {
+            left[sample] += outL * chambersInputGain;
             if (right != nullptr)
-                right[sample] += injectR;
+                right[sample] += outR * chambersInputGain;
         }
     }
+
+#if defined(MONUMENT_TESTING)
+    if (memoryEnabled && surfaceState != SurfaceState::Idle && recallReady)
+    {
+        float peak = 0.0f;
+        double sumSq = 0.0;
+        int count = 0;
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            const float l = recallL[sample];
+            const float r = recallR[sample];
+            peak = juce::jmax(peak, juce::jmax(std::abs(l), std::abs(r)));
+            sumSq += static_cast<double>(l * l + r * r);
+            count += 2;
+        }
+        const float rms = count > 0 ? static_cast<float>(std::sqrt(sumSq / count)) : 0.0f;
+        juce::Logger::writeToLog("Monument MemoryEchoes surface out peak="
+            + juce::String(peak, 6)
+            + " rms=" + juce::String(rms, 6)
+            + " gain=" + juce::String(surfaceBaseGain, 5)
+            + " fade=" + juce::String(surfaceGain, 3)
+            + " uses=" + juce::String(surfaceUsesLong ? "long" : "short")
+            + " rmsIn=" + juce::String(lastCaptureRms, 4));
+    }
+#endif
 }
 
 void MemoryEchoes::captureWet(const juce::AudioBuffer<float>& wetBuffer)
 {
-    // Freeze pauses capture to keep the frozen tail stable; recall may continue in the pre-Chambers path.
-    // Avoid Memory -> Memory feedback by pausing capture for blocks that contained recall.
-    if (freezeEnabled || blockHadFragment || memoryAmountForCapture <= kMemoryEpsilon)
+    juce::ScopedNoDenormals noDenormals;
+
+    if (memoryAmountForCapture <= kMemoryEpsilon)
         return;
 
     const int numSamples = wetBuffer.getNumSamples();
@@ -328,90 +385,82 @@ void MemoryEchoes::captureWet(const juce::AudioBuffer<float>& wetBuffer)
         return;
 
     const auto* left = wetBuffer.getReadPointer(0);
-    const auto* right = numChannels > 1 ? wetBuffer.getReadPointer(1) : nullptr;
+    const auto* right = numChannels > 1 ? wetBuffer.getReadPointer(1) : left;
 
-    auto* recentL = recentBuffer.getWritePointer(0);
-    auto* recentR = recentBuffer.getWritePointer(1);
-    auto* distantL = distantBuffer.getWritePointer(0);
-    auto* distantR = distantBuffer.getWritePointer(1);
+    auto* shortL = shortBuffer.getWritePointer(0);
+    auto* shortR = shortBuffer.getWritePointer(1);
+    auto* longData = longBuffer.getWritePointer(0);
 
-    const float captureGain = kCaptureGain * memoryAmountForCapture;
+    float captureScale = juce::jlimit(0.0f, 1.0f, memoryAmountForCapture);
+    if (freezeEnabled)
+        captureScale *= kFreezeCaptureScale;
+
+    const float shortGain = shortCaptureGain * captureScale;
+    const float longGain = longCaptureGain * captureScale;
+
+    double sumSquares = 0.0;
+    int count = 0;
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        const float wetL = left[sample];
-        const float wetR = right != nullptr ? right[sample] : wetL;
-        if (!std::isfinite(wetL) || !std::isfinite(wetR))
-        {
-            ++recentWritePos;
-            if (recentWritePos >= recentLengthSamples)
-                recentWritePos = 0;
-            ++distantWritePos;
-            if (distantWritePos >= distantLengthSamples)
-                distantWritePos = 0;
-            ++captureCounter;
-            if (captureCounter >= captureStride)
-                captureCounter = 0;
-            continue;
-        }
-        const float inputMag = 0.5f * (std::abs(wetL) + std::abs(wetR));
-        const float coeff = inputMag > captureEnvelope ? captureAttackCoeff : captureReleaseCoeff;
-        captureEnvelope = inputMag + coeff * (captureEnvelope - inputMag);
+        float inL = clampFinite(left[sample]);
+        float inR = clampFinite(right[sample]);
+        const float mono = 0.5f * (inL + inR);
 
-        if (captureCounter == 0 && captureEnvelope > captureThreshold)
-        {
-            // Capture is gated and throttled to avoid recording silence or noise floor.
-            const float writeL = juce::jlimit(-kCaptureClamp, kCaptureClamp, wetL * captureGain);
-            const float writeR = juce::jlimit(-kCaptureClamp, kCaptureClamp, wetR * captureGain);
-            recentL[recentWritePos] = writeL;
-            recentR[recentWritePos] = writeR;
-            distantL[distantWritePos] = writeL;
-            distantR[distantWritePos] = writeR;
-        }
+        shortL[shortWritePos] = shortL[shortWritePos] * shortForgetFactor + inL * shortGain;
+        shortR[shortWritePos] = shortR[shortWritePos] * shortForgetFactor + inR * shortGain;
+        longData[longWritePos] = longData[longWritePos] * longForgetFactor + mono * longGain;
 
-        ++recentWritePos;
-        if (recentWritePos >= recentLengthSamples)
-            recentWritePos = 0;
-        ++distantWritePos;
-        if (distantWritePos >= distantLengthSamples)
-            distantWritePos = 0;
+        sumSquares += static_cast<double>(mono * mono);
+        ++count;
 
-        ++captureCounter;
-        if (captureCounter >= captureStride)
-            captureCounter = 0;
+        ++shortWritePos;
+        if (shortWritePos >= shortLengthSamples)
+            shortWritePos = 0;
+        ++longWritePos;
+        if (longWritePos >= longLengthSamples)
+            longWritePos = 0;
+
+        if (shortFilledSamples < shortLengthSamples)
+            ++shortFilledSamples;
+        if (longFilledSamples < longLengthSamples)
+            ++longFilledSamples;
+    }
+
+    if (count > 0)
+    {
+        const float rms = static_cast<float>(std::sqrt(sumSquares / static_cast<double>(count)));
+        lastCaptureRms = captureRmsCoeff * lastCaptureRms + (1.0f - captureRmsCoeff) * rms;
     }
 }
 
 void MemoryEchoes::setMemory(float amount)
 {
-    if (!std::isfinite(amount))
-        return;
-    memoryTarget = juce::jlimit(0.0f, 1.0f, amount);
-    memorySmoother.setTarget(memoryTarget);
+    memoryTarget = amount;
+    memorySmoother.setTarget(amount);
 }
 
 void MemoryEchoes::setDepth(float depth)
 {
-    if (!std::isfinite(depth))
-        return;
-    depthTarget = juce::jlimit(0.0f, 1.0f, depth);
-    depthSmoother.setTarget(depthTarget);
+    depthTarget = depth;
+    depthSmoother.setTarget(depth);
 }
 
 void MemoryEchoes::setDecay(float decay)
 {
-    if (!std::isfinite(decay))
-        return;
-    decayTarget = juce::jlimit(0.0f, 1.0f, decay);
-    decaySmoother.setTarget(decayTarget);
+    decayTarget = decay;
+    decaySmoother.setTarget(decay);
 }
 
 void MemoryEchoes::setDrift(float drift)
 {
-    if (!std::isfinite(drift))
-        return;
-    driftTarget = juce::jlimit(0.0f, 1.0f, drift);
-    driftSmoother.setTarget(driftTarget);
+    driftTarget = drift;
+    driftSmoother.setTarget(drift);
+}
+
+void MemoryEchoes::setChambersInputGain(float inputGain)
+{
+    chambersInputGain = inputGain;
 }
 
 void MemoryEchoes::setFreeze(bool shouldFreeze)
@@ -419,105 +468,298 @@ void MemoryEchoes::setFreeze(bool shouldFreeze)
     freezeEnabled = shouldFreeze;
 }
 
+void MemoryEchoes::setInjectToBuffer(bool shouldInject)
+{
+    injectToBuffer = shouldInject;
+}
+
+const juce::AudioBuffer<float>& MemoryEchoes::getRecallBuffer() const
+{
+    return recallBuffer;
+}
+
 #if defined(MONUMENT_TESTING)
 void MemoryEchoes::setRandomSeed(int64_t seed)
 {
-    random.setSeed(seed);
+    random.setSeed(static_cast<int64_t>(seed));
 }
 #endif
 
-void MemoryEchoes::scheduleNextRecall(float memoryAmount)
+void MemoryEchoes::maybeStartSurface(int blockSamples,
+    float memoryAmount,
+    float depth,
+    float decayAmount,
+    float driftAmount)
 {
-    const float baseSeconds = juce::jmap(random.nextFloat(), kRecallMinSeconds, kRecallMaxSeconds);
-    const float ageScale = 1.0f + juce::jlimit(0.0f, 1.0f, lastRecallAge) * (kRecallAgeScaleMax - 1.0f);
-    const float memoryClamped = juce::jlimit(0.0f, 1.0f, memoryAmount);
-    const float memoryScale = 1.0f + (1.0f - memoryClamped) * (kRecallMemoryScaleMax - 1.0f);
-    const float seconds = baseSeconds * ageScale * memoryScale;
-    samplesUntilRecall = juce::jmax(1, static_cast<int>(std::round(seconds * sampleRateHz)));
-}
-
-void MemoryEchoes::startFragment(float depth, float memoryAmount, float decayAmount, float driftAmount)
-{
-    const float depthClamped = juce::jlimit(0.0f, 1.0f, depth);
-    const float memoryClamped = juce::jlimit(0.0f, 1.0f, memoryAmount);
-    if (memoryClamped <= kMemoryEpsilon)
+    if (surfaceState != SurfaceState::Idle || surfaceCooldownSamples > 0)
         return;
 
-    activeBuffer = (random.nextFloat() < depthClamped) ? BufferChoice::Distant : BufferChoice::Recent;
-    const int bufferLength = activeBuffer == BufferChoice::Distant ? distantLengthSamples : recentLengthSamples;
-    if (bufferLength <= 0)
+    if (memoryAmount <= kMemoryEpsilon)
         return;
 
-    const float fragmentMs = juce::jmap(random.nextFloat(), kFragmentMinMs, kFragmentMaxMs);
-    fragmentLengthSamples = juce::jlimit(1, bufferLength,
-        static_cast<int>(std::round(sampleRateHz * (fragmentMs / 1000.0f))));
-    fragmentSamplesRemaining = fragmentLengthSamples;
+    const float quietFactor = juce::jlimit(0.0f, 1.0f,
+        (kSurfaceQuietThreshold - lastCaptureRms) / kSurfaceQuietThreshold);
+    const float quietWeight = quietFactor * quietFactor;
+    if (quietWeight <= 0.0f)
+        return;
 
-    fragmentFadeSamples = juce::jmin(fragmentLengthSamples / 4,
-        juce::jmax(1, static_cast<int>(std::round(sampleRateHz * (kFragmentFadeMs / 1000.0f)))));
-
-    const int offset = random.nextInt(bufferLength);
-    const int writePos = activeBuffer == BufferChoice::Distant ? distantWritePos : recentWritePos;
-    fragmentReadPos = static_cast<float>(writePos - offset);
-    if (fragmentReadPos < 0.0f)
-        fragmentReadPos += static_cast<float>(bufferLength);
-
-    const float offsetNorm = bufferLength > 1
-        ? static_cast<float>(offset) / static_cast<float>(bufferLength - 1)
-        : 0.0f;
-    const float bufferBias = activeBuffer == BufferChoice::Distant ? 0.5f : 0.0f;
-    fragmentAge = juce::jlimit(0.0f, 1.0f, bufferBias + 0.5f * offsetNorm);
-    lastRecallAge = fragmentAge;
-
-    const float decayScale = juce::jlimit(0.0f, 1.0f, decayAmount * fragmentAge);
-    const float cutoffHz = juce::jmap(decayScale, kLowpassMaxHz, kLowpassMinHz);
-    fragmentLowpassCoeff = coeffFromHz(cutoffHz, sampleRateHz);
-    fragmentLowpassStateL = 0.0f;
-    fragmentLowpassStateR = 0.0f;
-
-    if (decayScale > 0.001f)
-    {
-        fragmentSaturationDrive = 1.0f + decayScale * (kSaturationDriveMax - 1.0f);
-        const float norm = std::tanh(fragmentSaturationDrive);
-        fragmentSaturationNorm = norm > 0.0f ? 1.0f / norm : 1.0f;
-    }
-    else
-    {
-        fragmentSaturationDrive = 1.0f;
-        fragmentSaturationNorm = 1.0f;
-    }
-
-    const float driftScale = juce::jlimit(0.0f, 1.0f, driftAmount * fragmentAge);
-    fragmentDriftCentsMax = kDriftCentsMax * driftScale;
-    if (fragmentDriftCentsMax > 0.0f)
-    {
-        fragmentDriftTarget = (random.nextFloat() * 2.0f - 1.0f) * fragmentDriftCentsMax;
-        fragmentDriftCents = fragmentDriftTarget;
-        driftUpdateRemaining = driftUpdateSamples;
-    }
-    else
-    {
-        fragmentDriftTarget = 0.0f;
-        fragmentDriftCents = 0.0f;
-        driftUpdateRemaining = driftUpdateSamples;
-    }
-
-    const float gainScale = juce::jmax(0.0f, 1.0f - decayScale * 0.35f);
-    fragmentGain = juce::jmin(kInjectionGainMax, memoryClamped * kInjectionGainMax) * gainScale;
-    fragmentActive = fragmentGain > 0.0f;
+    const float intervalSeconds = juce::jmap(memoryAmount,
+        kSurfaceIntervalMaxSeconds, kSurfaceIntervalMinSeconds);
+    const float blockSeconds = static_cast<float>(blockSamples) / static_cast<float>(sampleRateHz);
+    float probability = blockSeconds / intervalSeconds;
+    probability *= quietWeight;
 
 #if defined(MONUMENT_TESTING)
-    if (fragmentActive)
-    {
-        juce::Logger::writeToLog("Monument MemoryEchoes fragment age="
-            + juce::String(fragmentAge, 3)
-            + " gain=" + juce::String(fragmentGain, 4)
-            + " depth=" + juce::String(depthClamped, 3)
-            + " memory=" + juce::String(memoryClamped, 3)
-            + " decay=" + juce::String(decayAmount, 3)
-            + " drift=" + juce::String(driftAmount, 3));
-    }
+    probability *= kTestSurfaceRateScale;
 #endif
+
+    if (random.nextFloat() < probability)
+    {
+        const float longBias = depth * depth;
+        bool useLong = random.nextFloat() < longBias;
+        const bool longReady = longFilledSamples >= longLengthSamples / 4;
+        const bool shortReady = shortFilledSamples >= shortLengthSamples / 4;
+        if (useLong && !longReady)
+            useLong = shortReady;
+        if (!useLong && !shortReady)
+            useLong = longReady;
+        if (!longReady && !shortReady)
+            return;
+
+        startSurface(useLong, memoryAmount, decayAmount, driftAmount);
+    }
+}
+
+void MemoryEchoes::startSurface(bool useLong,
+    float memoryAmount,
+    float decayAmount,
+    float driftAmount)
+{
+    surfaceUsesLong = useLong;
+    surfaceState = SurfaceState::FadeIn;
+    surfaceSamplesProcessed = 0;
+
+    const int bufferLength = useLong ? longLengthSamples : shortLengthSamples;
+    const int writePos = useLong ? longWritePos : shortWritePos;
+    const int filledSamples = useLong ? longFilledSamples : shortFilledSamples;
+
+    const float widthMs = useLong
+        ? randomRange(random, kSurfaceWidthLongMinMs, kSurfaceWidthLongMaxMs)
+        : randomRange(random, kSurfaceWidthMinMs, kSurfaceWidthMaxMs);
+    surfaceWidthSamples = juce::jmax(1,
+        static_cast<int>(std::round(widthMs * 0.001f * sampleRateHz)));
+
+    const float filledNorm = bufferLength > 0
+        ? static_cast<float>(filledSamples) / static_cast<float>(bufferLength)
+        : 0.0f;
+    const float maxDistance = juce::jlimit(0.2f, 0.95f, filledNorm);
+    const float minDistance = juce::jmin(0.1f, maxDistance * 0.6f);
+
+    constexpr int kSurfaceCandidates = 6;
+    constexpr int kProbeCount = 12;
+    float bestPeak = 0.0f;
+    float bestCenter = 0.0f;
+
+    for (int candidate = 0; candidate < kSurfaceCandidates; ++candidate)
+    {
+        float rand = random.nextFloat();
+        if (useLong)
+            rand = 1.0f - (1.0f - rand) * (1.0f - rand);
+        const float distanceNorm = minDistance + (maxDistance - minDistance) * rand;
+        const float distanceSamples = distanceNorm * static_cast<float>(bufferLength - 1);
+        float center = static_cast<float>(writePos) - distanceSamples;
+        if (center < 0.0f)
+            center += static_cast<float>(bufferLength);
+
+        float probePeak = 0.0f;
+        for (int i = 0; i < kProbeCount; ++i)
+        {
+            const float t = kProbeCount > 1
+                ? static_cast<float>(i) / static_cast<float>(kProbeCount - 1)
+                : 0.5f;
+            const float localOffset = (t - 0.5f) * static_cast<float>(surfaceWidthSamples);
+            const float readPos = center + localOffset;
+            float age = 0.0f;
+            if (useLong)
+            {
+                const float mono = readLongMemory(readPos, age);
+                probePeak = juce::jmax(probePeak, std::abs(mono));
+            }
+            else
+            {
+                float l = 0.0f;
+                float r = 0.0f;
+                readShortMemory(readPos, age, l, r);
+                probePeak = juce::jmax(probePeak, juce::jmax(std::abs(l), std::abs(r)));
+            }
+        }
+
+        if (probePeak > bestPeak)
+        {
+            bestPeak = probePeak;
+            bestCenter = center;
+        }
+    }
+
+    if (bestPeak < kSurfaceProbeMin)
+    {
+        surfaceState = SurfaceState::Idle;
+        const float cooldownSeconds = randomRange(
+            random, kSurfaceCooldownMinSeconds, kSurfaceCooldownMaxSeconds);
+        surfaceCooldownSamples = secondsToSamples(cooldownSeconds, sampleRateHz);
+        return;
+    }
+
+    surfaceCenterPos = bestCenter;
+
+    const float fadeInSeconds = randomRange(random, kSurfaceFadeMinSeconds, kSurfaceFadeMaxSeconds);
+    const float holdSeconds = randomRange(random, kSurfaceHoldMinSeconds, kSurfaceHoldMaxSeconds);
+    const float fadeOutSeconds = randomRange(random, kSurfaceFadeMinSeconds, kSurfaceFadeMaxSeconds);
+
+    surfaceFadeInSamples = secondsToSamples(fadeInSeconds, sampleRateHz);
+    surfaceHoldSamples = secondsToSamples(holdSeconds, sampleRateHz);
+    surfaceFadeOutSamples = secondsToSamples(fadeOutSeconds, sampleRateHz);
+    surfaceSamplesRemaining = surfaceFadeInSamples;
+    surfaceTotalSamples = surfaceFadeInSamples + surfaceHoldSamples + surfaceFadeOutSamples;
+
+    surfaceGain = 0.0f;
+    surfaceGainStep = surfaceFadeInSamples > 0 ? 1.0f / static_cast<float>(surfaceFadeInSamples) : 1.0f;
+
+    const float targetPeak = useLong ? kSurfaceTargetPeakLong : kSurfaceTargetPeakShort;
+    const float normalization = targetPeak / juce::jmax(bestPeak, kSurfaceProbeMin);
+    surfaceBaseGain = juce::jlimit(0.0f, kSurfaceGainMax, normalization * memoryAmount);
+    surfaceBaseGain *= juce::jmap(decayAmount, 1.0f, 0.85f);
+    if (useLong)
+        surfaceBaseGain *= 0.9f;
+
+    surfacePlaybackPos = -0.5f * static_cast<float>(surfaceWidthSamples);
+    surfacePlaybackStep = surfaceTotalSamples > 0
+        ? static_cast<float>(surfaceWidthSamples) / static_cast<float>(surfaceTotalSamples)
+        : 0.0f;
+
+    surfaceLowpassStateL = 0.0f;
+    surfaceLowpassStateR = 0.0f;
+
+    surfaceDriftCents = 0.0f;
+    surfaceDriftTarget = 0.0f;
+    surfaceDriftCentsMax = kDriftCentsMax * driftAmount * (useLong ? 1.1f : 1.0f);
+    driftUpdateRemaining = driftUpdateSamples;
+
+#if defined(MONUMENT_TESTING)
+    juce::Logger::writeToLog("Monument MemoryEchoes surface start buffer="
+        + juce::String(useLong ? "long" : "short")
+        + " widthMs=" + juce::String(widthMs, 1)
+        + " gain=" + juce::String(surfaceBaseGain, 4)
+        + " probePeak=" + juce::String(bestPeak, 7));
+#endif
+}
+
+void MemoryEchoes::advanceSurface()
+{
+    switch (surfaceState)
+    {
+        case SurfaceState::FadeIn:
+            surfaceState = SurfaceState::Hold;
+            surfaceSamplesRemaining = surfaceHoldSamples;
+            surfaceGain = 1.0f;
+            surfaceGainStep = 0.0f;
+            break;
+        case SurfaceState::Hold:
+            surfaceState = SurfaceState::FadeOut;
+            surfaceSamplesRemaining = surfaceFadeOutSamples;
+            surfaceGainStep = surfaceFadeOutSamples > 0
+                ? -1.0f / static_cast<float>(surfaceFadeOutSamples)
+                : -1.0f;
+            break;
+        case SurfaceState::FadeOut:
+        case SurfaceState::Idle:
+        default:
+        {
+            surfaceState = SurfaceState::Idle;
+            surfaceSamplesRemaining = 0;
+            surfaceGain = 0.0f;
+            surfaceGainStep = 0.0f;
+            surfaceSamplesProcessed = 0;
+
+            const float cooldownSeconds = randomRange(
+                random, kSurfaceCooldownMinSeconds, kSurfaceCooldownMaxSeconds);
+            surfaceCooldownSamples = secondsToSamples(cooldownSeconds, sampleRateHz);
+            break;
+        }
+    }
+}
+
+void MemoryEchoes::readShortMemory(float readPos,
+    float& outAge,
+    float& outL,
+    float& outR) const
+{
+    if (shortLengthSamples <= 0)
+    {
+        outAge = 0.0f;
+        outL = 0.0f;
+        outR = 0.0f;
+        return;
+    }
+
+    float pos = readPos;
+    const float length = static_cast<float>(shortLengthSamples);
+    if (pos < 0.0f)
+        pos += length;
+    else if (pos >= length)
+        pos -= length;
+
+    const int index0 = static_cast<int>(pos);
+    const int index1 = index0 + 1 < shortLengthSamples ? index0 + 1 : 0;
+    const float frac = pos - static_cast<float>(index0);
+
+    const auto* left = shortBuffer.getReadPointer(0);
+    const auto* right = shortBuffer.getReadPointer(1);
+
+    const float l0 = left[index0];
+    const float r0 = right[index0];
+    const float l1 = left[index1];
+    const float r1 = right[index1];
+
+    outL = l0 + (l1 - l0) * frac;
+    outR = r0 + (r1 - r0) * frac;
+
+    float distance = static_cast<float>(shortWritePos) - pos;
+    if (distance < 0.0f)
+        distance += length;
+    outAge = juce::jlimit(0.0f, 1.0f, distance / length);
+}
+
+float MemoryEchoes::readLongMemory(float readPos, float& outAge) const
+{
+    if (longLengthSamples <= 0)
+    {
+        outAge = 0.0f;
+        return 0.0f;
+    }
+
+    float pos = readPos;
+    const float length = static_cast<float>(longLengthSamples);
+    if (pos < 0.0f)
+        pos += length;
+    else if (pos >= length)
+        pos -= length;
+
+    const int index0 = static_cast<int>(pos);
+    const int index1 = index0 + 1 < longLengthSamples ? index0 + 1 : 0;
+    const float frac = pos - static_cast<float>(index0);
+
+    const auto* data = longBuffer.getReadPointer(0);
+    const float s0 = data[index0];
+    const float s1 = data[index1];
+    const float sample = s0 + (s1 - s0) * frac;
+
+    float distance = static_cast<float>(longWritePos) - pos;
+    if (distance < 0.0f)
+        distance += length;
+    outAge = juce::jlimit(0.0f, 1.0f, distance / length);
+
+    return sample;
 }
 
 } // namespace dsp

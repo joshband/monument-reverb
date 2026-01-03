@@ -13,6 +13,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Memory Echoes Phase 1: optional wet-memory recall with recent/distant buffers, plus the "Ruined Monument (Remembers)" preset.
 - Memory Echoes Phase 2 complete: age-based filtering/saturation/decay, subtle drift, and recall density shaping with new Memory Decay/Memory Drift parameters.
 - Expanded factory preset pool to 18 with memory-aware, narrative descriptions.
+- Standalone Memory Echoes harness for isolated renders and tuning.
 
 ### Changed
 - Time feedback mapping widened to 0.35-0.995; mass and density ranges extended for darker and sparser tails.
@@ -21,6 +22,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Preset loading now applies Init Patch first and schedules a short DSP reset fade.
 - Pillars tap energy normalization and output headroom clamp for bounded early-space output.
 - Chambers parameter setters now sanitize out-of-range/NaN values (JUCE_DEBUG warnings).
+- Memory Echoes is disabled in the plugin by default; enable with `-DMONUMENT_ENABLE_MEMORY=ON` for dev builds.
 
 ### Fixed
 - Preset switches clear freeze state and reset Pillars mutation timers to avoid residual behavior.

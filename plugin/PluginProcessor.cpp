@@ -2,7 +2,7 @@
 #include "PluginEditor.h"
 
 #include <cmath>
-#if defined(MONUMENT_TESTING)
+#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
 #include <mutex>
 #endif
 
@@ -10,7 +10,14 @@ namespace
 {
 constexpr float kPresetFadeMs = 60.0f;
 
-#if defined(MONUMENT_TESTING)
+#if defined(MONUMENT_MEMORY_PROVE)
+#ifndef MONUMENT_MEMORY_PROVE_STAGE
+#define MONUMENT_MEMORY_PROVE_STAGE 0
+#endif
+constexpr int kMemoryProveStage = MONUMENT_MEMORY_PROVE_STAGE;
+#endif
+
+#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
 std::once_flag gTestingLoggerOnce;
 std::unique_ptr<juce::FileLogger> gTestingLogger;
 
@@ -89,7 +96,7 @@ void MonumentAudioProcessor::changeProgramName(int, const juce::String&)
 
 void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-#if defined(MONUMENT_TESTING)
+#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
     ensureTestingLogger();
 #endif
 
@@ -111,6 +118,11 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     presetGain = 1.0f;
     presetTransition = PresetTransitionState::None;
     presetResetRequested.store(false, std::memory_order_release);
+#if defined(MONUMENT_MEMORY_PROVE)
+    memoryProvePulseInterval = juce::jmax(
+        1, static_cast<int>(std::round(sampleRate * 0.5)));
+    memoryProvePulseRemaining = 0;
+#endif
 }
 
 void MonumentAudioProcessor::releaseResources()
@@ -140,7 +152,7 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 {
     juce::ScopedNoDenormals noDenormals;
 
-#if defined(MONUMENT_TESTING)
+#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
     const auto blockStartTicks = juce::Time::getHighResolutionTicks();
 #endif
 
@@ -149,6 +161,18 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
+
+#if defined(MONUMENT_MEMORY_PROVE)
+    float inputPeak = 0.0f;
+    const auto inputChannels = buffer.getNumChannels();
+    const auto inputSamples = buffer.getNumSamples();
+    for (int channel = 0; channel < inputChannels; ++channel)
+    {
+        const auto* data = buffer.getReadPointer(channel);
+        for (int sample = 0; sample < inputSamples; ++sample)
+            inputPeak = juce::jmax(inputPeak, std::abs(data[sample]));
+    }
+#endif
 
     const auto mixPercentRaw = parameters.getRawParameterValue("mix")->load();
     const auto time = parameters.getRawParameterValue("time")->load();
@@ -168,7 +192,42 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const auto memoryDrift = parameters.getRawParameterValue("memoryDrift")->load();
     const auto freeze = parameters.getRawParameterValue("freeze")->load() > 0.5f;
 
+#if defined(MONUMENT_MEMORY_PROVE)
+    const bool forceWet = kMemoryProveStage < 4;
+    const bool forceFreezeOff = kMemoryProveStage < 5;
+    const bool bypassChambers = kMemoryProveStage < 2;
+    const bool allowModulation = kMemoryProveStage >= 3;
+    const bool routeMemoryToOutput = kMemoryProveStage == 0;
+    if (routeMemoryToOutput)
+    {
+        memoryProvePulseRemaining -= buffer.getNumSamples();
+        if (inputPeak < 1.0e-6f && memoryProvePulseRemaining <= 0)
+        {
+            const float pulse = 0.8f;
+            buffer.setSample(0, 0, pulse);
+            if (buffer.getNumChannels() > 1)
+                buffer.setSample(1, 0, pulse);
+            memoryProvePulseRemaining = memoryProvePulseInterval;
+            juce::Logger::writeToLog("Monument MemoryEchoes prove injected pulse stage="
+                + juce::String(kMemoryProveStage));
+            inputPeak = pulse;
+        }
+    }
+#else
+    const bool forceWet = false;
+    const bool forceFreezeOff = false;
+    const bool bypassChambers = false;
+    const bool allowModulation = true;
+    const bool routeMemoryToOutput = false;
+#endif
+    const bool injectToBuffer = bypassChambers && !routeMemoryToOutput;
+
     const float mixPercent = std::isfinite(mixPercentRaw) ? mixPercentRaw : 0.0f;
+    const float mixPercentEffective = forceWet ? 100.0f : mixPercent;
+    const bool freezeEffective = forceFreezeOff ? false : freeze;
+    const float warpEffective = allowModulation ? warp : 0.0f;
+    const float driftEffective = allowModulation ? drift : 0.0f;
+    const float bloomEffective = allowModulation ? bloom : 0.0f;
     float pillarModeSafe = std::isfinite(pillarModeRaw) ? pillarModeRaw : 0.0f;
     pillarModeSafe = juce::jlimit(0.0f, 2.0f, pillarModeSafe);
 
@@ -179,28 +238,35 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     }
 
     pillars.setDensity(density);
-    pillars.setWarp(warp);
+    pillars.setWarp(warpEffective);
     pillars.setShape(pillarShape);
     pillars.setMode(static_cast<int>(std::round(pillarModeSafe)));
     chambers.setTime(time);
     chambers.setMass(mass);
     chambers.setDensity(density);
-    chambers.setBloom(bloom);
+    chambers.setBloom(bloomEffective);
     chambers.setGravity(gravity);
-    chambers.setFreeze(freeze);
+    chambers.setFreeze(freezeEffective);
+#if defined(MONUMENT_ENABLE_MEMORY)
+    const float densityClamped = std::isfinite(density) ? juce::jlimit(0.0f, 1.0f, density) : 0.5f;
+    const float densityShaped = juce::jmap(densityClamped, 0.05f, 1.0f);
+    const float memoryInputGain = juce::jmap(densityShaped, 0.18f, 0.32f);
     memoryEchoes.setMemory(memory);
     memoryEchoes.setDepth(memoryDepth);
     memoryEchoes.setDecay(memoryDecay);
     memoryEchoes.setDrift(memoryDrift);
-    memoryEchoes.setFreeze(freeze);
-    weathering.setWarp(warp);
-    weathering.setDrift(drift);
+    memoryEchoes.setInjectToBuffer(injectToBuffer);
+    memoryEchoes.setChambersInputGain(injectToBuffer ? memoryInputGain : 1.0f);
+    memoryEchoes.setFreeze(freezeEffective);
+#endif
+    weathering.setWarp(warpEffective);
+    weathering.setDrift(driftEffective);
     buttress.setDrive(juce::jmap(mass, 0.9f, 1.6f));
-    buttress.setFreeze(freeze);
+    buttress.setFreeze(freezeEffective);
     facade.setAir(air);
     facade.setWidth(juce::jmap(width, 0.0f, 2.0f));
 
-    const auto mix = juce::jlimit(0.0f, 100.0f, mixPercent) / 100.0f;
+    const auto mix = juce::jlimit(0.0f, 100.0f, mixPercentEffective) / 100.0f;
     const auto dryGain = std::cos(mix * juce::MathConstants<float>::halfPi);
     const auto wetGain = std::sin(mix * juce::MathConstants<float>::halfPi);
 
@@ -218,13 +284,39 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 
     foundation.process(buffer);
     pillars.process(buffer);
-    // Memory Echoes injects faint recall fragments before Chambers and captures after.
+#if defined(MONUMENT_ENABLE_MEMORY)
+    // Memory Echoes renders recall fragments; Chambers injects them into the FDN input.
     memoryEchoes.process(buffer);
-    chambers.process(buffer);
+    if (!bypassChambers)
+    {
+        chambers.setExternalInjection(&memoryEchoes.getRecallBuffer());
+        chambers.process(buffer);
+    }
     memoryEchoes.captureWet(buffer);
+#else
+    if (!bypassChambers)
+        chambers.process(buffer);
+#endif
     weathering.process(buffer);
     buttress.process(buffer);
     facade.process(buffer);
+
+#if defined(MONUMENT_MEMORY_PROVE)
+    if (routeMemoryToOutput)
+    {
+        const auto& recall = memoryEchoes.getRecallBuffer();
+        if (recall.getNumSamples() >= numSamples && recall.getNumChannels() >= numChannels)
+        {
+            for (int channel = 0; channel < numChannels; ++channel)
+            {
+                auto* wet = buffer.getWritePointer(channel);
+                const auto* recallData = recall.getReadPointer(channel);
+                for (int sample = 0; sample < numSamples; ++sample)
+                    wet[sample] = juce::jlimit(-1.0f, 1.0f, wet[sample] + recallData[sample]);
+            }
+        }
+    }
+#endif
 
     if (!dryReady)
     {
@@ -288,7 +380,7 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
         }
     }
 
-#if defined(MONUMENT_TESTING)
+#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
     float peak = 0.0f;
     for (int channel = 0; channel < numChannels; ++channel)
     {
@@ -301,8 +393,13 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const double elapsedMs = 1000.0
         * static_cast<double>(blockEndTicks - blockStartTicks)
         / juce::Time::getHighResolutionTicksPerSecond();
-    juce::Logger::writeToLog("Monument MONUMENT_TESTING peak=" + juce::String(peak, 6)
-        + " blockMs=" + juce::String(elapsedMs, 3));
+    juce::String logLine = "Monument MONUMENT_TESTING peak=" + juce::String(peak, 6)
+        + " blockMs=" + juce::String(elapsedMs, 3);
+#if defined(MONUMENT_MEMORY_PROVE)
+    logLine += " stage=" + juce::String(kMemoryProveStage);
+    logLine += " inputPeak=" + juce::String(inputPeak, 6);
+#endif
+    juce::Logger::writeToLog(logLine);
 #endif
 }
 

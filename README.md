@@ -139,6 +139,8 @@ All parameters are normalized to [0, 1] unless noted. Mix is [0, 100].
 ## Memory Echoes (Phase 2)
 
 Memory Echoes is a subtle internal recall of the reverb itself. It is off by default and has no UI controls yet.
+Development now runs in an isolated harness; plugin builds disable Memory Echoes unless configured with
+`-DMONUMENT_ENABLE_MEMORY=ON`.
 
 Enable or disable:
 - Enable by setting `Memory` > 0 via host automation or preset JSON.
@@ -182,6 +184,7 @@ flowchart LR
 ## Testing and validation
 
 - Automated: pluginval via `./scripts/run_pluginval.sh` (see `docs/TESTING.md` for setup).
+- Memory Echoes: `monument_memory_echoes_harness` for isolated renders (see `docs/TESTING.md`).
 - Optional logging: enable `MONUMENT_TESTING` to print peak and block timing per buffer.
 - REAPER Performance Monitor: load 50-100 instances and compare CPU usage.
 - Instrumentation: use Instruments, AddressSanitizer, or Valgrind for leak checks.

@@ -100,6 +100,8 @@ constexpr float kEnvelopeMaxTimeSeconds = 12.0f;
 constexpr float kBloomPeakGain = 0.5f; // Up to 1.5x at Bloom=1.
 constexpr float kWarpMatrixEpsilon = 1.0e-4f;
 constexpr float kMatrixNormEpsilon = 1.0e-6f;
+constexpr float kMemoryInjectionGain = 1.8f;
+constexpr float kMemoryEnvelopeTriggerScale = 1.5f;
 
 inline float onePoleCoeffFromHz(float cutoffHz, double sampleRate)
 {
@@ -332,6 +334,7 @@ void Chambers::reset()
     freezeRampingDown = false;
     isFrozen = false;
     wasFrozen = false;
+    externalInjection = nullptr;
     envelopeTimeSeconds = 0.0f;
     envelopeValue = 1.0f;
     envelopeTriggerArmed = true;
@@ -352,6 +355,12 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
 
     auto* left = buffer.getWritePointer(0);
     auto* right = numChannels > 1 ? buffer.getWritePointer(1) : nullptr;
+    const auto* injectionBuffer = externalInjection;
+    const bool hasExternalInjection = injectionBuffer != nullptr
+        && injectionBuffer->getNumChannels() >= 2
+        && injectionBuffer->getNumSamples() >= numSamples;
+    const auto* injectionL = hasExternalInjection ? injectionBuffer->getReadPointer(0) : nullptr;
+    const auto* injectionR = hasExternalInjection ? injectionBuffer->getReadPointer(1) : nullptr;
 
     std::array<float*, kNumLines> lineData{};
     for (size_t i = 0; i < kNumLines; ++i)
@@ -499,16 +508,21 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         const float inL = left[sample];
         const float inR = right != nullptr ? right[sample] : inL;
         const float inputMagnitude = juce::jmax(std::abs(inL), std::abs(inR));
+        const float memoryMagnitude = hasExternalInjection
+            ? juce::jmax(std::abs(injectionL[sample]), std::abs(injectionR[sample]))
+            : 0.0f;
+        const float envelopeInputMagnitude = juce::jmax(
+            inputMagnitude, memoryMagnitude * kMemoryEnvelopeTriggerScale);
 
         if (!freezeActive)
         {
-            if (inputMagnitude > envelopeResetThreshold && envelopeTriggerArmed)
+            if (envelopeInputMagnitude > envelopeResetThreshold && envelopeTriggerArmed)
             {
                 envelopeTimeSeconds = 0.0f;
                 envelopeValue = 1.0f;
                 envelopeTriggerArmed = false;
             }
-            else if (inputMagnitude <= envelopeResetThreshold)
+            else if (envelopeInputMagnitude <= envelopeResetThreshold)
             {
                 envelopeTriggerArmed = true;
             }
@@ -528,6 +542,20 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         }
         const float mid = 0.5f * (diffL + diffR);
         const float side = 0.5f * (diffL - diffR);
+        float memoryMid = 0.0f;
+        float memorySide = 0.0f;
+        if (hasExternalInjection)
+        {
+            float memL = injectionL[sample];
+            float memR = injectionR[sample];
+            if (!std::isfinite(memL) || !std::isfinite(memR))
+            {
+                memL = 0.0f;
+                memR = 0.0f;
+            }
+            memoryMid = 0.5f * (memL + memR);
+            memorySide = 0.5f * (memL - memR);
+        }
 
         const float outputBlend = freezeBlend;
         float outLive[kNumLines];
@@ -611,7 +639,11 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         {
             const float injection = (mid * kInputMid[i] + side * kInputSide[i])
                 * inputScale * freezeBlend;
-            const float writeValue = injection + feedback[i] * feedbackLocal;
+            const float memoryInjection = hasExternalInjection
+                ? (memoryMid * kInputMid[i] + memorySide * kInputSide[i])
+                    * kInvSqrt8 * kMemoryInjectionGain * freezeBlend
+                : 0.0f;
+            const float writeValue = injection + memoryInjection + feedback[i] * feedbackLocal;
             const int writePos = writePositions[i];
             const float damped = lowpassState[i] + dampingCoefficients[i] * (writeValue - lowpassState[i]);
             lowpassState[i] = damped;
@@ -640,7 +672,13 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         }
     }
 
+    externalInjection = nullptr;
     wasFrozen = freezeActive;
+}
+
+void Chambers::setExternalInjection(const juce::AudioBuffer<float>* injectionBuffer)
+{
+    externalInjection = injectionBuffer;
 }
 
 void Chambers::setTime(float time)

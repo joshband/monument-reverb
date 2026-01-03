@@ -76,6 +76,10 @@ private:
     int presetFadeSamples = 0;
     int presetFadeRemaining = 0;
     float presetGain = 1.0f;
+#if defined(MONUMENT_MEMORY_PROVE)
+    int memoryProvePulseInterval = 0;
+    int memoryProvePulseRemaining = 0;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MonumentAudioProcessor)
 };

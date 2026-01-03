@@ -15,7 +15,7 @@ public:
     void prepare(double sampleRate, int blockSize, int numChannels) override;
     void reset() override;
 
-    // Applies memory recall injection before Chambers.
+    // Renders memory surfacing and optionally injects into the pre-Chambers buffer.
     void process(juce::AudioBuffer<float>& buffer) override;
 
     // Captures post-Chambers wet output into memory buffers.
@@ -25,38 +25,55 @@ public:
     void setDepth(float depth);
     void setDecay(float decay);
     void setDrift(float drift);
+    void setChambersInputGain(float inputGain);
     void setFreeze(bool shouldFreeze);
+    void setInjectToBuffer(bool shouldInject);
+    const juce::AudioBuffer<float>& getRecallBuffer() const;
 #if defined(MONUMENT_TESTING)
     void setRandomSeed(int64_t seed);
 #endif
 
 private:
-    enum class BufferChoice
+    enum class SurfaceState
     {
-        Recent,
-        Distant
+        Idle,
+        FadeIn,
+        Hold,
+        FadeOut
     };
 
-    void scheduleNextRecall(float memoryAmount);
-    void startFragment(float depth, float memoryAmount, float decayAmount, float driftAmount);
+    void maybeStartSurface(int blockSamples,
+        float memoryAmount,
+        float depth,
+        float decayAmount,
+        float driftAmount);
+    void startSurface(bool useLong,
+        float memoryAmount,
+        float decayAmount,
+        float driftAmount);
+    void advanceSurface();
+    void readShortMemory(float readPos, float& outAge, float& outL, float& outR) const;
+    float readLongMemory(float readPos, float& outAge) const;
 
     double sampleRateHz = 44100.0;
     int maxBlockSize = 0;
     int channels = 0;
 
-    juce::AudioBuffer<float> recentBuffer;
-    juce::AudioBuffer<float> distantBuffer;
-    int recentLengthSamples = 0;
-    int distantLengthSamples = 0;
-    int recentWritePos = 0;
-    int distantWritePos = 0;
-
-    int captureStride = 4;
-    int captureCounter = 0;
-    float captureEnvelope = 0.0f;
-    float captureThreshold = 1.0e-4f;
-    float captureAttackCoeff = 0.0f;
-    float captureReleaseCoeff = 0.0f;
+    juce::AudioBuffer<float> shortBuffer;
+    juce::AudioBuffer<float> longBuffer;
+    juce::AudioBuffer<float> recallBuffer;
+    int shortLengthSamples = 0;
+    int longLengthSamples = 0;
+    int shortWritePos = 0;
+    int longWritePos = 0;
+    int shortFilledSamples = 0;
+    int longFilledSamples = 0;
+    float shortForgetFactor = 1.0f;
+    float longForgetFactor = 1.0f;
+    float shortCaptureGain = 1.0f;
+    float longCaptureGain = 1.0f;
+    float captureRmsCoeff = 0.0f;
+    float lastCaptureRms = 0.0f;
 
     ParameterSmoother memorySmoother;
     ParameterSmoother depthSmoother;
@@ -66,35 +83,42 @@ private:
     float depthTarget = 0.5f;
     float decayTarget = 0.4f;
     float driftTarget = 0.3f;
+    float chambersInputGain = 0.25f;
     bool smoothersPrimed = false;
     bool memoryEnabled = false;
     float memoryAmountForCapture = 0.0f;
-
+    bool injectToBuffer = true;
     bool freezeEnabled = false;
 
     juce::Random random;
-    int samplesUntilRecall = 0;
-    bool fragmentActive = false;
-    bool blockHadFragment = false;
-    BufferChoice activeBuffer = BufferChoice::Recent;
-    float fragmentReadPos = 0.0f;
-    int fragmentLengthSamples = 0;
-    int fragmentSamplesRemaining = 0;
-    int fragmentFadeSamples = 0;
-    float fragmentGain = 0.0f;
-    float fragmentAge = 0.0f;
-    float fragmentLowpassCoeff = 0.0f;
-    float fragmentLowpassStateL = 0.0f;
-    float fragmentLowpassStateR = 0.0f;
-    float fragmentSaturationDrive = 1.0f;
-    float fragmentSaturationNorm = 1.0f;
-    float fragmentDriftCents = 0.0f;
-    float fragmentDriftTarget = 0.0f;
-    float fragmentDriftCentsMax = 0.0f;
+    SurfaceState surfaceState = SurfaceState::Idle;
+    bool surfaceUsesLong = false;
+    float surfaceCenterPos = 0.0f;
+    int surfaceWidthSamples = 0;
+    int surfaceTotalSamples = 0;
+    int surfaceSamplesProcessed = 0;
+    float surfaceBaseGain = 0.0f;
+    int surfaceFadeInSamples = 0;
+    int surfaceHoldSamples = 0;
+    int surfaceFadeOutSamples = 0;
+    int surfaceSamplesRemaining = 0;
+    float surfaceGain = 0.0f;
+    float surfaceGainStep = 0.0f;
+    int surfaceCooldownSamples = 0;
+    float surfacePlaybackPos = 0.0f;
+    float surfacePlaybackStep = 0.0f;
+    float surfaceLowpassStateL = 0.0f;
+    float surfaceLowpassStateR = 0.0f;
+    float surfaceDriftCents = 0.0f;
+    float surfaceDriftTarget = 0.0f;
+    float surfaceDriftCentsMax = 0.0f;
     float driftSlewCoeff = 0.0f;
     int driftUpdateSamples = 0;
     int driftUpdateRemaining = 0;
-    float lastRecallAge = 0.0f;
+    float lastMemoryAmount = 0.0f;
+    float lastDepthAmount = 0.5f;
+    float lastDecayAmount = 0.4f;
+    float lastDriftAmount = 0.3f;
 };
 
 } // namespace dsp

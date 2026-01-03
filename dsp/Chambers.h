@@ -24,6 +24,7 @@ public:
     void setWarp(float warp);
     void setDrift(float drift);
     void setFreeze(bool shouldFreeze);
+    void setExternalInjection(const juce::AudioBuffer<float>* injectionBuffer);
 
 private:
     static constexpr int kNumLines = 8;
@@ -67,6 +68,7 @@ private:
     int freezeRampRemaining = 0;
     float freezeRampStep = 1.0f;
     float freezeBlend = 1.0f;
+    const juce::AudioBuffer<float>* externalInjection = nullptr;
 
     float envelopeTimeSeconds = 0.0f;
     float envelopeValue = 1.0f;
