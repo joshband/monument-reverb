@@ -5,15 +5,16 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## [Unreleased]
 
+### Notes
+- Memory Echoes development has moved to a standalone repository. Monument's
+  release line is intentionally memory-free until the planned v1.6 reintegration.
+
 ### Added
 - Factory preset descriptions, Init Patch, and JSON user preset save/load support.
 - Pillars early-reflection upgrades: geometry bending, fractal tap clusters, pseudo-IR loading, and Glass/Stone/Fog modes.
 - Testing hooks for peak/CPU logging, plus pluginval runner and testing docs.
 - Advanced feature scaffolding notes for algorithm switching, colour modes, tape loop, and sound-on-sound.
-- Memory Echoes Phase 1: optional wet-memory recall with recent/distant buffers, plus the "Ruined Monument (Remembers)" preset.
-- Memory Echoes Phase 2 complete: age-based filtering/saturation/decay, subtle drift, and recall density shaping with new Memory Decay/Memory Drift parameters.
-- Expanded factory preset pool to 18 with memory-aware, narrative descriptions.
-- Standalone Memory Echoes harness for isolated renders and tuning.
+- Expanded factory preset pool to 18 with narrative descriptions.
 
 ### Changed
 - Time feedback mapping widened to 0.35-0.995; mass and density ranges extended for darker and sparser tails.
@@ -22,10 +23,15 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Preset loading now applies Init Patch first and schedules a short DSP reset fade.
 - Pillars tap energy normalization and output headroom clamp for bounded early-space output.
 - Chambers parameter setters now sanitize out-of-range/NaN values (JUCE_DEBUG warnings).
-- Memory Echoes is disabled in the plugin by default; enable with `-DMONUMENT_ENABLE_MEMORY=ON` for dev builds.
 
 ### Fixed
 - Preset switches clear freeze state and reset Pillars mutation timers to avoid residual behavior.
+
+### Legacy (Memory Echoes, extracted)
+- Memory Echoes Phase 1: optional wet-memory recall with recent/distant buffers, plus the "Ruined Monument (Remembers)" preset.
+- Memory Echoes Phase 2 complete: age-based filtering/saturation/decay, subtle drift, and recall density shaping with new Memory Decay/Memory Drift parameters.
+- Standalone Memory Echoes harness for isolated renders and tuning.
+- Memory Echoes is disabled in the plugin by default; enable with `-DMONUMENT_ENABLE_MEMORY=ON` for dev builds.
 - Memory Echoes recall scheduling now triggers fragments correctly; added a MemoryEchoes unit test and pluginval script test hook.
 
 ## [0.1.7] - 2026-01-01

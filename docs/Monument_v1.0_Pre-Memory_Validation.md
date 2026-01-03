@@ -3,6 +3,8 @@
 ## Scope
 - Hardening pass for Freeze, presets, parameter extremes, Pillars bounds, and test hooks.
 - No creative DSP changes and no UI layout changes.
+- This document captures the memory-free baseline; Memory Echoes now lives in a
+  standalone repository pending a future reintegration.
 
 ## Expected behavior (locked)
 - Freeze engages/releases with 100 ms crossfades and preserves the captured Bloom envelope.
@@ -14,7 +16,7 @@
 - Presets cover core parameters only (Time, Mass, Density, Bloom, Gravity, Warp, Drift, Mix).
 - Preset changes briefly fade output (~60 ms) to avoid clicks when clearing state.
 
-## Assumptions for Memory Echoes
+## Assumptions for future Memory Echoes reintegration (historical)
 - Preset switching is stable during playback with no residual freeze/mutation state.
 - Freeze toggles are click-free and level-stable.
 - Pillars early-space output remains bounded and DC-free.
