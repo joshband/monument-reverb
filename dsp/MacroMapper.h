@@ -41,24 +41,48 @@ public:
         float pillarShape{0.5f};    // Early reflection spacing
         // pillarMode is discrete (not continuous), handled separately
 
-        // Future physical modeling parameters (placeholders)
-        float tubeCount{0.0f};
-        float metallicResonance{0.0f};
-        float elasticity{0.0f};
-        float impossibilityDegree{0.0f};
+        // Physical modeling parameters (Phase 5)
+        float tubeCount{0.545f};              // Tube count (5-16 tubes)
+        float radiusVariation{0.3f};          // Tube diameter variation
+        float metallicResonance{0.5f};        // Metallic resonance emphasis
+        float couplingStrength{0.5f};         // Tube coupling strength
+        float elasticity{0.5f};               // Wall elasticity
+        float recoveryTime{0.5f};             // Wall recovery time
+        float absorptionDrift{0.3f};          // Absorption drift amount
+        float nonlinearity{0.3f};             // Wall nonlinearity
+        float impossibilityDegree{0.3f};      // Alien physics intensity
+        float pitchEvolutionRate{0.3f};       // Pitch morphing speed
+        float paradoxResonanceFreq{0.5f};     // Paradox resonance frequency
+        float paradoxGain{0.3f};              // Paradox amplification gain
     };
 
     /**
      * @brief Macro control inputs (0-1 normalized).
+     * Ancient Monuments theme: Poetic architectural and temporal aesthetic 🗿
      */
     struct MacroInputs
     {
-        float material{0.5f};        // 0 = soft material → 1 = hard material
-        float topology{0.5f};        // 0 = regular room → 1 = non-Euclidean space
-        float viscosity{0.5f};       // 0 = airy → 1 = thick medium
-        float evolution{0.5f};       // 0 = static → 1 = blooming/changing
-        float chaosIntensity{0.0f};  // 0 = stable → 1 = chaotic
-        float elasticityDecay{0.0f}; // 0 = instant recovery → 1 = slow deformation
+        // Ancient Monuments - Core 6 macros (Phase 1-5)
+        float stone{0.5f};           // STONE: 0 = soft limestone → 1 = hard granite
+        float labyrinth{0.5f};       // LABYRINTH: 0 = simple hall → 1 = twisted maze
+        float mist{0.5f};            // MIST: 0 = clear air → 1 = dense fog
+        float bloom{0.5f};           // BLOOM: 0 = barren → 1 = overgrown
+        float tempest{0.0f};         // TEMPEST: 0 = calm → 1 = storm
+        float echo{0.0f};            // ECHO: 0 = instant → 1 = resonating memory
+
+        // Ancient Monuments - Expanded 4 macros (Phase 5+)
+        float patina{0.5f};          // PATINA: 0 = pristine → 1 = weathered
+        float abyss{0.5f};           // ABYSS: 0 = shallow → 1 = infinite void
+        float corona{0.5f};          // CORONA: 0 = shadow → 1 = sacred halo
+        float breath{0.0f};          // BREATH: 0 = dormant → 1 = living pulse
+
+        // Backward compatibility aliases (deprecated, use new names)
+        [[deprecated("Use 'stone' instead")]] float& material = stone;
+        [[deprecated("Use 'labyrinth' instead")]] float& topology = labyrinth;
+        [[deprecated("Use 'mist' instead")]] float& viscosity = mist;
+        [[deprecated("Use 'bloom' instead (no change)")]] float& evolution = bloom;
+        [[deprecated("Use 'tempest' instead")]] float& chaosIntensity = tempest;
+        [[deprecated("Use 'echo' instead")]] float& elasticityDecay = echo;
     };
 
     MacroMapper() = default;
@@ -67,14 +91,23 @@ public:
     /**
      * @brief Compute parameter targets from current macro positions.
      *
-     * This function maps the 6 high-level macro controls to all underlying
-     * reverb parameters. The mappings are designed to be musically coherent:
-     * - Material affects both mass (damping) and density (diffusion)
-     * - Topology drives warp (matrix morphing) and drift (micro-motion)
-     * - Viscosity influences time (feedback) and air (brightness)
-     * - Evolution controls bloom (envelope) and modulation depth
-     * - Chaos adds controlled instability to warp and drift
-     * - Elasticity enables future physical modeling features
+     * This function maps the 10 Ancient Monuments macro controls to all underlying
+     * reverb parameters. The mappings are designed to be musically coherent and
+     * evoke the weathering of ancient architectural structures over time.
+     *
+     * Ancient Monuments - Core 6 macros:
+     * - STONE: Affects mass (damping) and density (diffusion) - material hardness
+     * - LABYRINTH: Drives warp (matrix morphing) and drift (spatial complexity)
+     * - MIST: Influences time (feedback) and air (atmospheric density)
+     * - BLOOM: Controls bloom (envelope) and growth over time
+     * - TEMPEST: Adds controlled chaos to warp and drift (storm intensity)
+     * - ECHO: Enables resonating memory (elastic temporal response)
+     *
+     * Ancient Monuments - Expanded 4 macros:
+     * - PATINA: Controls reflection texture weathering (density, air, bloom)
+     * - ABYSS: Drives infinite spatial depth (size, time, width)
+     * - CORONA: Sacred radiant shimmer (bloom, air, warp)
+     * - BREATH: Living rhythmic pulse (evolution, drift, gravity)
      *
      * @param macros Current macro control values (all [0, 1])
      * @return ParameterTargets Computed target values for all parameters
@@ -82,40 +115,81 @@ public:
     ParameterTargets computeTargets(const MacroInputs& macros) const noexcept;
 
     /**
-     * @brief Compute targets with individual macro arguments (convenience overload).
+     * @brief Compute targets with individual Ancient Monuments macro arguments.
+     * @param stone Foundation material (soft limestone → hard granite)
+     * @param labyrinth Spatial complexity (simple hall → twisted maze)
+     * @param mist Atmospheric density (clear air → dense fog)
+     * @param bloom Organic growth (barren → overgrown)
+     * @param tempest Storm intensity (calm → raging)
+     * @param echo Resonating memory (instant → lingering)
+     * @param patina Surface weathering (pristine → aged)
+     * @param abyss Spatial depth (shallow → infinite void)
+     * @param corona Radiant halo (shadow → sacred light)
+     * @param breath Living pulse (dormant → breathing)
      */
     ParameterTargets computeTargets(
-        float material,
-        float topology,
-        float viscosity,
-        float evolution,
-        float chaosIntensity,
-        float elasticityDecay) const noexcept;
+        float stone,
+        float labyrinth,
+        float mist,
+        float bloom,
+        float tempest,
+        float echo,
+        float patina,
+        float abyss,
+        float corona,
+        float breath) const noexcept;
 
 private:
-    // Mapping functions: macro [0, 1] → parameter [0, 1]
+    // Ancient Monuments macro mapping functions: macro [0, 1] → parameter [0, 1]
     // These define the musical relationships between macros and parameters.
 
-    float mapMaterialToTime(float material) const noexcept;
-    float mapMaterialToMass(float material) const noexcept;
-    float mapMaterialToDensity(float material) const noexcept;
+    // STONE mappings (foundation material)
+    float mapStoneToTime(float stone) const noexcept;
+    float mapStoneToMass(float stone) const noexcept;
+    float mapStoneToDensity(float stone) const noexcept;
 
-    float mapTopologyToWarp(float topology) const noexcept;
-    float mapTopologyToDrift(float topology) const noexcept;
+    // LABYRINTH mappings (spatial complexity)
+    float mapLabyrinthToWarp(float labyrinth) const noexcept;
+    float mapLabyrinthToDrift(float labyrinth) const noexcept;
 
-    float mapViscosityToTime(float viscosity) const noexcept;
-    float mapViscosityToAir(float viscosity) const noexcept;
-    float mapViscosityToMass(float viscosity) const noexcept;
+    // MIST mappings (atmospheric density)
+    float mapMistToTime(float mist) const noexcept;
+    float mapMistToAir(float mist) const noexcept;
+    float mapMistToMass(float mist) const noexcept;
 
-    float mapEvolutionToBloom(float evolution) const noexcept;
-    float mapEvolutionToDrift(float evolution) const noexcept;
+    // BLOOM mappings (organic growth)
+    float mapBloomToBloom(float bloom) const noexcept;
+    float mapBloomToDrift(float bloom) const noexcept;
 
-    float mapChaosToWarp(float chaos) const noexcept;
-    float mapChaosToDrift(float chaos) const noexcept;
+    // TEMPEST mappings (storm chaos)
+    float mapTempestToWarp(float tempest) const noexcept;
+    float mapTempestToDrift(float tempest) const noexcept;
+
+    // PATINA mappings (surface weathering)
+    float mapPatinaToDensity(float patina) const noexcept;
+    float mapPatinaToAir(float patina) const noexcept;
+    float mapPatinaToBloom(float patina) const noexcept;
+
+    // ABYSS mappings (infinite depth)
+    float mapAbyssToSize(float abyss) const noexcept;
+    float mapAbyssToTime(float abyss) const noexcept;
+    float mapAbyssToWidth(float abyss) const noexcept;
+
+    // CORONA mappings (sacred radiance)
+    float mapCoronaToBloom(float corona) const noexcept;
+    float mapCoronaToAir(float corona) const noexcept;
+    float mapCoronaToWarp(float corona) const noexcept;
+
+    // BREATH mappings (living pulse)
+    float mapBreathToBloom(float breath) const noexcept;
+    float mapBreathToDrift(float breath) const noexcept;
+    float mapBreathToGravity(float breath) const noexcept;
 
     // Utility: combine multiple macro influences on a single parameter
     float combineInfluences(float base, float influence1, float influence2,
                            float weight1 = 0.5f, float weight2 = 0.5f) const noexcept;
+    float combineInfluences(float base, float inf1, float inf2, float inf3,
+                           float w1, float w2, float w3) const noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MacroMapper)
 };
