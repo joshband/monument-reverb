@@ -1,7 +1,14 @@
 # Monument MVP UI - Session Handoff
+
+> **⚠️ HISTORICAL DOCUMENT** - Phase 4 Early Implementation
+>
+> This document describes the initial MVP UI system (MonumentControl, ChamberWallControl) which has been **superseded by the LayeredKnob system**.
+> The components described here still exist in the codebase but are no longer the primary UI approach.
+> For current UI documentation, see [LAYERED_KNOB_DESIGN.md](LAYERED_KNOB_DESIGN.md) and [ENHANCED_UI_SUMMARY.md](ENHANCED_UI_SUMMARY.md).
+
 **Date:** 2026-01-03
 **Goal:** Photorealistic UI MVP with ONE hero control (Chamber Wall → Time parameter)
-**Status:** ✅ **100% COMPLETE** - Working in AU and VST3!
+**Status:** ✅ **100% COMPLETE** - Working in AU and VST3! (Superseded by LayeredKnob)
 
 ---
 
