@@ -83,6 +83,9 @@ target_sources(Monument
     ui/ChamberWallControl.cpp
     ui/LayeredKnob.h
     ui/LayeredKnob.cpp
+    ui/MonumentTimeKnob.h
+    ui/ModMatrixPanel.h
+    ui/ModMatrixPanel.cpp
 )
 
 # Add sprite sheet assets as embedded BinaryData
