@@ -46,3 +46,7 @@ __pycache__/
 scripts/test_*.py
 scripts/*_backup.py
 scripts/*_variants.py
+
+# Generated assets (large files, not version controlled)
+assets/textures/
+assets/ui/knobs_enhanced/
