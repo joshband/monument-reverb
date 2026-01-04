@@ -13,70 +13,100 @@ Core priorities:
 - Controlled instability
 - Mono-safe vastness
 
-## Project status
+---
 
-Memory Echoes now lives in a standalone repository. Monument's release line is
-intentionally memory-free until the planned v1.6 reintegration.
+## Project Status
 
-## User manual and design docs
+**Current Phase**: Phase 4 - UI Enhancement (Layered Knobs) 🚧
 
-- docs/Monument_User_Manual.html
-- docs/PARAMETER_BEHAVIOR.md
-- docs/DSP_ARCHITECTURE.md
-- docs/TESTING.md
-- docs/ADVANCED_FEATURES.md
-- docs/Monument_v1.0_Pre-Memory_Validation.md
-- MONUMENT_MANIFEST.md
-- **MODULATION_TESTING_GUIDE.md** - Phase 3 "Living" Presets Guide (NEW)
+Monument features a memory-free reverb architecture. Memory Echoes lives in a standalone repository with planned v1.6 reintegration.
 
-## Quick start (macOS, Apple Silicon)
+**Recent Updates** (2026-01-03):
+- ✅ LayeredKnob rendering system with photorealistic layers
+- ✅ Blender procedural knob generation pipeline
+- ✅ Standardized build workflow (incremental builds in ~6 seconds)
+- ✅ Documentation reorganization
+
+---
+
+## Quick Start
 
 ### Prerequisites
 
 - macOS 12+
-- Xcode 15+ and Xcode Command Line Tools
+- Xcode 15+ and Command Line Tools
 - CMake 3.21+
 - Git
 
-### Build and install
+### Build and Install
 
-The fastest path is the build and install scripts:
+**Recommended**: Use standardized incremental builds (see [STANDARD_BUILD_WORKFLOW.md](STANDARD_BUILD_WORKFLOW.md))
 
-```sh
+```bash
+# Initial setup (first time only)
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+# Incremental build (6 seconds, auto-installs)
+cmake --build build --target Monument_AU --config Release -j8
+```
+
+**Legacy scripts** (still supported):
+```bash
 ./scripts/build_macos.sh
 ./scripts/install_macos.sh
-```
-
-To generate and open the Xcode project:
-
-```sh
 ./scripts/open_xcode.sh
 ```
 
-### Canonical build, test, and development commands
+**Artifacts**: Auto-installed to `~/Library/Audio/Plug-Ins/{Components,VST3}/`
 
-```sh
-./scripts/build_macos.sh
-./scripts/open_xcode.sh
-cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64
-cmake --build build --config Release
-ctest --test-dir build -C Release
+### Generate UI Knobs
+
+See [docs/development/QUICK_START_BLENDER_KNOBS.md](docs/development/QUICK_START_BLENDER_KNOBS.md) for photorealistic knob generation.
+
+```bash
+# Generate knob layers with Blender
+./scripts/run_blender_knobs.sh
+
+# Preview composite before building
+python3 scripts/preview_knob_composite.py --rotation 45
 ```
 
-### Using a local JUCE checkout
+---
 
-By default, JUCE is fetched via CMake FetchContent. To use a local JUCE checkout:
+## Documentation
 
-```sh
-cmake -S . -B build -G Xcode \
-  -DMONUMENT_USE_LOCAL_JUCE=ON \
-  -DJUCE_SOURCE_DIR=/path/to/JUCE
-cmake --build build --config Release
-```
+**Central Hub**: [docs/INDEX.md](docs/INDEX.md)
 
-Artifacts are placed under `build/Monument_artefacts/Release` or `build/Monument_artefacts/Debug`.
+### Essential Reading
 
-## Signal flow
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture overview
+- [STANDARD_BUILD_WORKFLOW.md](STANDARD_BUILD_WORKFLOW.md) - Build commands
+- [MANIFEST.md](MANIFEST.md) - Project vision & roadmap
+
+### Quick Starts
+
+- [docs/development/QUICK_START_BLENDER_KNOBS.md](docs/development/QUICK_START_BLENDER_KNOBS.md) - Generate knobs
+- [docs/development/QUICK_START_MACRO_TESTING.md](docs/development/QUICK_START_MACRO_TESTING.md) - Test macros
+
+### Architecture & DSP
+
+- [ARCHITECTURE_QUICK_REFERENCE.md](ARCHITECTURE_QUICK_REFERENCE.md) - Visual diagrams
+- [docs/architecture/DSP_ARCHITECTURE.md](docs/architecture/DSP_ARCHITECTURE.md) - Signal flow
+- [docs/architecture/PARAMETER_BEHAVIOR.md](docs/architecture/PARAMETER_BEHAVIOR.md) - Parameter contracts
+
+### UI Design
+
+- [docs/ui/LAYERED_KNOB_DESIGN.md](docs/ui/LAYERED_KNOB_DESIGN.md) - Design system
+- [docs/ui/LAYERED_KNOB_WORKFLOW.md](docs/ui/LAYERED_KNOB_WORKFLOW.md) - Asset pipeline
+
+### Testing
+
+- [docs/testing/TESTING.md](docs/testing/TESTING.md) - General testing (pluginval)
+- [docs/testing/MODULATION_TESTING_GUIDE.md](docs/testing/MODULATION_TESTING_GUIDE.md) - Modulation tests
+
+---
+
+## Signal Flow
 
 ```mermaid
 flowchart LR
@@ -86,34 +116,23 @@ flowchart LR
 
 ![Monument signal flow](docs/assets/monument-signal-flow.svg)
 
-**Modules at a glance**
-- Foundation: input conditioning and headroom
-- Pillars: early reflection clusters
-- Chambers: FDN reverb core
-- Weathering: slow motion (warp, drift)
-- Buttress: feedback safety and limiting
-- Facade: stereo imaging, air, width, and mix
+**Modules at a glance**:
+- **Foundation**: Input conditioning and headroom
+- **Pillars**: Early reflection clusters
+- **Chambers**: FDN reverb core
+- **Weathering**: Slow motion (warp, drift)
+- **Buttress**: Feedback safety and limiting
+- **Facade**: Stereo imaging, air, width, and mix
 
-## Freeze transitions
+---
 
-```mermaid
-stateDiagram-v2
-  [*] --> Live
-  Live --> Freezing: Freeze on
-  Freezing --> Frozen: outputBlend -> 0
-  Frozen --> Releasing: Freeze off
-  Releasing --> Live: outputBlend -> 1
-```
-
-![Monument freeze crossfade](docs/assets/monument-freeze-crossfade.svg)
-
-## Control compass
+## Parameters
 
 All parameters are normalized to [0, 1] unless noted. Mix is [0, 100].
 
 ![Monument parameter compass](docs/assets/monument-parameter-compass.svg)
 
-### Primary controls
+### Primary Controls
 
 | Control | Meaning | Behavior notes |
 | --- | --- | --- |
@@ -125,7 +144,7 @@ All parameters are normalized to [0, 1] unless noted. Mix is [0, 100].
 | Width | Stereo spread | Applies to wet only, keeps mono-safe center |
 | Mix (0-100) | Wet/dry blend | Constant-power crossfade |
 
-### Advanced controls
+### Advanced Controls
 
 | Control | Meaning | Behavior notes |
 | --- | --- | --- |
@@ -136,9 +155,9 @@ All parameters are normalized to [0, 1] unless noted. Mix is [0, 100].
 | Pillar Shape | Early reflection spacing | Compresses or expands tap intervals |
 | Pillar Mode | Early reflection palette | Glass, Stone, Fog tap profiles |
 
-### Macro controls (Phase 2 - integrated)
+### Macro Controls (Phase 2 - Integrated ✅)
 
-Monument includes a high-level macro system that coordinates multiple parameters for conceptual sound design. The system is fully integrated with automatic blending between base and macro-driven parameters.
+Monument includes a high-level macro system that coordinates multiple parameters for conceptual sound design.
 
 | Macro | Meaning | Influences |
 | --- | --- | --- |
@@ -147,16 +166,17 @@ Monument includes a high-level macro system that coordinates multiple parameters
 | Viscosity | Medium resistance (airy → thick) | Time, Air, Mass |
 | Evolution | Temporal change (static → evolving) | Bloom, Drift |
 | Chaos | Unpredictable motion (stable → chaotic) | Warp, Drift |
-| Elasticity | Deformation speed (instant → slow) | Reserved for future physical modeling |
+| Elasticity | Deformation speed (instant → slow) | Reserved for future |
 
-The macro system uses a modulation matrix with support for 4 source types (Chaos Attractor, Audio Follower, Brownian Motion, Envelope Tracker) routing to 16 parameter destinations. Phase 3-4 will implement the full modulation source DSP and physical modeling modules.
+**Modulation Matrix** (Phase 3 - Complete ✅):
+- 4 source types: Chaos Attractor, Audio Follower, Brownian Motion, Envelope Tracker
+- 16 parameter destinations
+- 64+ simultaneous connections
+- See [docs/testing/MODULATION_TESTING_GUIDE.md](docs/testing/MODULATION_TESTING_GUIDE.md)
 
-## Memory Echoes (extracted)
+---
 
-Memory Echoes is maintained in a separate repository and is not part of Monument
-until the planned v1.6 reintegration.
-
-## Preset gallery
+## Presets
 
 Monument ships with curated, whimsical presets that explore extremes and hybrids.
 
@@ -173,34 +193,54 @@ Monument ships with curated, whimsical presets that explore extremes and hybrids
 
 User presets can be saved as JSON in `~/Documents/MonumentPresets/`.
 
-## Pillars modes
+See [docs/PRESET_GALLERY.md](docs/PRESET_GALLERY.md) for full descriptions.
 
-```mermaid
-flowchart LR
-  Input --> Pillars
-  Pillars -->|Fractal taps| Early
-  Pillars -->|IR amplitudes| Early
-  Early --> Chambers
+---
+
+## Testing and Validation
+
+- **Automated**: pluginval via `./scripts/run_pluginval.sh` (see [docs/testing/TESTING.md](docs/testing/TESTING.md))
+- **Optional logging**: Enable `MONUMENT_TESTING` for peak and block timing
+- **Performance**: REAPER Performance Monitor with 50-100 instances
+- **Instrumentation**: Instruments, AddressSanitizer, or Valgrind for leak checks
+
+---
+
+## Project Structure
+
+```
+monument-reverb/
+├── plugin/           # JUCE processor and editor
+├── dsp/              # DSP modules (to be created)
+├── ui/               # Custom UI components (LayeredKnob)
+├── assets/ui/        # Knob layer PNGs
+├── scripts/          # Build scripts, Blender knob generation
+├── tests/            # CTest coverage
+├── docs/             # Documentation (see docs/INDEX.md)
+└── build/            # CMake build output (gitignored)
 ```
 
-![Monument pillars modes](docs/assets/monument-pillars-modes.svg)
+---
 
-## Testing and validation
+## Development Phases
 
-- Automated: pluginval via `./scripts/run_pluginval.sh` (see `docs/TESTING.md` for setup).
-- Optional logging: enable `MONUMENT_TESTING` to print peak and block timing per buffer.
-- REAPER Performance Monitor: load 50-100 instances and compare CPU usage.
-- Instrumentation: use Instruments, AddressSanitizer, or Valgrind for leak checks.
+- **Phase 1**: ✅ Foundation (JUCE setup, basic reverb, parameters)
+- **Phase 2**: ✅ Memory system (4 dynamic slots, morphing)
+- **Phase 3**: ✅ Modulation sources (Chaos, Audio, Brownian, Envelope)
+- **Phase 4**: 🚧 UI Enhancement (Layered knobs in progress)
+- **Phase 5**: 📋 Macro controls (high-level DSP)
+- **Phase 6**: 📋 Physical modules (Tubes, Elastic spaces)
 
-## Project layout
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed roadmap.
 
-- plugin/ - JUCE processor and editor sources
-- dsp/ - DSP modules and core processing
-- ui/ - UI components
-- tests/ - CTest coverage
-- scripts/ - maintenance and tooling
-- docs/ - documentation and manuals
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+
+---
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [LICENSE](LICENSE).

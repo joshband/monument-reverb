@@ -77,6 +77,25 @@ target_sources(Monument
     ui/MonumentKnob.cpp
     ui/MonumentToggle.h
     ui/MonumentToggle.cpp
+    ui/MonumentControl.h
+    ui/MonumentControl.cpp
+    ui/ChamberWallControl.h
+    ui/ChamberWallControl.cpp
+    ui/LayeredKnob.h
+    ui/LayeredKnob.cpp
+)
+
+# Add sprite sheet assets as embedded BinaryData
+# Using HEADER_NAME and NAMESPACE to make it accessible
+juce_add_binary_data(MonumentAssets
+  HEADER_NAME BinaryData.h
+  NAMESPACE BinaryData
+  SOURCES
+    assets/ui/chamber_wall_time_states.png
+    assets/ui/knobs_test/base_body_concrete.png
+    assets/ui/knobs_test/indicator_metal.png
+    assets/ui/knobs_test/detail_ring_engraved.png
+    assets/ui/knobs_test/center_cap_brushed_metal.png
 )
 
 target_include_directories(Monument
@@ -93,6 +112,7 @@ target_compile_definitions(Monument
 
 target_link_libraries(Monument
   PRIVATE
+    MonumentAssets
     juce::juce_audio_utils
     juce::juce_dsp
   PUBLIC

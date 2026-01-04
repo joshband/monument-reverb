@@ -5,6 +5,7 @@
 #include "PluginProcessor.h"
 #include "ui/MonumentKnob.h"
 #include "ui/MonumentToggle.h"
+#include "ui/MonumentTimeKnob.h"
 
 class MonumentAudioProcessorEditor : public juce::AudioProcessorEditor
 {
@@ -28,7 +29,7 @@ private:
 
     // Base Parameters
     MonumentKnob mixKnob;
-    MonumentKnob timeKnob;
+    MonumentTimeKnob timeKnob;  // Layered knob with industrial aesthetic
     MonumentKnob massKnob;
     MonumentKnob densityKnob;
     MonumentKnob bloomKnob;
