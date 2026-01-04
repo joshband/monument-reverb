@@ -17,15 +17,19 @@ Core priorities:
 
 ## Project Status
 
-**Current Phase**: Phase 4 - UI Enhancement (Layered Knobs) 🚧
+**Current Phase**: Phase 4 - UI Enhancement (90% Complete) 🚀
 
 Monument features a memory-free reverb architecture. Memory Echoes lives in a standalone repository with planned v1.6 reintegration.
 
-**Recent Updates** (2026-01-03):
+**Recent Updates** (2026-01-03 Evening):
+
+- ✅ **ModMatrixPanel**: Professional modulation matrix UI with 4×15 grid
+- ✅ Color-coded sources (Chaos, Audio, Brownian, Envelope) with visual feedback
+- ✅ Interactive connection editing with depth/smoothing controls
 - ✅ LayeredKnob rendering system with photorealistic layers
 - ✅ Blender procedural knob generation pipeline
 - ✅ Standardized build workflow (incremental builds in ~6 seconds)
-- ✅ Documentation reorganization
+- ✅ HIGH priority optimizations (parameter cache, smoothing, thread safety)
 
 ---
 
@@ -155,9 +159,11 @@ All parameters are normalized to [0, 1] unless noted. Mix is [0, 100].
 | Pillar Shape | Early reflection spacing | Compresses or expands tap intervals |
 | Pillar Mode | Early reflection palette | Glass, Stone, Fog tap profiles |
 
-### Macro Controls (Phase 2 - Integrated ✅)
+### Macro Controls & Modulation (Phase 2-4 Complete ✅)
 
-Monument includes a high-level macro system that coordinates multiple parameters for conceptual sound design.
+Monument includes a high-level macro system and visual modulation matrix for deep sound design.
+
+**Macro Controls:**
 
 | Macro | Meaning | Influences |
 | --- | --- | --- |
@@ -168,10 +174,14 @@ Monument includes a high-level macro system that coordinates multiple parameters
 | Chaos | Unpredictable motion (stable → chaotic) | Warp, Drift |
 | Elasticity | Deformation speed (instant → slow) | Reserved for future |
 
-**Modulation Matrix** (Phase 3 - Complete ✅):
+**Modulation Matrix** (Phase 3-4 Complete ✅):
+
 - 4 source types: Chaos Attractor, Audio Follower, Brownian Motion, Envelope Tracker
-- 16 parameter destinations
-- 64+ simultaneous connections
+- 16 parameter destinations with 64+ simultaneous connections
+- **Visual UI Panel**: Interactive 4×15 grid for creating/editing connections
+- Per-connection depth (-1 to +1) and smoothing (20-1000ms) controls
+- Color-coded sources with hover effects and selection states
+- Thread-safe real-time updates via SpinLock
 - See [docs/testing/MODULATION_TESTING_GUIDE.md](docs/testing/MODULATION_TESTING_GUIDE.md)
 
 ---
@@ -224,11 +234,15 @@ monument-reverb/
 
 ## Development Phases
 
-- **Phase 1**: ✅ Foundation (JUCE setup, basic reverb, parameters)
-- **Phase 2**: ✅ Memory system (4 dynamic slots, morphing)
-- **Phase 3**: ✅ Modulation sources (Chaos, Audio, Brownian, Envelope)
-- **Phase 4**: 🚧 UI Enhancement (Layered knobs in progress)
-- **Phase 5**: 📋 Macro controls (high-level DSP)
+- **Phase 1**: ✅ Foundation (JUCE setup, FDN reverb, base parameters)
+- **Phase 2**: ✅ Macro system (6 high-level controls integrated)
+- **Phase 3**: ✅ Modulation sources (4 sources, 16 destinations, living presets)
+- **Phase 4**: 🚀 UI Enhancement (90% complete)
+  - ✅ ModMatrix visual panel with interactive grid
+  - ✅ LayeredKnob rendering system
+  - ✅ Blender knob generation pipeline
+  - ⏳ Enhanced knob integration (final step)
+- **Phase 5**: 📋 Polish & release (preset browser, export/import)
 - **Phase 6**: 📋 Physical modules (Tubes, Elastic spaces)
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed roadmap.

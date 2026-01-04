@@ -6,6 +6,7 @@
 #include "ui/MonumentKnob.h"
 #include "ui/MonumentToggle.h"
 #include "ui/MonumentTimeKnob.h"
+#include "ui/ModMatrixPanel.h"
 
 class MonumentAudioProcessorEditor : public juce::AudioProcessorEditor
 {
@@ -41,6 +42,11 @@ private:
     MonumentToggle freezeToggle;
     juce::ComboBox presetBox;
     juce::TextButton savePresetButton;
+
+    // Modulation Matrix Panel
+    juce::TextButton modMatrixToggleButton;
+    std::unique_ptr<monument::ui::ModMatrixPanel> modMatrixPanel;
+    bool modMatrixVisible{false};
 
     // User preset management
     void refreshPresetList();
