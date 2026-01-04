@@ -8,8 +8,8 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
       topologyKnob(processorRef.getAPVTS(), "topology", "Topology"),
       viscosityKnob(processorRef.getAPVTS(), "viscosity", "Viscosity"),
       evolutionKnob(processorRef.getAPVTS(), "evolution", "Evolution"),
-      chaosKnob(processorRef.getAPVTS(), "chaos", "Chaos"),
-      elasticityKnob(processorRef.getAPVTS(), "elasticity", "Elasticity"),
+      chaosKnob(processorRef.getAPVTS(), "chaosIntensity", "Chaos"),  // FIXED: Corrected parameter ID
+      elasticityKnob(processorRef.getAPVTS(), "elasticityDecay", "Elasticity"),  // FIXED: Corrected parameter ID
       // Base Parameters
       mixKnob(processorRef.getAPVTS(), "mix", "Mix"),
       timeKnob(processorRef.getAPVTS()),
@@ -44,7 +44,9 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     addAndMakeVisible(gravityKnob);
     addAndMakeVisible(freezeToggle);
     addAndMakeVisible(presetBox);
+    addAndMakeVisible(savePresetButton);
 
+    // Preset browser styling
     presetBox.setTextWhenNothingSelected("Presets");
     presetBox.setJustificationType(juce::Justification::centred);
     presetBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff14171b));
@@ -56,32 +58,16 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     presetBox.setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(0xff242833));
     presetBox.setColour(juce::PopupMenu::highlightedTextColourId, juce::Colour(0xffe6e1d6));
 
-    const int presetCount = processorRef.getNumFactoryPresets();
-    auto addSection = [&](const juce::String& title, int start, int end)
-    {
-        if (start >= presetCount)
-            return;
-        const int clampedEnd = juce::jmin(end, presetCount - 1);
-        if (clampedEnd < start)
-            return;
+    // Save button styling
+    savePresetButton.setButtonText("Save");
+    savePresetButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff242833));
+    savePresetButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffe6e1d6));
+    savePresetButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xffe6e1d6));
+    savePresetButton.onClick = [this]() { showSavePresetDialog(); };
 
-        presetBox.addSectionHeading(title);
-        for (int index = start; index <= clampedEnd; ++index)
-            presetBox.addItem(processorRef.getFactoryPresetName(index), index + 1);
-    };
-
-    addSection("Foundational Spaces", 0, 5);
-    addSection("Living Spaces", 6, 11);
-    addSection("Remembering Spaces", 12, 14);
-    addSection("Time-Bent / Abstract", 15, 17);
-    addSection("Evolving Spaces", 18, presetCount - 1);
-
-    presetBox.onChange = [this]()
-    {
-        const int presetIndex = presetBox.getSelectedId() - 1;
-        if (presetIndex >= 0)
-            processorRef.loadFactoryPreset(presetIndex);
-    };
+    // Populate preset list (factory + user)
+    scanUserPresets();
+    refreshPresetList();
 
     setSize(900, 580);
 }
@@ -161,5 +147,161 @@ void MonumentAudioProcessorEditor::resized()
     driftKnob.setBounds(cell(2, 0));
     gravityKnob.setBounds(cell(2, 1));
     freezeToggle.setBounds(cell(2, 2));
-    presetBox.setBounds(cell(2, 3));
+
+    // Preset section: dropdown + save button
+    auto presetCell = cell(2, 3);
+    const int buttonHeight = 30;
+    presetBox.setBounds(presetCell.removeFromTop(presetCell.getHeight() - buttonHeight - 4));
+    savePresetButton.setBounds(presetCell);
+}
+
+void MonumentAudioProcessorEditor::scanUserPresets()
+{
+    userPresetFiles.clear();
+
+    const auto presetDir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+        .getChildFile("MonumentPresets");
+
+    if (!presetDir.exists())
+        return;
+
+    juce::Array<juce::File> results;
+    presetDir.findChildFiles(results, juce::File::findFiles, false, "*.json");
+
+    for (const auto& file : results)
+        userPresetFiles.push_back(file);
+
+    // Sort alphabetically by filename
+    std::sort(userPresetFiles.begin(), userPresetFiles.end(),
+        [](const juce::File& a, const juce::File& b)
+        {
+            return a.getFileNameWithoutExtension().compareIgnoreCase(b.getFileNameWithoutExtension()) < 0;
+        });
+}
+
+void MonumentAudioProcessorEditor::refreshPresetList()
+{
+    presetBox.clear();
+
+    // Factory presets
+    const int factoryCount = processorRef.getNumFactoryPresets();
+    auto addSection = [&](const juce::String& title, int start, int end)
+    {
+        if (start >= factoryCount)
+            return;
+        const int clampedEnd = juce::jmin(end, factoryCount - 1);
+        if (clampedEnd < start)
+            return;
+
+        presetBox.addSectionHeading(title);
+        for (int index = start; index <= clampedEnd; ++index)
+            presetBox.addItem(processorRef.getFactoryPresetName(index), index + 1);
+    };
+
+    addSection("Foundational Spaces", 0, 5);
+    addSection("Living Spaces", 6, 11);
+    addSection("Remembering Spaces", 12, 14);
+    addSection("Time-Bent / Abstract", 15, 17);
+    addSection("Evolving Spaces", 18, factoryCount - 1);
+
+    // User presets section
+    if (!userPresetFiles.empty())
+    {
+        presetBox.addSectionHeading("User Presets");
+        const int userStartId = factoryCount + 100;  // Offset to avoid conflicts
+        for (size_t i = 0; i < userPresetFiles.size(); ++i)
+        {
+            const auto name = userPresetFiles[i].getFileNameWithoutExtension();
+            presetBox.addItem(name, userStartId + static_cast<int>(i));
+        }
+    }
+
+    // Preset selection handler
+    presetBox.onChange = [this]()
+    {
+        const int selectedId = presetBox.getSelectedId();
+        if (selectedId <= 0)
+            return;
+
+        const int factoryCount = processorRef.getNumFactoryPresets();
+        const int userStartId = factoryCount + 100;
+
+        if (selectedId < userStartId)
+        {
+            // Factory preset
+            processorRef.loadFactoryPreset(selectedId - 1);
+        }
+        else
+        {
+            // User preset
+            const int userIndex = selectedId - userStartId;
+            if (userIndex >= 0 && userIndex < static_cast<int>(userPresetFiles.size()))
+            {
+                processorRef.loadUserPreset(userPresetFiles[static_cast<size_t>(userIndex)]);
+            }
+        }
+    };
+}
+
+void MonumentAudioProcessorEditor::showSavePresetDialog()
+{
+    // FIXED: Memory-safe AlertWindow pattern using fully async callbacks
+    // This prevents memory leaks and follows JUCE best practices for modal dialogs
+    auto alertWindow = std::make_unique<juce::AlertWindow>("Save Preset",
+                                                             "Enter a name for this preset:",
+                                                             juce::MessageBoxIconType::QuestionIcon,
+                                                             this);
+    alertWindow->addTextEditor("name", "", "Preset Name:");
+    alertWindow->addTextEditor("description", "", "Description (optional):");
+    alertWindow->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    alertWindow->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+
+    // Use SafePointer to prevent dangling references if component is deleted
+    alertWindow->enterModalState(true,
+        juce::ModalCallbackFunction::create([this, safeThis = juce::Component::SafePointer<MonumentAudioProcessorEditor>(this)](int result) mutable
+        {
+            if (safeThis == nullptr)
+                return;  // Editor was deleted
+
+            if (result == 1)  // Save clicked
+            {
+                // Create a new AlertWindow for text input (must be on message thread)
+                auto textWindow = std::make_unique<juce::AlertWindow>("Preset Details",
+                                                                        "Enter preset information:",
+                                                                        juce::MessageBoxIconType::NoIcon);
+                textWindow->addTextEditor("name", "", "Preset Name:");
+                textWindow->addTextEditor("description", "", "Description (optional):");
+                textWindow->addButton("OK", 1, juce::KeyPress(juce::KeyPress::returnKey));
+                textWindow->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+
+                auto* textPtr = textWindow.get();
+                textWindow->enterModalState(true,
+                    juce::ModalCallbackFunction::create([this, safeThis2 = juce::Component::SafePointer<MonumentAudioProcessorEditor>(this), textPtr](int innerResult)
+                    {
+                        if (safeThis2 == nullptr || textPtr == nullptr)
+                            return;
+
+                        if (innerResult == 1)  // OK clicked
+                        {
+                            const auto name = textPtr->getTextEditorContents("name");
+                            const auto description = textPtr->getTextEditorContents("description");
+
+                            if (name.isNotEmpty())
+                            {
+                                processorRef.saveUserPreset(name, description.isEmpty() ? "User preset" : description);
+
+                                // Refresh the preset list to include the new preset
+                                scanUserPresets();
+                                refreshPresetList();
+                            }
+                        }
+                    }),
+                    true);
+
+                textWindow.release();  // Transfer ownership to modal state
+            }
+        }),
+        true);
+
+    alertWindow.release();  // Transfer ownership to modal state
 }

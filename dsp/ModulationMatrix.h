@@ -169,6 +169,7 @@ private:
 
     // Active modulation connections
     std::vector<Connection> connections;
+    mutable juce::SpinLock connectionsLock;  // Thread-safe access to connections vector
 
     // Per-destination modulation accumulators (smoothed output values)
     std::array<float, static_cast<size_t>(DestinationType::Count)> modulationValues{};

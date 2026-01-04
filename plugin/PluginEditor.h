@@ -40,6 +40,13 @@ private:
     MonumentKnob gravityKnob;
     MonumentToggle freezeToggle;
     juce::ComboBox presetBox;
+    juce::TextButton savePresetButton;
+
+    // User preset management
+    void refreshPresetList();
+    void scanUserPresets();
+    void showSavePresetDialog();
+    std::vector<juce::File> userPresetFiles;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MonumentAudioProcessorEditor)
 };

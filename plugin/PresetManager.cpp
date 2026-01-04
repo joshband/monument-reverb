@@ -4,7 +4,7 @@
 
 namespace
 {
-constexpr int kPresetVersion = 1;
+constexpr int kPresetVersion = 3;  // v3: Added modulation connection serialization
 
 template <typename T>
 float readFloatProperty(const juce::DynamicObject* object, const juce::String& key, T fallback)
@@ -150,8 +150,9 @@ const std::array<PresetManager::Preset, PresetManager::kNumFactoryPresets> Prese
             0.75f, 0.70f, 0.70f, 0.70f)},
 }};
 
-PresetManager::PresetManager(juce::AudioProcessorValueTreeState& apvts)
-    : parameters(apvts)
+PresetManager::PresetManager(juce::AudioProcessorValueTreeState& apvts,
+                             monument::dsp::ModulationMatrix* modMatrix)
+    : parameters(apvts), modulationMatrix(modMatrix)
 {
 }
 
@@ -226,7 +227,40 @@ void PresetManager::saveUserPreset(const juce::File& targetFile,
     params->setProperty("memoryDrift", values.memoryDrift);
     params->setProperty("mix", values.mix);
 
+    // Phase 2: Save macro parameters
+    params->setProperty("material", values.material);
+    params->setProperty("topology", values.topology);
+    params->setProperty("viscosity", values.viscosity);
+    params->setProperty("evolution", values.evolution);
+    params->setProperty("chaosIntensity", values.chaosIntensity);
+    params->setProperty("elasticityDecay", values.elasticityDecay);
+
     root->setProperty("parameters", params.release());
+
+    // Phase 3: Save modulation connections
+    if (modulationMatrix != nullptr)
+    {
+        const auto& connections = modulationMatrix->getConnections();
+        juce::Array<juce::var> modulationArray;
+
+        for (const auto& conn : connections)
+        {
+            if (!conn.enabled)
+                continue;  // Skip disabled connections
+
+            auto connObj = std::make_unique<juce::DynamicObject>();
+            connObj->setProperty("source", sourceTypeToString(conn.source));
+            connObj->setProperty("destination", destinationTypeToString(conn.destination));
+            connObj->setProperty("sourceAxis", conn.sourceAxis);
+            connObj->setProperty("depth", conn.depth);
+            connObj->setProperty("smoothingMs", conn.smoothingMs);
+            connObj->setProperty("enabled", conn.enabled);
+
+            modulationArray.add(juce::var(connObj.release()));
+        }
+
+        root->setProperty("modulation", modulationArray);
+    }
 
     const juce::var json(root.release());
     const auto jsonText = juce::JSON::toString(json, true);
@@ -262,6 +296,38 @@ bool PresetManager::loadUserPreset(const juce::File& sourceFile)
     values.memoryDecay = readFloatProperty(paramsObject, "memoryDecay", values.memoryDecay);
     values.memoryDrift = readFloatProperty(paramsObject, "memoryDrift", values.memoryDrift);
     values.mix = readFloatProperty(paramsObject, "mix", values.mix);
+
+    // Phase 2: Load macro parameters
+    values.material = readFloatProperty(paramsObject, "material", values.material);
+    values.topology = readFloatProperty(paramsObject, "topology", values.topology);
+    values.viscosity = readFloatProperty(paramsObject, "viscosity", values.viscosity);
+    values.evolution = readFloatProperty(paramsObject, "evolution", values.evolution);
+    values.chaosIntensity = readFloatProperty(paramsObject, "chaosIntensity", values.chaosIntensity);
+    values.elasticityDecay = readFloatProperty(paramsObject, "elasticityDecay", values.elasticityDecay);
+
+    // Phase 3: Load modulation connections
+    values.modulationConnections.clear();
+    auto modulationVar = rootObject->getProperty("modulation");
+    if (modulationVar.isArray())
+    {
+        const auto* modulationArray = modulationVar.getArray();
+        for (const auto& connVar : *modulationArray)
+        {
+            auto* connObj = connVar.getDynamicObject();
+            if (connObj == nullptr)
+                continue;
+
+            monument::dsp::ModulationMatrix::Connection conn;
+            conn.source = stringToSourceType(connObj->getProperty("source").toString());
+            conn.destination = stringToDestinationType(connObj->getProperty("destination").toString());
+            conn.sourceAxis = static_cast<int>(connObj->getProperty("sourceAxis"));
+            conn.depth = static_cast<float>(connObj->getProperty("depth"));
+            conn.smoothingMs = static_cast<float>(connObj->getProperty("smoothingMs"));
+            conn.enabled = static_cast<bool>(connObj->getProperty("enabled"));
+
+            values.modulationConnections.push_back(conn);
+        }
+    }
 
     applyPreset(values);
     return true;
@@ -374,4 +440,73 @@ juce::File PresetManager::resolveUserPresetFile(const juce::File& targetFile, co
     }
 
     return targetFile;
+}
+
+// Phase 3: Enum-to-string conversion for modulation serialization
+juce::String PresetManager::sourceTypeToString(monument::dsp::ModulationMatrix::SourceType type)
+{
+    using SourceType = monument::dsp::ModulationMatrix::SourceType;
+    switch (type)
+    {
+        case SourceType::ChaosAttractor:  return "ChaosAttractor";
+        case SourceType::AudioFollower:   return "AudioFollower";
+        case SourceType::BrownianMotion:  return "BrownianMotion";
+        case SourceType::EnvelopeTracker: return "EnvelopeTracker";
+        default:                          return "Unknown";
+    }
+}
+
+juce::String PresetManager::destinationTypeToString(monument::dsp::ModulationMatrix::DestinationType type)
+{
+    using DestinationType = monument::dsp::ModulationMatrix::DestinationType;
+    switch (type)
+    {
+        case DestinationType::Time:                return "Time";
+        case DestinationType::Mass:                return "Mass";
+        case DestinationType::Density:             return "Density";
+        case DestinationType::Bloom:               return "Bloom";
+        case DestinationType::Air:                 return "Air";
+        case DestinationType::Width:               return "Width";
+        case DestinationType::Mix:                 return "Mix";
+        case DestinationType::Warp:                return "Warp";
+        case DestinationType::Drift:               return "Drift";
+        case DestinationType::Gravity:             return "Gravity";
+        case DestinationType::PillarShape:         return "PillarShape";
+        case DestinationType::TubeCount:           return "TubeCount";
+        case DestinationType::MetallicResonance:   return "MetallicResonance";
+        case DestinationType::Elasticity:          return "Elasticity";
+        case DestinationType::ImpossibilityDegree: return "ImpossibilityDegree";
+        default:                                   return "Unknown";
+    }
+}
+
+monument::dsp::ModulationMatrix::SourceType PresetManager::stringToSourceType(const juce::String& str)
+{
+    using SourceType = monument::dsp::ModulationMatrix::SourceType;
+    if (str == "ChaosAttractor")  return SourceType::ChaosAttractor;
+    if (str == "AudioFollower")   return SourceType::AudioFollower;
+    if (str == "BrownianMotion")  return SourceType::BrownianMotion;
+    if (str == "EnvelopeTracker") return SourceType::EnvelopeTracker;
+    return SourceType::ChaosAttractor;  // Default fallback
+}
+
+monument::dsp::ModulationMatrix::DestinationType PresetManager::stringToDestinationType(const juce::String& str)
+{
+    using DestinationType = monument::dsp::ModulationMatrix::DestinationType;
+    if (str == "Time")                return DestinationType::Time;
+    if (str == "Mass")                return DestinationType::Mass;
+    if (str == "Density")             return DestinationType::Density;
+    if (str == "Bloom")               return DestinationType::Bloom;
+    if (str == "Air")                 return DestinationType::Air;
+    if (str == "Width")               return DestinationType::Width;
+    if (str == "Mix")                 return DestinationType::Mix;
+    if (str == "Warp")                return DestinationType::Warp;
+    if (str == "Drift")               return DestinationType::Drift;
+    if (str == "Gravity")             return DestinationType::Gravity;
+    if (str == "PillarShape")         return DestinationType::PillarShape;
+    if (str == "TubeCount")           return DestinationType::TubeCount;
+    if (str == "MetallicResonance")   return DestinationType::MetallicResonance;
+    if (str == "Elasticity")          return DestinationType::Elasticity;
+    if (str == "ImpossibilityDegree") return DestinationType::ImpossibilityDegree;
+    return DestinationType::Warp;  // Default fallback
 }

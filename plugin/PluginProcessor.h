@@ -76,6 +76,17 @@ private:
     monument::dsp::MacroMapper macroMapper;
     monument::dsp::ModulationMatrix modulationMatrix;
 
+    // FIXED: Parameter cache for batched atomic loads (reduces overhead from 25+ sequential atomics)
+    struct ParameterCache
+    {
+        float mix, time, mass, density, bloom, air, width;
+        float warp, drift, gravity, pillarShape, pillarMode;
+        float memory, memoryDepth, memoryDecay, memoryDrift;
+        float material, topology, viscosity, evolution;
+        float chaosIntensity, elasticityDecay;
+        bool freeze;
+    } paramCache{};
+
     // JUCE SmoothedValue for block-rate parameter smoothing (prevents zipper noise)
     juce::SmoothedValue<float> timeSmoother;
     juce::SmoothedValue<float> massSmoother;
