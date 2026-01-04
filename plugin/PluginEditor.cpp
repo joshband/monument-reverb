@@ -65,6 +65,27 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     savePresetButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xffe6e1d6));
     savePresetButton.onClick = [this]() { showSavePresetDialog(); };
 
+    // Modulation Matrix toggle button
+    modMatrixToggleButton.setButtonText("MODULATION");
+    modMatrixToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff242833));
+    modMatrixToggleButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff6b9bd1));
+    modMatrixToggleButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffe6e1d6));
+    modMatrixToggleButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xff0d0f12));
+    modMatrixToggleButton.setClickingTogglesState(true);
+    modMatrixToggleButton.onClick = [this]()
+    {
+        modMatrixVisible = modMatrixToggleButton.getToggleState();
+        if (modMatrixPanel)
+            modMatrixPanel->setVisible(modMatrixVisible);
+        resized();
+    };
+    addAndMakeVisible(modMatrixToggleButton);
+
+    // Create modulation matrix panel
+    modMatrixPanel = std::make_unique<monument::ui::ModMatrixPanel>(processorRef.getModulationMatrix());
+    modMatrixPanel->setVisible(false);
+    addAndMakeVisible(modMatrixPanel.get());
+
     // Populate preset list (factory + user)
     scanUserPresets();
     refreshPresetList();
@@ -148,11 +169,31 @@ void MonumentAudioProcessorEditor::resized()
     gravityKnob.setBounds(cell(2, 1));
     freezeToggle.setBounds(cell(2, 2));
 
-    // Preset section: dropdown + save button
+    // Preset section: dropdown + save button + mod matrix toggle
     auto presetCell = cell(2, 3);
     const int buttonHeight = 30;
-    presetBox.setBounds(presetCell.removeFromTop(presetCell.getHeight() - buttonHeight - 4));
-    savePresetButton.setBounds(presetCell);
+    presetBox.setBounds(presetCell.removeFromTop(presetCell.getHeight() - buttonHeight * 2 - 8));
+    savePresetButton.setBounds(presetCell.removeFromTop(buttonHeight));
+    presetCell.removeFromTop(4); // Spacing
+    modMatrixToggleButton.setBounds(presetCell);
+
+    // Modulation Matrix Panel (if visible, expand window and show panel)
+    if (modMatrixVisible && modMatrixPanel)
+    {
+        // Expand editor height to accommodate panel
+        if (getHeight() < 1080)
+            setSize(900, 1080);
+
+        auto panelBounds = getLocalBounds();
+        panelBounds.removeFromTop(580); // Original UI height
+        modMatrixPanel->setBounds(panelBounds.reduced(10));
+    }
+    else
+    {
+        // Collapse to original size
+        if (getHeight() > 580)
+            setSize(900, 580);
+    }
 }
 
 void MonumentAudioProcessorEditor::scanUserPresets()

@@ -42,7 +42,9 @@ Input → Chambers (FDN) → Weathering → Tube Ray Tracer → Output
 - **Brownian Motion** - Smooth random walk
 - **Envelope Tracker** - Multi-stage amplitude following
 
-**Implementation**: `dsp/ModulationMatrix.h/cpp`, `dsp/ChaosAttractor.h/cpp`, etc.
+**Visual UI**: Interactive 4×15 grid panel with color-coded sources, depth/smoothing controls, and real-time connection editing (Phase 4).
+
+**Implementation**: `dsp/ModulationMatrix.h/cpp`, `ui/ModMatrixPanel.h/cpp`, `dsp/ChaosAttractor.h/cpp`, etc.
 
 #### 3. Physical/Algorithmic Modules
 
@@ -69,6 +71,7 @@ monument-reverb/
 │   └── PluginEditor.cpp    # UI (knobs, controls)
 ├── ui/                     # Custom UI components
 │   ├── LayeredKnob.h/cpp   # Photorealistic layered knobs
+│   ├── ModMatrixPanel.h/cpp # Modulation matrix visual editor (NEW)
 │   └── Monument*.h         # Parameter-specific knob wrappers
 ├── dsp/                    # DSP algorithms (to be created)
 │   ├── MacroMapper.h/cpp
@@ -114,12 +117,20 @@ cmake --build build --target Monument_AU --config Release -j8
 
 ## Development Phases
 
-**Phase 1**: ✅ Foundation (JUCE setup, basic reverb, parameter structure)
-**Phase 2**: ✅ Memory system (4 dynamic slots, morphing)
-**Phase 3**: ✅ Modulation sources (Chaos, Audio, Brownian, Envelope)
-**Phase 4**: 🚧 UI Enhancement (Layered knobs in progress)
-**Phase 5**: 📋 Macro controls
+**Phase 1**: ✅ Foundation (JUCE setup, FDN reverb, base parameters)
+**Phase 2**: ✅ Macro system (6 high-level controls integrated)
+**Phase 3**: ✅ Modulation sources (4 sources, 16 destinations, living presets)
+**Phase 4**: 🚀 UI Enhancement (90% complete)
+
+- ✅ ModMatrix visual panel with interactive 4×15 grid
+- ✅ LayeredKnob rendering system
+- ✅ Blender knob generation pipeline
+- ⏳ Enhanced knob integration (final step)
+
+**Phase 5**: 📋 Polish & release (preset browser, export/import)
 **Phase 6**: 📋 Physical modules (Tubes, Elastic spaces)
+
+**Note**: Memory Echoes was extracted to standalone repository with planned v1.6 reintegration.
 
 ---
 

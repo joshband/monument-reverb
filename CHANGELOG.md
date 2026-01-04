@@ -12,6 +12,20 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ### Added - Phase 4: UI Enhancement (2026-01-03)
 
+- **ModMatrixPanel Component**: Professional modulation matrix UI (2026-01-03 Evening)
+  - Visual 4×15 grid (60 connection points) for routing modulation sources to destinations
+  - Color-coded sources: Chaos (orange), Audio (green), Brownian (purple), Envelope (blue)
+  - Custom ConnectionButton component with hover/active/selected states
+  - Hover effects with 20% alpha overlay for discoverability
+  - Active connections render with 60% alpha fill (80% when selected)
+  - Selection indicator (white dot) for currently editing connection
+  - Real-time connection list display with monospaced font
+  - Depth slider (-1 to +1) and smoothing slider (20-1000ms) for live editing
+  - Toggle button in main UI expands window from 580px → 1080px
+  - Thread-safe via ModulationMatrix SpinLock
+  - Abbreviated destination labels (Tim, Mas, Den, Blm, Air, Wid, Mix, Wrp, Drf, Grv, Pil, Tub, Met, Els, Imp)
+  - Interaction model: click to create → click to select → click selected to remove
+  - See `ui/ModMatrixPanel.h` and `ui/ModMatrixPanel.cpp`
 - **LayeredKnob Component**: Photorealistic multi-layer knob rendering system
   - Supports 4+ image layers with alpha compositing
   - Independent rotation control per layer (rotating vs static)
