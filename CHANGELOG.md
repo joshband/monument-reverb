@@ -10,6 +10,45 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Memory Echoes development has moved to a standalone repository. Monument's
   release line is intentionally memory-free until the planned v1.6 reintegration.
 
+### Added - Phase 4: UI Enhancement (2026-01-03)
+
+- **LayeredKnob Component**: Photorealistic multi-layer knob rendering system
+  - Supports 4+ image layers with alpha compositing
+  - Independent rotation control per layer (rotating vs static)
+  - Proper transform chain (scale → translate → rotate) for uniform alignment
+  - Drag-to-control interaction with DAW automation support
+  - Real-time parameter synchronization via APVTS listener
+- **Blender Knob Generation Pipeline**: Procedural knob layer generation
+  - Headless Blender rendering (~2-3 minutes for 4 layers)
+  - Concrete, metal, and engraved material presets
+  - Fully customizable via Python scripts
+  - 512×512 output with alpha transparency
+  - See `scripts/generate_knob_blender.py` and `scripts/run_blender_knobs.sh`
+- **Knob Preview Tool**: Pre-build composite verification
+  - `scripts/preview_knob_composite.py` - Test composites before building
+  - Supports arbitrary rotation angles for alignment verification
+  - Saves preview images for inspection
+  - Catches misalignment issues early (reduces iteration time)
+- **Standardized Build Workflow**: Incremental builds with CMake
+  - Single `build/` directory (no more build-fetch, build-harness, etc.)
+  - Incremental builds in ~6 seconds (only changed files recompiled)
+  - Auto-install to `~/Library/Audio/Plug-Ins/{Components,VST3}/`
+  - Documented in `STANDARD_BUILD_WORKFLOW.md`
+- **Documentation Reorganization**: Structured documentation hierarchy
+  - Root docs limited to 8 essential files (AGENTS, ARCHITECTURE, CHANGELOG, CONTRIBUTING, MANIFEST, README, STANDARD_BUILD_WORKFLOW, ARCHITECTURE_QUICK_REFERENCE)
+  - `docs/` subdirectories: ui/, development/, architecture/, testing/
+  - `docs/INDEX.md` - Central navigation hub with learning paths
+  - `ARCHITECTURE.md` - Consolidated architecture overview
+  - Cross-referenced documentation with proper categorization
+
+### Fixed - Phase 4
+
+- **LayeredKnob Rendering**: Fixed transform application for rotating layers
+  - Previous: Applied rotation to graphics context, then drew at renderBounds (coordinates got rotated, causing misalignment)
+  - Fixed: Use `drawImageTransformed()` with proper transform chain (scale → translate to center → rotate around center)
+  - All layers now render aligned and scaled uniformly (both rotating and static)
+  - See `ui/LayeredKnob.cpp:125-132`
+
 ### Added - Phase 3: Modulation Sources Complete (2026-01-03)
 
 - **ChaosAttractor**: Lorenz strange attractor with 3-axis output (X/Y/Z), deterministic but unpredictable motion

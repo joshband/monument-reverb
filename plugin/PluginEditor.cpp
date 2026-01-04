@@ -12,7 +12,7 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
       elasticityKnob(processorRef.getAPVTS(), "elasticity", "Elasticity"),
       // Base Parameters
       mixKnob(processorRef.getAPVTS(), "mix", "Mix"),
-      timeKnob(processorRef.getAPVTS(), "time", "Time"),
+      timeKnob(processorRef.getAPVTS()),
       massKnob(processorRef.getAPVTS(), "mass", "Mass"),
       densityKnob(processorRef.getAPVTS(), "density", "Density"),
       bloomKnob(processorRef.getAPVTS(), "bloom", "Bloom"),
