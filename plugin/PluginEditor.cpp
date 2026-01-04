@@ -3,16 +3,21 @@
 MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcessor& p)
     : juce::AudioProcessorEditor(&p),
       processorRef(p),
-      // Macro Controls
+      // Macro Controls - All using HeroKnob (codex brushed aluminum)
       materialKnob(processorRef.getAPVTS(), "material", "Material"),
       topologyKnob(processorRef.getAPVTS(), "topology", "Topology"),
       viscosityKnob(processorRef.getAPVTS(), "viscosity", "Viscosity"),
       evolutionKnob(processorRef.getAPVTS(), "evolution", "Evolution"),
-      chaosKnob(processorRef.getAPVTS(), "chaosIntensity", "Chaos"),  // FIXED: Corrected parameter ID
-      elasticityKnob(processorRef.getAPVTS(), "elasticityDecay", "Elasticity"),  // FIXED: Corrected parameter ID
-      // Base Parameters
+      chaosKnob(processorRef.getAPVTS(), "chaosIntensity", "Chaos"),
+      elasticityKnob(processorRef.getAPVTS(), "elasticityDecay", "Elasticity"),
+      patinaKnob(processorRef.getAPVTS(), "patina", "Patina"),
+      abyssKnob(processorRef.getAPVTS(), "abyss", "Abyss"),
+      coronaKnob(processorRef.getAPVTS(), "corona", "Corona"),
+      breathKnob(processorRef.getAPVTS(), "breath", "Breath"),
+      // Base Parameters - All using HeroKnob (codex brushed aluminum)
       mixKnob(processorRef.getAPVTS(), "mix", "Mix"),
-      timeKnob(processorRef.getAPVTS()),
+      timeKnob(processorRef.getAPVTS(), "time", "Time"),
+      sizeHeroKnob(processorRef.getAPVTS(), "size", "Size"),
       massKnob(processorRef.getAPVTS(), "mass", "Mass"),
       densityKnob(processorRef.getAPVTS(), "density", "Density"),
       bloomKnob(processorRef.getAPVTS(), "bloom", "Bloom"),
@@ -30,21 +35,50 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     addAndMakeVisible(evolutionKnob);
     addAndMakeVisible(chaosKnob);
     addAndMakeVisible(elasticityKnob);
+    addAndMakeVisible(patinaKnob);
+    addAndMakeVisible(abyssKnob);
+    addAndMakeVisible(coronaKnob);
+    addAndMakeVisible(breathKnob);
 
-    // Add base parameters
-    addAndMakeVisible(mixKnob);
-    addAndMakeVisible(timeKnob);
-    addAndMakeVisible(massKnob);
-    addAndMakeVisible(densityKnob);
-    addAndMakeVisible(bloomKnob);
-    addAndMakeVisible(airKnob);
-    addAndMakeVisible(widthKnob);
-    addAndMakeVisible(warpKnob);
-    addAndMakeVisible(driftKnob);
-    addAndMakeVisible(gravityKnob);
-    addAndMakeVisible(freezeToggle);
+    // Add base parameters (hidden by default - macros are primary interface)
+    addChildComponent(mixKnob);
+    addChildComponent(timeKnob);
+    addChildComponent(sizeHeroKnob);
+    addChildComponent(massKnob);
+    addChildComponent(densityKnob);
+    addChildComponent(bloomKnob);
+    addChildComponent(airKnob);
+    addChildComponent(widthKnob);
+    addChildComponent(warpKnob);
+    addChildComponent(driftKnob);
+    addChildComponent(gravityKnob);
+    addChildComponent(freezeToggle);
+
+    // Preset controls always visible
     addAndMakeVisible(presetBox);
     addAndMakeVisible(savePresetButton);
+
+    // Routing Architecture Selector (Phase 1.5)
+    routingPresetLabel.setText("Architecture", juce::dontSendNotification);
+    routingPresetLabel.setJustificationType(juce::Justification::centred);
+    routingPresetLabel.setColour(juce::Label::textColourId, juce::Colour(0xff666666));
+    addAndMakeVisible(routingPresetLabel);
+
+    routingPresetBox.setTextWhenNothingSelected("Traditional Cathedral");
+    routingPresetBox.setJustificationType(juce::Justification::centred);
+    routingPresetBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff14171b));
+    routingPresetBox.setColour(juce::ComboBox::textColourId, juce::Colour(0xffe6e1d6));
+    routingPresetBox.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff3a3f46));
+    routingPresetBox.setColour(juce::ComboBox::arrowColourId, juce::Colour(0xffe6e1d6));
+    routingPresetBox.setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xff14171b));
+    routingPresetBox.setColour(juce::PopupMenu::textColourId, juce::Colour(0xffe6e1d6));
+    routingPresetBox.setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(0xff242833));
+    routingPresetBox.setColour(juce::PopupMenu::highlightedTextColourId, juce::Colour(0xffe6e1d6));
+    addAndMakeVisible(routingPresetBox);
+
+    // Create APVTS attachment for routing preset
+    routingPresetAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        processorRef.getAPVTS(), "routingPreset", routingPresetBox);
 
     // Preset browser styling
     presetBox.setTextWhenNothingSelected("Presets");
@@ -64,6 +98,35 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     savePresetButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffe6e1d6));
     savePresetButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xffe6e1d6));
     savePresetButton.onClick = [this]() { showSavePresetDialog(); };
+
+    // Base Parameters toggle button
+    baseParamsToggleButton.setButtonText("BASE PARAMS");
+    baseParamsToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff242833));
+    baseParamsToggleButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff8b7355));
+    baseParamsToggleButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffe6e1d6));
+    baseParamsToggleButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xff0d0f12));
+    baseParamsToggleButton.setClickingTogglesState(true);
+    baseParamsToggleButton.onClick = [this]()
+    {
+        baseParamsVisible = baseParamsToggleButton.getToggleState();
+
+        // Toggle visibility of all base parameter controls
+        mixKnob.setVisible(baseParamsVisible);
+        timeKnob.setVisible(baseParamsVisible);
+        sizeHeroKnob.setVisible(baseParamsVisible);
+        massKnob.setVisible(baseParamsVisible);
+        densityKnob.setVisible(baseParamsVisible);
+        bloomKnob.setVisible(baseParamsVisible);
+        airKnob.setVisible(baseParamsVisible);
+        widthKnob.setVisible(baseParamsVisible);
+        warpKnob.setVisible(baseParamsVisible);
+        driftKnob.setVisible(baseParamsVisible);
+        gravityKnob.setVisible(baseParamsVisible);
+        freezeToggle.setVisible(baseParamsVisible);
+
+        resized();
+    };
+    addAndMakeVisible(baseParamsToggleButton);
 
     // Modulation Matrix toggle button
     modMatrixToggleButton.setButtonText("MODULATION");
@@ -97,8 +160,8 @@ MonumentAudioProcessorEditor::~MonumentAudioProcessorEditor() = default;
 
 void MonumentAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(0xff0d0f12));
-    g.setColour(juce::Colour(0xffe6e1d6));
+    g.fillAll(juce::Colours::white);  // Changed from black to white
+    g.setColour(juce::Colour(0xff333333));  // Darker text for white background
 
     // Title
     g.setFont(juce::Font(juce::FontOptions(20.0f, juce::Font::bold)));
@@ -106,30 +169,45 @@ void MonumentAudioProcessorEditor::paint(juce::Graphics& g)
 
     // Macro section label
     g.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
-    g.setColour(juce::Colour(0xffa8a49c));
+    g.setColour(juce::Colour(0xff666666));  // Medium gray for white background
     g.drawFittedText("MACRO CONTROLS", juce::Rectangle<int>(24, 45, getWidth() - 48, 20),
                      juce::Justification::centredLeft, 1);
 
-    // Separator line after macros
-    g.setColour(juce::Colour(0xff3a3f46));
-    g.drawLine(24.0f, 185.0f, static_cast<float>(getWidth() - 24), 185.0f, 1.0f);
+    // Base parameters section (only show if visible)
+    if (baseParamsVisible)
+    {
+        // Separator line after macros
+        g.setColour(juce::Colour(0xffcccccc));  // Light gray separator for white background
+        g.drawLine(24.0f, 185.0f, static_cast<float>(getWidth() - 24), 185.0f, 1.0f);
 
-    // Base parameters label
-    g.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
-    g.setColour(juce::Colour(0xffa8a49c));
-    g.drawFittedText("BASE PARAMETERS", juce::Rectangle<int>(24, 195, getWidth() - 48, 20),
-                     juce::Justification::centredLeft, 1);
+        // Base parameters label
+        g.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
+        g.setColour(juce::Colour(0xff666666));  // Medium gray for white background
+        g.drawFittedText("BASE PARAMETERS", juce::Rectangle<int>(24, 195, getWidth() - 48, 20),
+                         juce::Justification::centredLeft, 1);
+    }
 }
 
 void MonumentAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(24);
-    area.removeFromTop(35);  // Title space
+
+    // Top Bar: Title + Architecture Selector
+    auto topBar = area.removeFromTop(35);
+    // Architecture dropdown in top-right
+    const int archLabelWidth = 90;
+    const int archDropdownWidth = 200;
+    topBar.removeFromRight(10);  // Right margin
+    auto archDropdown = topBar.removeFromRight(archDropdownWidth);
+    auto archLabel = topBar.removeFromRight(archLabelWidth);
+    routingPresetLabel.setBounds(archLabel);
+    routingPresetBox.setBounds(archDropdown);
 
     // Macro Controls Section
     area.removeFromTop(25);  // Label space
+    // Ancient Monuments Phase 5 - 10 macro controls
     auto macroArea = area.removeFromTop(115);
-    const auto macroWidth = macroArea.getWidth() / 6;
+    const auto macroWidth = macroArea.getWidth() / 10;  // Was /6, now /10
 
     materialKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
     topologyKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
@@ -137,62 +215,84 @@ void MonumentAudioProcessorEditor::resized()
     evolutionKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
     chaosKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
     elasticityKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
+    patinaKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
+    abyssKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
+    coronaKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
+    breathKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
 
-    area.removeFromTop(10);  // Separator space
-    area.removeFromTop(25);  // Base params label space
+    // Control buttons area (below macros)
+    area.removeFromTop(10);  // Spacing
+    auto controlsArea = area.removeFromTop(100);
+    const int buttonWidth = 150;
+    const int buttonHeight = 35;
+    const int buttonSpacing = 10;
 
-    // Base Parameters Grid (4x3)
-    auto gridArea = area.reduced(10);
-    const auto columnWidth = gridArea.getWidth() / 4;
-    const auto rowHeight = gridArea.getHeight() / 3;
+    // Center the control buttons horizontally
+    auto buttonRow = controlsArea.withSizeKeepingCentre(
+        (buttonWidth * 3) + (buttonSpacing * 2), buttonHeight);
 
-    auto cell = [&](int row, int column)
+    presetBox.setBounds(buttonRow.removeFromLeft(buttonWidth));
+    buttonRow.removeFromLeft(buttonSpacing);
+    savePresetButton.setBounds(buttonRow.removeFromLeft(buttonWidth));
+    buttonRow.removeFromLeft(buttonSpacing);
+    baseParamsToggleButton.setBounds(buttonRow.removeFromLeft(buttonWidth));
+
+    // Modulation toggle button below
+    auto modButtonArea = controlsArea.removeFromTop(50).withSizeKeepingCentre(buttonWidth, buttonHeight);
+    modMatrixToggleButton.setBounds(modButtonArea);
+
+    // Base Parameters Section (only layout if visible)
+    if (baseParamsVisible)
     {
-        return juce::Rectangle<int>(gridArea.getX() + column * columnWidth,
-                                    gridArea.getY() + row * rowHeight,
-                                    columnWidth,
-                                    rowHeight)
-            .reduced(6);
-    };
+        area.removeFromTop(10);  // Separator space
+        area.removeFromTop(25);  // Base params label space
 
-    mixKnob.setBounds(cell(0, 0));
-    timeKnob.setBounds(cell(0, 1));
-    massKnob.setBounds(cell(0, 2));
-    densityKnob.setBounds(cell(0, 3));
+        // Base Parameters Grid (4x3)
+        auto gridArea = area.reduced(10);
+        const auto columnWidth = gridArea.getWidth() / 4;
+        const auto rowHeight = gridArea.getHeight() / 3;
 
-    bloomKnob.setBounds(cell(1, 0));
-    airKnob.setBounds(cell(1, 1));
-    widthKnob.setBounds(cell(1, 2));
-    warpKnob.setBounds(cell(1, 3));
+        auto cell = [&](int row, int column)
+        {
+            return juce::Rectangle<int>(gridArea.getX() + column * columnWidth,
+                                        gridArea.getY() + row * rowHeight,
+                                        columnWidth,
+                                        rowHeight)
+                .reduced(6);
+        };
 
-    driftKnob.setBounds(cell(2, 0));
-    gravityKnob.setBounds(cell(2, 1));
-    freezeToggle.setBounds(cell(2, 2));
+        mixKnob.setBounds(cell(0, 0));
+        timeKnob.setBounds(cell(0, 1));
+        sizeHeroKnob.setBounds(cell(0, 2));
+        massKnob.setBounds(cell(0, 3));
 
-    // Preset section: dropdown + save button + mod matrix toggle
-    auto presetCell = cell(2, 3);
-    const int buttonHeight = 30;
-    presetBox.setBounds(presetCell.removeFromTop(presetCell.getHeight() - buttonHeight * 2 - 8));
-    savePresetButton.setBounds(presetCell.removeFromTop(buttonHeight));
-    presetCell.removeFromTop(4); // Spacing
-    modMatrixToggleButton.setBounds(presetCell);
+        densityKnob.setBounds(cell(1, 0));
+        bloomKnob.setBounds(cell(1, 1));
+        airKnob.setBounds(cell(1, 2));
+        widthKnob.setBounds(cell(1, 3));
 
-    // Modulation Matrix Panel (if visible, expand window and show panel)
+        warpKnob.setBounds(cell(2, 0));
+        driftKnob.setBounds(cell(2, 1));
+        freezeToggle.setBounds(cell(2, 2));
+        gravityKnob.setBounds(cell(2, 3));
+    }
+
+    // Dynamic window sizing based on visibility
+    int targetHeight = 260;  // Compact size (macros + controls only)
+    if (baseParamsVisible)
+        targetHeight = 580;  // Full size with base parameters
+    if (modMatrixVisible)
+        targetHeight = 1080;  // Expanded with mod matrix
+
+    if (getHeight() != targetHeight)
+        setSize(900, targetHeight);
+
+    // Modulation Matrix Panel (if visible)
     if (modMatrixVisible && modMatrixPanel)
     {
-        // Expand editor height to accommodate panel
-        if (getHeight() < 1080)
-            setSize(900, 1080);
-
         auto panelBounds = getLocalBounds();
-        panelBounds.removeFromTop(580); // Original UI height
+        panelBounds.removeFromTop(baseParamsVisible ? 580 : 260);
         modMatrixPanel->setBounds(panelBounds.reduced(10));
-    }
-    else
-    {
-        // Collapse to original size
-        if (getHeight() > 580)
-            setSize(900, 580);
     }
 }
 

@@ -4,7 +4,7 @@
 
 #include <atomic>
 
-#include "dsp/DspModules.h"
+#include "dsp/DspRoutingGraph.h"
 #include "dsp/MemoryEchoes.h"
 #include "dsp/MacroMapper.h"
 #include "dsp/ModulationMatrix.h"
@@ -68,13 +68,12 @@ private:
     APVTS parameters;
     PresetManager presetManager;
     juce::AudioBuffer<float> dryBuffer;
-    monument::dsp::Foundation foundation;
-    monument::dsp::Pillars pillars;
-    monument::dsp::Chambers chambers;
+
+    // DSP Routing Graph (replaces individual module instances)
+    monument::dsp::DspRoutingGraph routingGraph;
+
+    // Separate features (not part of routing graph)
     monument::dsp::MemoryEchoes memoryEchoes;
-    monument::dsp::Weathering weathering;
-    monument::dsp::Buttress buttress;
-    monument::dsp::Facade facade;
     monument::dsp::MacroMapper macroMapper;
     monument::dsp::ModulationMatrix modulationMatrix;
 
@@ -86,8 +85,16 @@ private:
         float memory, memoryDepth, memoryDecay, memoryDrift;
         float material, topology, viscosity, evolution;
         float chaosIntensity, elasticityDecay;
+        float patina, abyss, corona, breath;  // Ancient Monuments Phase 5 expanded macros
+        float tubeCount, radiusVariation, metallicResonance, couplingStrength;
+        float elasticity, recoveryTime, absorptionDrift, nonlinearity;
+        float impossibilityDegree, pitchEvolutionRate, paradoxResonanceFreq, paradoxGain;
+        float routingPreset;  // DSP routing architecture (0-7)
         bool freeze;
     } paramCache{};
+
+    // Track last routing preset to detect changes
+    int lastRoutingPreset{0};
 
     // JUCE SmoothedValue for block-rate parameter smoothing (prevents zipper noise)
     juce::SmoothedValue<float> timeSmoother;
@@ -100,6 +107,20 @@ private:
     juce::SmoothedValue<float> driftSmoother;
     juce::SmoothedValue<float> gravitySmoother;
     juce::SmoothedValue<float> pillarShapeSmoother;
+
+    // Physical modeling parameter smoothers
+    juce::SmoothedValue<float> tubeCountSmoother;
+    juce::SmoothedValue<float> radiusVariationSmoother;
+    juce::SmoothedValue<float> metallicResonanceSmoother;
+    juce::SmoothedValue<float> couplingStrengthSmoother;
+    juce::SmoothedValue<float> elasticitySmoother;
+    juce::SmoothedValue<float> recoveryTimeSmoother;
+    juce::SmoothedValue<float> absorptionDriftSmoother;
+    juce::SmoothedValue<float> nonlinearitySmoother;
+    juce::SmoothedValue<float> impossibilityDegreeSmoother;
+    juce::SmoothedValue<float> pitchEvolutionRateSmoother;
+    juce::SmoothedValue<float> paradoxResonanceFreqSmoother;
+    juce::SmoothedValue<float> paradoxGainSmoother;
 
     std::atomic<bool> presetResetRequested{false};
     PresetTransitionState presetTransition = PresetTransitionState::None;
