@@ -24,6 +24,25 @@ public:
     void setWarp(float warp);
     void setDrift(float drift);
     void setFreeze(bool shouldFreeze);
+
+    /// FIXED: Documented lifetime guarantees for external injection pointer
+    /// Sets an external audio buffer for memory injection into the reverb network.
+    ///
+    /// LIFETIME GUARANTEES:
+    /// - The pointer must remain valid until the next call to process() completes
+    /// - Typical usage: Set immediately before calling process() in the same call stack
+    /// - The buffer is accessed only during process() execution (same audio thread)
+    /// - Set to nullptr to disable external injection
+    ///
+    /// THREAD SAFETY:
+    /// - Must be called from the audio processing thread only
+    /// - No synchronization needed as long as set-then-process is atomic
+    ///
+    /// Example usage (from PluginProcessor::processBlock):
+    /// ```cpp
+    /// chambers.setExternalInjection(&memoryEchoes.getRecallBuffer());
+    /// chambers.process(buffer);  // Pointer valid during this call
+    /// ```
     void setExternalInjection(const juce::AudioBuffer<float>* injectionBuffer);
 
 private:

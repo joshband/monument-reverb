@@ -45,7 +45,8 @@ public:
         PresetValues values{};
     };
 
-    explicit PresetManager(juce::AudioProcessorValueTreeState& apvts);
+    explicit PresetManager(juce::AudioProcessorValueTreeState& apvts,
+                           monument::dsp::ModulationMatrix* modMatrix = nullptr);
 
     int getNumFactoryPresets() const;
     juce::String getFactoryPresetName(int index) const;
@@ -76,8 +77,15 @@ private:
     juce::File resolveUserPresetFile(const juce::File& targetFile, const juce::String& name) const;
 
     juce::AudioProcessorValueTreeState& parameters;
+    monument::dsp::ModulationMatrix* modulationMatrix;  // Phase 3: For capturing modulation state
     static const std::array<Preset, kNumFactoryPresets> kFactoryPresets;
 
     // Phase 3: Cache modulation connections from last loaded preset
     std::vector<monument::dsp::ModulationMatrix::Connection> lastLoadedModulationConnections;
+
+    // Phase 3: Enum-to-string conversion helpers
+    static juce::String sourceTypeToString(monument::dsp::ModulationMatrix::SourceType type);
+    static juce::String destinationTypeToString(monument::dsp::ModulationMatrix::DestinationType type);
+    static monument::dsp::ModulationMatrix::SourceType stringToSourceType(const juce::String& str);
+    static monument::dsp::ModulationMatrix::DestinationType stringToDestinationType(const juce::String& str);
 };

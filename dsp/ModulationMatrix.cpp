@@ -447,10 +447,22 @@ void ModulationMatrix::process(const juce::AudioBuffer<float>& audioBuffer, int 
 
     // Initialize per-destination accumulators
     std::array<float, static_cast<size_t>(DestinationType::Count)> destinationSums{};
-    destinationSums.fill(0.0f);
 
-    // Accumulate modulation from all active connections
-    for (const auto& conn : connections)
+    // Thread-safe: Lock while reading connections vector
+    // Note: SpinLock is real-time safe (no blocking, just busy-wait)
+    {
+        const juce::SpinLock::ScopedLockType lock(connectionsLock);
+
+        // Early exit optimization: no connections = no processing needed
+        if (connections.empty())
+        {
+            for (size_t i = 0; i < smoothers.size(); ++i)
+                modulationValues[i] = smoothers[i].getNextValue();
+            return;
+        }
+
+        // Accumulate modulation from all active connections
+        for (const auto& conn : connections)
     {
         if (!conn.enabled)
             continue;
@@ -483,6 +495,7 @@ void ModulationMatrix::process(const juce::AudioBuffer<float>& audioBuffer, int 
         if (destIdx < destinationSums.size())
             destinationSums[destIdx] += modulation;
     }
+    }  // End SpinLock scope - connections vector is no longer accessed
 
     // Apply smoothing and clamp to valid range
     for (size_t i = 0; i < smoothers.size(); ++i)
@@ -514,6 +527,9 @@ void ModulationMatrix::setConnection(
     // Sanitize inputs
     depth = juce::jlimit(-1.0f, 1.0f, depth);
     smoothingMs = juce::jlimit(20.0f, 1000.0f, smoothingMs);
+
+    // Thread-safe: Lock before modifying connections
+    const juce::SpinLock::ScopedLockType lock(connectionsLock);
 
     // Find existing connection or create new one
     const int existingIdx = findConnectionIndex(source, destination, sourceAxis);
@@ -550,6 +566,9 @@ void ModulationMatrix::removeConnection(
     DestinationType destination,
     int sourceAxis)
 {
+    // Thread-safe: Lock before modifying connections
+    const juce::SpinLock::ScopedLockType lock(connectionsLock);
+
     const int idx = findConnectionIndex(source, destination, sourceAxis);
     if (idx >= 0)
         connections.erase(connections.begin() + idx);
@@ -557,6 +576,9 @@ void ModulationMatrix::removeConnection(
 
 void ModulationMatrix::clearConnections()
 {
+    // Thread-safe: Lock before clearing connections
+    const juce::SpinLock::ScopedLockType lock(connectionsLock);
+
     connections.clear();
 
     // Reset all modulationvalues and smoothers
@@ -569,6 +591,9 @@ void ModulationMatrix::clearConnections()
 
 void ModulationMatrix::setConnections(const std::vector<Connection>& newConnections)
 {
+    // Thread-safe: Lock before modifying connections vector
+    const juce::SpinLock::ScopedLockType lock(connectionsLock);
+
     connections = newConnections;
 
     // Update smoother time constants based on connections
