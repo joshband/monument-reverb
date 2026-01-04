@@ -16,7 +16,7 @@ cmake_install.cmake
 CMakeScripts/
 CMakeUserPresets.json
 CTestTestfile.cmake
-Testing/
+/Testing/
 
 # Xcode
 *.xcodeproj
