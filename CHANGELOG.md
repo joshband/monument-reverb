@@ -10,6 +10,83 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Memory Echoes development has moved to a standalone repository. Monument's
   release line is intentionally memory-free until the planned v1.6 reintegration.
 
+### Changed - Preset System v4 Migration (2026-01-04)
+
+- **Preset Format v3→v4**: Migrated preset system to support 10 Ancient Monuments macros
+  - Added 4 new macro fields: `patina`, `abyss`, `corona`, `breath`
+  - Backward compatibility: v3 presets automatically migrated with defaults (patina=0.5, abyss=0.5, corona=0.5, breath=0.0)
+  - All 28 factory presets updated with new macro support via default parameters
+  - User presets from v3 will seamlessly load with sensible defaults for new macros
+  - See [plugin/PresetManager.h:37-41](plugin/PresetManager.h) and [plugin/PresetManager.cpp:7](plugin/PresetManager.cpp)
+
+### Added - Phase 5: Physical Modeling Integration Complete (2026-01-04)
+
+- **TubeRayTracer Module**: Metal tube network with ray-traced acoustic propagation
+  - Simulates interconnected metal pipes (1-8 tubes) with realistic resonance
+  - Ray-tracing algorithm for physically-modeled sound propagation through tube network
+  - 4 control parameters: Tube Count, Radius Variation, Metallic Resonance, Coupling Strength
+  - Creates metallic, resonant spaces reminiscent of industrial ductwork and organ pipes
+  - See `dsp/TubeRayTracer.h` and `dsp/TubeRayTracer.cpp`
+- **ElasticHallway Module**: Deformable walls responding to acoustic pressure
+  - Walls physically deform under sound pressure and recover over time
+  - Absorption properties drift slowly, creating evolving acoustic character
+  - 4 control parameters: Wall Elasticity, Recovery Time, Absorption Drift, Elastic Nonlinearity
+  - Creates breathing, organic spaces that respond to input dynamics
+  - See `dsp/ElasticHallway.h` and `dsp/ElasticHallway.cpp`
+- **AlienAmplification Module**: Non-Euclidean physics with impossible amplification
+  - Violates physical acoustic laws for surreal, impossible spaces
+  - Sound can gain energy, fold through non-Euclidean topology, and evolve harmonically
+  - 4 control parameters: Impossibility Degree, Pitch Evolution, Paradox Frequency, Paradox Gain
+  - Creates physics-breaking effects impossible in the real world
+  - See `dsp/AlienAmplification.h` and `dsp/AlienAmplification.cpp`
+- **12 New APVTS Parameters**: All normalized [0,1] following Monument conventions
+  - Tube: tubeCount, tubeRadiusVariation, metallicResonance, tubeCouplingStrength
+  - Elastic: wallElasticity, recoveryTime, absorptionDrift, elasticNonlinearity
+  - Alien: impossibilityDegree, pitchEvolution, paradoxFrequency, paradoxGain
+  - Parameters exposed in AudioProcessorValueTreeState with default values
+- **Macro System Integration**: Physical modeling parameters driven by 6 macro controls
+  - Material → Metallic resonance (0.3→0.9), Tube uniformity via radius variation (0.8→0.2)
+  - Topology → Tube network complexity via count (0.15→0.85), Coupling strength (0.2→0.8)
+  - Viscosity → Recovery time for elastic walls (0.2→0.8)
+  - Evolution → Absorption drift (0.0→0.6), Pitch evolution (0.0→0.5)
+  - Chaos → Impossibility physics (0.0→0.7), Elastic nonlinearity (0.1→0.9)
+  - Elasticity → Wall deformation amount (0.1→0.9, primary macro use)
+  - See `dsp/MacroMapper.cpp:245-324` for full mapping implementation
+- **ModulationMatrix Integration**: 8 new physical modeling destinations
+  - Added to ModulationMatrix: TubeCount, MetallicResonance, WallElasticity, ImpossibilityDegree
+  - Plus 4 additional destinations for complete physical modeling coverage
+  - All physical parameters can be modulated by Chaos, Audio, Brownian, Envelope sources
+  - See `dsp/ModulationMatrix.h:30-37` for destination enum
+- **5 New Factory Presets**: Physical modeling showcase (Total: 28 presets)
+  - **Metallic Corridor** (Preset #24): Resonant 5-tube network, high coupling, medium metallicity
+  - **Elastic Cathedral** (Preset #25): Highly elastic walls (0.85), slow recovery (0.7), breathing space
+  - **Impossible Chamber** (Preset #26): Maximum impossibility (0.9), strong paradox effects, alien physics
+  - **Breathing Tubes** (Preset #27): 6 tubes + elastic walls + modulation (AudioFollower → WallElasticity)
+  - **Quantum Hall** (Preset #28): Tube network + chaos modulation (ChaosAttractor → ImpossibilityDegree)
+  - Presets demonstrate solo modules and hybrid combinations with core reverb
+  - See `plugin/PresetManager.cpp:356-461` for preset definitions
+- **PluginProcessor Integration**: Full DSP pipeline integration with existing modules
+  - Physical modules process in series after Chambers, before Buttress
+  - Signal flow: Foundation → Pillars → Chambers → **Physical Modules** → Buttress → Facade
+  - processBlock updated to poll physical parameters and call module process() methods
+  - All 12 parameters integrated into parameter cache and smoothing system
+  - Thread-safe with existing SpinLock for modulation/macro coordination
+  - See `plugin/PluginProcessor.cpp:389-398` for processing order
+- **Build System Updates**: CMakeLists.txt updated with new source files
+  - Added 6 new files: TubeRayTracer.h/.cpp, ElasticHallway.h/.cpp, AlienAmplification.h/.cpp
+  - Incremental builds still fast (~6 seconds for changed files)
+  - No external dependencies added (pure C++ implementation)
+
+### Added - Phase 4: UI Enhancement Complete (2026-01-04)
+
+- **Unified Codex Knob Implementation**: All 18 knobs now use consistent brushed aluminum texture
+  - Replaced all MonumentKnob instances with HeroKnob (LayeredKnob-based)
+  - Single albedo RGBA texture from codex pre-generated assets
+  - Smooth rotation with vertical drag interaction
+  - Clean white background with dark text for high contrast
+  - Hover effects temporarily disabled for cleaner appearance
+  - See `ui/HeroKnob.h` and `plugin/PluginEditor.cpp:6-24`
+
 ### Added - Phase 4: UI Enhancement (2026-01-03)
 
 - **ModMatrixPanel Component**: Professional modulation matrix UI (2026-01-03 Evening)

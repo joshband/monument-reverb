@@ -34,6 +34,12 @@ public:
         float chaosIntensity = 0.0f;
         float elasticityDecay = 0.0f;
 
+        // Phase 5: Ancient Monuments macros 7-10
+        float patina = 0.5f;
+        float abyss = 0.5f;
+        float corona = 0.5f;
+        float breath = 0.0f;
+
         // Phase 3: Modulation connections for "living" presets
         std::vector<monument::dsp::ModulationMatrix::Connection> modulationConnections;
     };
@@ -68,7 +74,7 @@ public:
 
     juce::File getDefaultUserPresetDirectory() const;
 
-    static constexpr size_t kNumFactoryPresets = 23;  // 18 original + 5 "Living" presets (Phase 3)
+    static constexpr size_t kNumFactoryPresets = 28;  // 18 original + 5 "Living" + 5 Physical Modeling presets (Phase 5)
     static const std::array<Preset, kNumFactoryPresets>& getFactoryPresets();
 
 private:
