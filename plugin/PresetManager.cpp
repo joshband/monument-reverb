@@ -4,7 +4,7 @@
 
 namespace
 {
-constexpr int kPresetVersion = 3;  // v3: Added modulation connection serialization
+constexpr int kPresetVersion = 4;  // v4: Added 4 new Ancient Monuments macros (patina, abyss, corona, breath)
 
 template <typename T>
 float readFloatProperty(const juce::DynamicObject* object, const juce::String& key, T fallback)
@@ -37,10 +37,15 @@ PresetManager::PresetValues makePreset(float time,
     float viscosity = 0.5f,
     float evolution = 0.5f,
     float chaosIntensity = 0.0f,
-    float elasticityDecay = 0.0f)
+    float elasticityDecay = 0.0f,
+    float patina = 0.5f,
+    float abyss = 0.5f,
+    float corona = 0.5f,
+    float breath = 0.0f)
 {
     return {time, mass, density, bloom, gravity, warp, drift, memory, memoryDepth, memoryDecay, memoryDrift, mix,
-            material, topology, viscosity, evolution, chaosIntensity, elasticityDecay};
+            material, topology, viscosity, evolution, chaosIntensity, elasticityDecay,
+            patina, abyss, corona, breath};
 }
 
 // Phase 3: Helper to create modulation connections for "Living" presets
@@ -67,10 +72,12 @@ PresetManager::PresetValues makePresetWithMod(
     const std::vector<monument::dsp::ModulationMatrix::Connection>& modulations,
     float memory = 0.0f, float memoryDepth = 0.5f, float memoryDecay = 0.4f, float memoryDrift = 0.3f,
     float material = 0.5f, float topology = 0.5f, float viscosity = 0.5f,
-    float evolution = 0.5f, float chaosIntensity = 0.0f, float elasticityDecay = 0.0f)
+    float evolution = 0.5f, float chaosIntensity = 0.0f, float elasticityDecay = 0.0f,
+    float patina = 0.5f, float abyss = 0.5f, float corona = 0.5f, float breath = 0.0f)
 {
     PresetManager::PresetValues preset{time, mass, density, bloom, gravity, warp, drift, memory, memoryDepth, memoryDecay, memoryDrift, mix,
-                                       material, topology, viscosity, evolution, chaosIntensity, elasticityDecay};
+                                       material, topology, viscosity, evolution, chaosIntensity, elasticityDecay,
+                                       patina, abyss, corona, breath};
     preset.modulationConnections = modulations;
     return preset;
 }
@@ -148,6 +155,62 @@ const std::array<PresetManager::Preset, PresetManager::kNumFactoryPresets> Prese
              makeModConnection(monument::dsp::ModulationMatrix::SourceType::BrownianMotion,
                               monument::dsp::ModulationMatrix::DestinationType::Drift, 0.50f, 0, 800.0f)},
             0.75f, 0.70f, 0.70f, 0.70f)},
+
+    // Phase 5: Physical Modeling Presets
+    {"Metallic Corridor", "Sound travels through a network of resonant metal tubes, each ringing with its own harmonic character.",
+        makePreset(0.65f, 0.55f, 0.60f, 0.35f, 0.50f, 0.20f, 0.15f, 0.60f, 0.0f, 0.5f, 0.4f, 0.3f,
+            0.85f,  // material: hard/metallic → strong metallic resonance, uniform tubes
+            0.60f,  // topology: moderate → complex tube network
+            0.45f,  // viscosity: moderate
+            0.30f,  // evolution: subtle
+            0.0f,   // chaos: stable
+            0.0f)}, // elasticity: instant recovery
+
+    {"Elastic Cathedral", "The walls pulse and breathe with the music, deforming under acoustic pressure and slowly returning to shape.",
+        makePreset(0.75f, 0.50f, 0.55f, 0.50f, 0.55f, 0.15f, 0.20f, 0.65f, 0.0f, 0.5f, 0.4f, 0.3f,
+            0.40f,  // material: soft → varied tubes
+            0.45f,  // topology: moderate
+            0.75f,  // viscosity: thick → slow wall recovery
+            0.60f,  // evolution: evolving → absorption drift
+            0.0f,   // chaos: stable
+            0.80f)},// elasticity: slow deformation → high wall elasticity
+
+    {"Impossible Chamber", "Physics breaks down—frequencies amplify impossibly, pitches drift through dimensions, reality bends.",
+        makePreset(0.70f, 0.60f, 0.50f, 0.60f, 0.45f, 0.50f, 0.40f, 0.65f, 0.0f, 0.5f, 0.4f, 0.3f,
+            0.50f,  // material: neutral
+            0.75f,  // topology: non-Euclidean → complex tube network, paradox freq variation
+            0.50f,  // viscosity: moderate
+            0.70f,  // evolution: high → pitch evolution, absorption drift
+            0.75f,  // chaos: very high → impossibility physics, nonlinearity, paradox gain
+            0.40f)},// elasticity: moderate
+
+    {"Breathing Tubes", "Organic metal pipes expand and contract like lungs, creating a living acoustic environment.",
+        makePresetWithMod(0.55f, 0.60f, 0.65f, 0.55f, 0.60f, 0.10f, 0.25f, 0.60f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::AudioFollower,
+                              monument::dsp::ModulationMatrix::DestinationType::RadiusVariation, 0.35f, 0, 300.0f),
+             makeModConnection(monument::dsp::ModulationMatrix::SourceType::BrownianMotion,
+                              monument::dsp::ModulationMatrix::DestinationType::Elasticity, 0.25f, 0, 500.0f)},
+            0.0f, 0.5f, 0.4f, 0.3f,
+            0.65f,  // material: moderate hard → some metallic character
+            0.50f,  // topology: moderate
+            0.80f,  // viscosity: thick → slow recovery
+            0.45f,  // evolution: moderate
+            0.20f,  // chaos: subtle instability
+            0.65f)},// elasticity: high → walls deform significantly
+
+    {"Quantum Hall", "A non-Euclidean space where tubes fold through higher dimensions and sound obeys impossible laws.",
+        makePresetWithMod(0.80f, 0.65f, 0.45f, 0.70f, 0.50f, 0.70f, 0.60f, 0.70f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::ChaosAttractor,
+                              monument::dsp::ModulationMatrix::DestinationType::CouplingStrength, 0.40f, 0, 250.0f),
+             makeModConnection(monument::dsp::ModulationMatrix::SourceType::ChaosAttractor,
+                              monument::dsp::ModulationMatrix::DestinationType::ImpossibilityDegree, 0.30f, 1, 400.0f)},
+            0.0f, 0.5f, 0.4f, 0.3f,
+            0.55f,  // material: moderate
+            0.90f,  // topology: very non-Euclidean → max tube network complexity and coupling
+            0.50f,  // viscosity: moderate
+            0.65f,  // evolution: high → pitch morphing
+            0.85f,  // chaos: very high → alien physics
+            0.50f)},// elasticity: moderate
 }};
 
 PresetManager::PresetManager(juce::AudioProcessorValueTreeState& apvts,
@@ -235,6 +298,12 @@ void PresetManager::saveUserPreset(const juce::File& targetFile,
     params->setProperty("chaosIntensity", values.chaosIntensity);
     params->setProperty("elasticityDecay", values.elasticityDecay);
 
+    // Phase 5: Save Ancient Monuments macros 7-10
+    params->setProperty("patina", values.patina);
+    params->setProperty("abyss", values.abyss);
+    params->setProperty("corona", values.corona);
+    params->setProperty("breath", values.breath);
+
     root->setProperty("parameters", params.release());
 
     // Phase 3: Save modulation connections
@@ -304,6 +373,12 @@ bool PresetManager::loadUserPreset(const juce::File& sourceFile)
     values.evolution = readFloatProperty(paramsObject, "evolution", values.evolution);
     values.chaosIntensity = readFloatProperty(paramsObject, "chaosIntensity", values.chaosIntensity);
     values.elasticityDecay = readFloatProperty(paramsObject, "elasticityDecay", values.elasticityDecay);
+
+    // Phase 5: Load Ancient Monuments macros 7-10 (with v3→v4 migration defaults)
+    values.patina = readFloatProperty(paramsObject, "patina", 0.5f);
+    values.abyss = readFloatProperty(paramsObject, "abyss", 0.5f);
+    values.corona = readFloatProperty(paramsObject, "corona", 0.5f);
+    values.breath = readFloatProperty(paramsObject, "breath", 0.0f);
 
     // Phase 3: Load modulation connections
     values.modulationConnections.clear();
@@ -376,6 +451,12 @@ PresetManager::PresetValues PresetManager::captureCurrentValues() const
     values.chaosIntensity = readParam("chaosIntensity", values.chaosIntensity);
     values.elasticityDecay = readParam("elasticityDecay", values.elasticityDecay);
 
+    // Phase 5: Capture Ancient Monuments macros 7-10
+    values.patina = readParam("patina", values.patina);
+    values.abyss = readParam("abyss", values.abyss);
+    values.corona = readParam("corona", values.corona);
+    values.breath = readParam("breath", values.breath);
+
     return values;
 }
 
@@ -418,6 +499,12 @@ void PresetManager::applyPreset(const PresetValues& values)
     setParamNormalized(parameters, "evolution", values.evolution);
     setParamNormalized(parameters, "chaosIntensity", values.chaosIntensity);
     setParamNormalized(parameters, "elasticityDecay", values.elasticityDecay);
+
+    // Phase 5: Apply Ancient Monuments macros 7-10
+    setParamNormalized(parameters, "patina", values.patina);
+    setParamNormalized(parameters, "abyss", values.abyss);
+    setParamNormalized(parameters, "corona", values.corona);
+    setParamNormalized(parameters, "breath", values.breath);
 }
 
 juce::File PresetManager::resolveUserPresetFile(const juce::File& targetFile, const juce::String& name) const
