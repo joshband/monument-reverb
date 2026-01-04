@@ -7,9 +7,9 @@
 
 ## Current Session Task
 **Date:** 2026-01-03
-**Task:** ✅ Preset System v2 - Macro Parameters + UI Browser (Complete)
-**Handoff Doc:** [NEXT_SESSION_HANDOFF.md](NEXT_SESSION_HANDOFF.md)
-**Next Task:** Modulation connection serialization (format v3)
+**Task:** ✅ Hero Knob PBR Texture Generation (Complete)
+**Handoff Doc:** [NEXT_SESSION_START.md](NEXT_SESSION_START.md)
+**Next Options:** Hero knob integration OR Preset System v2 (modulation serialization)
 
 ## Quick Start Commands
 
@@ -67,43 +67,36 @@ killall -9 AudioComponentRegistrar
 - **Headers:** `include/`
 - **Build:** `build/` (CMake output, git-ignored)
 
-## Current Enhancement: LED Ring Layer
+## Latest Work: Hero Knob PBR Textures
 
-### Technical Specs
-```python
-# Layer 11 (NEW): LED Ring beneath knob cap
-layer_name = "Layer_11_LED_Ring"
-geometry = {
-    'type': 'torus',
-    'major_radius': 25.875,  # knob_radius * 1.15
-    'minor_radius': 1.0,
-    'segments': 64
-}
+### What Was Completed (2026-01-03)
 
-material = {
-    'emission_color': (1.0, 0.6, 0.2),  # Warm amber
-    'emission_strength': 3.0,
-    'transparency_mix': 0.3
-}
+✅ **Processed 222 Midjourney knob images**
+✅ **Developed GrabCut masking pipeline** (5 algorithms tested)
+✅ **Generated 36+ PBR texture maps** (albedo, normal, roughness, height, metallic, AO)
+✅ **Created 11 processing scripts** (masking, analysis, batch workflows)
 
-position = {
-    'z_offset': 1.0  # Below cap, above base
-}
+### Generated Assets (Not in Git)
+
+```text
+~/Documents/3_Development/Repos/materialize/dist/hero_knobs/
+├── series_1/  (Best: 57-67% coverage) ⭐ RECOMMENDED
+├── series_2/  (Good: 52-60% coverage)
+└── series_3/  (Challenging: 29-49% coverage)
 ```
 
-### Implementation Steps
-1. Open [scripts/generate_knob_blender_enhanced.py](scripts/generate_knob_blender_enhanced.py)
-2. Add `create_led_ring_layer()` function after `create_tick_marks_layer()`
-3. Call in main generation loop (around line 450)
-4. Test: `./scripts/run_blender_enhanced.sh`
-5. Verify: `open assets/ui/knobs_enhanced/`
-6. Preview composite: `python3 scripts/preview_knob_composite_enhanced.py`
+### Quick Access
 
-## Upcoming Enhancements (After LED Ring)
-1. ✅ LED ring (current task)
-2. ⏳ Concave cap geometry (ergonomic)
-3. ⏳ Enhanced tick marks (variable height)
-4. ⏳ 3-level depth architecture (premium look)
+```bash
+# View PBR textures
+open ~/Documents/3_Development/Repos/materialize/dist/hero_knobs/series_1/
+
+# Full session details
+cat HERO_KNOBS_SESSION_SUMMARY.md
+
+# Integration guide
+cat NEXT_SESSION_START.md
+```
 
 ## Development Rules
 - **Test Before Commit:** Verify Blender script runs without errors
