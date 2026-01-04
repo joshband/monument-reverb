@@ -55,6 +55,8 @@ public:
                         const juce::String& description);
     void loadUserPreset(const juce::File& sourceFile);
 
+    monument::dsp::ModulationMatrix& getModulationMatrix() { return modulationMatrix; }
+
 private:
     enum class PresetTransitionState
     {
