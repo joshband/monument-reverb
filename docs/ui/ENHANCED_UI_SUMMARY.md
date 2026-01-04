@@ -704,3 +704,113 @@ ls -lh assets/ui/knobs_enhanced/granite/*.png
 ./scripts/run_blender_enhanced.sh --material granite --quick
 python3 scripts/preview_knob_composite_enhanced.py --material granite
 ```
+
+---
+
+## ModMatrixPanel - Visual Modulation Editor
+
+**Added:** 2026-01-03 Evening (Phase 4)
+**Status:** ✅ Fully Implemented & Integrated
+
+### Overview
+
+The ModMatrixPanel is a visual editor for Monument's modulation matrix, providing an interactive 4×15 grid (60 connection points) for routing modulation sources to parameter destinations.
+
+### Features
+
+**Visual Grid Layout:**
+- 4 rows (modulation sources): Chaos, Audio, Brownian, Envelope
+- 15 columns (parameter destinations): Time, Mass, Density, Bloom, Air, Width, Mix, Warp, Drift, Gravity, PillarShape, TubeResonance, MetalWalls, ElasticHallway, Impulse
+- Color-coded sources for quick identification
+- Abbreviated destination labels for space efficiency
+
+**Interaction Model:**
+1. **Click inactive button** → Create connection (depth: 0.5, smoothing: 200ms)
+2. **Click active button** → Select for editing (shows current depth/smoothing)
+3. **Click selected button** → Remove connection
+4. **Adjust sliders** → Modify depth (-1 to +1) and smoothing (20-1000ms) for selected connection
+
+**Visual Feedback:**
+- **Hover state**: 20% alpha overlay (shows interactivity)
+- **Active state**: 60% alpha fill (connection exists)
+- **Selected state**: 80% alpha + white dot (currently editing)
+- **Source colors**: Orange (Chaos), Green (Audio), Purple (Brownian), Blue (Envelope)
+
+**Real-time Updates:**
+- Thread-safe via ModulationMatrix SpinLock
+- Changes apply immediately to audio processing
+- Connection list displays all active routings
+
+### Integration
+
+**Main UI Toggle:**
+- Button label: "MODULATION"
+- Window expands: 580px → 1080px when panel visible
+- Panel slides in from right side
+
+**Files:**
+- [ui/ModMatrixPanel.h](../../ui/ModMatrixPanel.h) - Component header
+- [ui/ModMatrixPanel.cpp](../../ui/ModMatrixPanel.cpp) - Implementation
+- [plugin/PluginEditor.h:46-48](../../plugin/PluginEditor.h#L46-48) - Integration
+- [plugin/PluginEditor.cpp:68-87](../../plugin/PluginEditor.cpp#L68-87) - Toggle logic
+
+### Usage Guide
+
+**Creating a Connection:**
+1. Click MODULATION button to open panel
+2. Click grid intersection (e.g., Chaos × Warp)
+3. Connection created with default depth: 0.5, smoothing: 200ms
+4. Adjust sliders to fine-tune
+
+**Editing a Connection:**
+1. Click active connection button (60% alpha filled)
+2. Button becomes selected (80% alpha + white dot)
+3. Current depth/smoothing values load into sliders
+4. Adjust sliders to modify parameters
+5. Click elsewhere or create new connection to deselect
+
+**Removing a Connection:**
+1. Click selected connection button again
+2. Connection removed immediately
+3. Audio processing updates in real-time
+
+**Best Practices:**
+- Start with low depth values (±0.2 to ±0.5) for subtle modulation
+- Higher smoothing (500-1000ms) for slow evolving textures
+- Lower smoothing (20-100ms) for rhythmic/responsive modulation
+- Combine multiple sources to same destination for complex movement
+
+### Thread Safety
+
+The ModMatrixPanel uses `juce::SpinLock` from ModulationMatrix for thread-safe access:
+- All connection mutations are locked
+- Audio thread never blocks (real-time safe)
+- UI updates are asynchronous
+
+### Visual Design
+
+**Color Palette:**
+- Chaos Attractor: `Colour(255, 140, 60)` - Warm orange
+- Audio Follower: `Colour(80, 200, 120)` - Green
+- Brownian Motion: `Colour(180, 100, 220)` - Purple
+- Envelope Tracker: `Colour(100, 150, 255)` - Blue
+- Background: Dark gray `Colour(40, 40, 40)`
+
+**Typography:**
+- Source labels: 14pt bold sans-serif
+- Destination labels: 10pt sans-serif, rotated 90°
+- Connection list: 12pt monospaced font
+
+### Future Enhancements
+
+**Potential additions (not yet implemented):**
+- Drag to create multiple connections
+- Connection strength visualization (animated flow)
+- Preset modulation matrix templates
+- MIDI learn for depth/smoothing parameters
+- Visual waveform display for modulation sources
+- Per-connection bipolar/unipolar mode toggle
+
+---
+
+**Latest Status (2026-01-03):** All Phase 4 UI enhancements complete except final enhanced knob integration.
