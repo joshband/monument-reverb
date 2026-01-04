@@ -33,3 +33,16 @@ JuceLibraryCode/
 *.component
 *.au
 *.aaxplugin
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+
+# Python test and experimental scripts
+scripts/test_*.py
+scripts/*_backup.py
+scripts/*_variants.py
