@@ -165,6 +165,22 @@ int runAnalysis(const AnalyzerConfig& config)
 
     loader.prepareToPlay(config.sampleRate, config.blockSize, config.numChannels);
 
+    // Set mix to 100% for wet signal capture
+    auto* plugin = loader.getPluginInstance();
+    if (plugin)
+    {
+        for (int i = 0; i < plugin->getParameters().size(); ++i)
+        {
+            auto* param = plugin->getParameters()[i];
+            if (param->getName(32).toLowerCase().contains("mix"))
+            {
+                param->setValue(1.0f); // 100%
+                std::cout << "  ✓ Set Mix parameter to 100%\n";
+                break;
+            }
+        }
+    }
+
     // 3. Generate test signal
     std::cout << "\n▸ Generating test signal...\n";
 
