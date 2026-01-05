@@ -331,3 +331,51 @@ if(BUILD_TESTING)
   )
   add_test(NAME monument_doppler_shift_test COMMAND monument_doppler_shift_test)
 endif()
+
+# Plugin Analyzer Tool
+option(MONUMENT_BUILD_ANALYZER "Build Monument plugin analyzer tool" ON)
+
+if(MONUMENT_BUILD_ANALYZER)
+  juce_add_console_app(monument_plugin_analyzer
+    PRODUCT_NAME "Monument Plugin Analyzer"
+  )
+
+  juce_generate_juce_header(monument_plugin_analyzer)
+
+  target_sources(monument_plugin_analyzer
+    PRIVATE
+      tools/plugin-analyzer/src/main.cpp
+      tools/plugin-analyzer/src/PluginLoader.h
+      tools/plugin-analyzer/src/PluginLoader.cpp
+      tools/plugin-analyzer/src/TestSignalGenerator.h
+      tools/plugin-analyzer/src/TestSignalGenerator.cpp
+      tools/plugin-analyzer/src/AudioCapture.h
+      tools/plugin-analyzer/src/AudioCapture.cpp
+  )
+
+  target_include_directories(monument_plugin_analyzer
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+      ${CMAKE_CURRENT_SOURCE_DIR}/tools/plugin-analyzer/src
+  )
+
+  target_compile_definitions(monument_plugin_analyzer
+    PRIVATE
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JUCE_PLUGINHOST_VST3=1
+      JUCE_PLUGINHOST_AU=1
+  )
+
+  target_link_libraries(monument_plugin_analyzer
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_audio_formats
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+endif()
