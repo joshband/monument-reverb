@@ -38,15 +38,15 @@ TimelineComponent::~TimelineComponent()
 
 void TimelineComponent::paint(juce::Graphics& g)
 {
-    // Background
-    g.fillAll(juce::Colour(0xff1a1d23));
+    // Background (match plugin editor white background)
+    g.fillAll(juce::Colours::white);
 
-    // Timeline area background
+    // Timeline area background (light gray for white theme)
     auto timelineBounds = getLocalBounds()
         .removeFromTop(TIMELINE_HEIGHT)
         .reduced(4);
 
-    g.setColour(juce::Colour(0xff0f1115));
+    g.setColour(juce::Colour(0xfff0f0f0));
     g.fillRect(timelineBounds);
 
     // Paint timeline components
