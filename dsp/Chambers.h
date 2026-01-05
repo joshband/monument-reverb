@@ -3,8 +3,10 @@
 #include "dsp/AllpassDiffuser.h"
 #include "dsp/DspModule.h"
 #include "dsp/ParameterSmoother.h"
+#include "dsp/SpatialProcessor.h"
 
 #include <array>
+#include <memory>
 
 namespace monument
 {
@@ -44,6 +46,9 @@ public:
     /// chambers.process(buffer);  // Pointer valid during this call
     /// ```
     void setExternalInjection(const juce::AudioBuffer<float>* injectionBuffer);
+
+    /// Returns the spatial processor for modulation control
+    SpatialProcessor* getSpatialProcessor() noexcept { return spatialProcessor.get(); }
 
 private:
     static constexpr int kNumLines = 8;
@@ -108,6 +113,9 @@ private:
     std::array<std::array<float, kNumLines>, kNumLines> warpMatrix{};
     std::array<std::array<float, kNumLines>, kNumLines> warpMatrixFrozen{};
     std::array<std::array<float, kNumLines>, kNumLines> feedbackMatrix{};
+
+    // Spatial positioning system (Phase 1: Ancient Monuments Three-System Plan)
+    std::unique_ptr<SpatialProcessor> spatialProcessor;
 };
 
 } // namespace dsp

@@ -663,6 +663,10 @@ juce::String PresetManager::destinationTypeToString(monument::dsp::ModulationMat
         case DestinationType::PitchEvolutionRate:    return "PitchEvolutionRate";
         case DestinationType::ParadoxResonanceFreq:  return "ParadoxResonanceFreq";
         case DestinationType::ParadoxGain:           return "ParadoxGain";
+        // Phase 1: Spatial positioning (Three-System Plan)
+        case DestinationType::PositionX:             return "PositionX";
+        case DestinationType::PositionY:             return "PositionY";
+        case DestinationType::PositionZ:             return "PositionZ";
         default:                                     return "Unknown";
     }
 }
@@ -703,5 +707,9 @@ monument::dsp::ModulationMatrix::DestinationType PresetManager::stringToDestinat
     if (str == "PitchEvolutionRate")    return DestinationType::PitchEvolutionRate;
     if (str == "ParadoxResonanceFreq")  return DestinationType::ParadoxResonanceFreq;
     if (str == "ParadoxGain")           return DestinationType::ParadoxGain;
+    // Phase 1: Spatial positioning (Three-System Plan)
+    if (str == "PositionX")             return DestinationType::PositionX;
+    if (str == "PositionY")             return DestinationType::PositionY;
+    if (str == "PositionZ")             return DestinationType::PositionZ;
     return DestinationType::Warp;  // Default fallback
 }

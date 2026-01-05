@@ -227,6 +227,11 @@ public:
     void setButtressParams(float drive, float feedbackLimit);
     void setFacadeParams(float air, float width, float mix);
 
+    /**
+     * @brief Get direct access to Chambers module for spatial processor control
+     */
+    Chambers* getChambers() noexcept { return chambers.get(); }
+
 private:
     // Module instances (allocated once in constructor)
     std::unique_ptr<Foundation> foundation;
