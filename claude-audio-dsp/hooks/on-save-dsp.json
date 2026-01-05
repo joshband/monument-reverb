@@ -1,0 +1,8 @@
+{
+  "event": "file.save",
+  "filter": ["*.cpp", "*.h", "*.mm"],
+  "action": {
+    "type": "analyze",
+    "instructions": "Review for real-time safety violations and DSP correctness. Check for: memory allocations, locks/mutexes, system calls, exceptions, unbounded loops, denormal handling."
+  }
+}

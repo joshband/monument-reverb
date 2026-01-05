@@ -69,6 +69,9 @@ public:
         PositionX,           // Spatial X position for delay line 0 [-1, +1]
         PositionY,           // Spatial Y position for delay line 0 [-1, +1]
         PositionZ,           // Spatial Z position for delay line 0 [0, +1]
+        // Phase 2: Doppler and distance modulation
+        Distance,            // Distance from listener (read-only, computed from position)
+        VelocityX,           // Horizontal velocity for Doppler shift [-1, +1]
         Count  // Total number of destinations
     };
 

@@ -282,9 +282,10 @@ void MemoryEchoes::process(juce::AudioBuffer<float>& buffer)
             const float drive = juce::jmap(ageWeight, 1.0f, kSaturationDriveMax);
             if (drive > 1.001f)
             {
-                const float norm = 1.0f / std::tanh(drive);
-                sampleL = std::tanh(drive * sampleL) * norm;
-                sampleR = std::tanh(drive * sampleR) * norm;
+                // Use fast tanh approximation for real-time safety
+                const float norm = 1.0f / juce::dsp::FastMathApproximations::tanh(drive);
+                sampleL = juce::dsp::FastMathApproximations::tanh(drive * sampleL) * norm;
+                sampleR = juce::dsp::FastMathApproximations::tanh(drive * sampleR) * norm;
             }
 
             float gainErosion = 1.0f - kAgeGainReductionMax * ageWeight;
@@ -346,30 +347,8 @@ void MemoryEchoes::process(juce::AudioBuffer<float>& buffer)
         }
     }
 
-#if defined(MONUMENT_TESTING)
-    if (memoryEnabled && surfaceState != SurfaceState::Idle && recallReady)
-    {
-        float peak = 0.0f;
-        double sumSq = 0.0;
-        int count = 0;
-        for (int sample = 0; sample < numSamples; ++sample)
-        {
-            const float l = recallL[sample];
-            const float r = recallR[sample];
-            peak = juce::jmax(peak, juce::jmax(std::abs(l), std::abs(r)));
-            sumSq += static_cast<double>(l * l + r * r);
-            count += 2;
-        }
-        const float rms = count > 0 ? static_cast<float>(std::sqrt(sumSq / count)) : 0.0f;
-        juce::Logger::writeToLog("Monument MemoryEchoes surface out peak="
-            + juce::String(peak, 6)
-            + " rms=" + juce::String(rms, 6)
-            + " gain=" + juce::String(surfaceBaseGain, 5)
-            + " fade=" + juce::String(surfaceGain, 3)
-            + " uses=" + juce::String(surfaceUsesLong ? "long" : "short")
-            + " rmsIn=" + juce::String(lastCaptureRms, 4));
-    }
-#endif
+    // REMOVED: Process-path logging (not real-time safe even in testing)
+    // If metrics are needed, collect them separately off-thread
 }
 
 void MemoryEchoes::captureWet(const juce::AudioBuffer<float>& wetBuffer)
@@ -645,13 +624,8 @@ void MemoryEchoes::startSurface(bool useLong,
     surfaceDriftCentsMax = kDriftCentsMax * driftAmount * (useLong ? 1.1f : 1.0f);
     driftUpdateRemaining = driftUpdateSamples;
 
-#if defined(MONUMENT_TESTING)
-    juce::Logger::writeToLog("Monument MemoryEchoes surface start buffer="
-        + juce::String(useLong ? "long" : "short")
-        + " widthMs=" + juce::String(widthMs, 1)
-        + " gain=" + juce::String(surfaceBaseGain, 4)
-        + " probePeak=" + juce::String(bestPeak, 7));
-#endif
+    // REMOVED: Process-path logging (not real-time safe even in testing)
+    // If metrics are needed, collect them separately off-thread
 }
 
 void MemoryEchoes::advanceSurface()

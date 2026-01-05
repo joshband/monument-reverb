@@ -667,6 +667,9 @@ juce::String PresetManager::destinationTypeToString(monument::dsp::ModulationMat
         case DestinationType::PositionX:             return "PositionX";
         case DestinationType::PositionY:             return "PositionY";
         case DestinationType::PositionZ:             return "PositionZ";
+        // Phase 2: Doppler and distance modulation (Three-System Plan)
+        case DestinationType::Distance:              return "Distance";
+        case DestinationType::VelocityX:             return "VelocityX";
         default:                                     return "Unknown";
     }
 }
@@ -711,5 +714,8 @@ monument::dsp::ModulationMatrix::DestinationType PresetManager::stringToDestinat
     if (str == "PositionX")             return DestinationType::PositionX;
     if (str == "PositionY")             return DestinationType::PositionY;
     if (str == "PositionZ")             return DestinationType::PositionZ;
+    // Phase 2: Doppler and distance modulation (Three-System Plan)
+    if (str == "Distance")              return DestinationType::Distance;
+    if (str == "VelocityX")             return DestinationType::VelocityX;
     return DestinationType::Warp;  // Default fallback
 }

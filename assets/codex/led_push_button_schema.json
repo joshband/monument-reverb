@@ -1,0 +1,68 @@
+{
+  "componentName": "LED push button",
+  "styleReference": "retro_pastel",  
+  "description": "A cylindrical push button with an illuminated cap, mounted flush into a panel.",
+  "elements": {
+    "buttonTop": {
+      "shape": "circular",
+      "material": "translucent polymer",
+      "colorOff": "#f2f2f2",
+      "colorOn": "#ffae00",
+      "diameter_mm": 12,
+      "height_mm": 3,
+      "bevel_mm": 0.5
+    },
+    "ledRing": {
+      "position": "under cap",
+      "emissiveColor": "#ffae00",
+      "brightness": 1.0,
+      "state": ["off", "on"]
+    },
+    "bezel": {
+      "shape": "cylindrical",
+      "material": "brushed aluminum",
+      "color": "#cccccc",
+      "outerDiameter_mm": 14,
+      "innerDiameter_mm": 12,
+      "height_mm": 2,
+      "chamfer_mm": 0.3
+    },
+    "housing": {
+      "material": "anodized aluminum",
+      "color": "#e6e6e6",
+      "height_mm": 15
+    },
+    "panelCutout": {
+      "diameter_mm": 14,
+      "clearance_mm": 0.2
+    },
+    "labelText": {
+      "content": "",  
+      "font": "DIN Condensed",
+      "size_pt": 6,
+      "color": "#555555",
+      "position": "below button"
+    }
+  },
+  "pbrMaps": {
+    "albedo": {
+      "description": "Flat, shadow‑free colour for each element." 
+    },
+    "normal": {
+      "description": "Tangent‑space normal map encoding fine bevels and textures." 
+    },
+    "roughnessMetalAO": {
+      "packing": "R=roughness, G=metalness, B=ambient occlusion, A=height",
+      "description": "Roughness (black=glossy, white=rough), metalness (black=plastic, white=metal), AO (dark values in crevices), optional height." 
+    },
+    "emissive": {
+      "description": "RGB map for LED glow; zero for other areas." 
+    }
+  },
+  "output": {
+    "imageSize": "2048x2048",
+    "background": "#ffffff",
+    "orthographic": true,
+    "view": "top-down"
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PBRCompositeTexture",
+  "type": "object",
+  "description": "Schema describing the organisation of PBR texture maps packed into an RGBA composite and their supporting maps.  The composite texture stores occlusion, roughness, metalness and height (or another auxiliary map) in its red, green, blue and alpha channels respectively【536554926942047†L51-L84】.  Each of these channels holds grayscale data and must be the same resolution for packing【536554926942047†L93-L98】.",
+  "properties": {
+    "albedoMap": {
+      "type": "string",
+      "description": "File path or URL to the albedo/base colour map (RGB).  This map should contain no baked lighting or shadows【421191919244459†L59-L64】."
+    },
+    "normalMap": {
+      "type": "string",
+      "description": "File path or URL to the tangent‑space normal map (RGB) which encodes small surface details【421191919244459†L70-L77】."
+    },
+    "packedMap": {
+      "type": "object",
+      "description": "Information about the packed RGBA texture, sometimes referred to as an ORM (occlusion/roughness/metalness) map with an additional channel for height or specular.  Packing reduces the number of textures by storing multiple grayscale maps in individual colour channels【536554926942047†L51-L84】.",
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "File path or URL to the RGBA texture containing packed maps."
+        },
+        "channels": {
+          "type": "object",
+          "description": "Mapping of each channel (R, G, B, A) to its corresponding PBR property.  Typical assignments are: R=roughness, G=metalness, B=ambient occlusion, A=height or specular.  These properties control surface smoothness【421191919244459†L83-L94】, metallic character【421191919244459†L96-L109】 and local occlusion effects【421191919244459†L169-L174】.",
+          "properties": {
+            "R": {
+              "type": "string",
+              "enum": ["roughness", "metalness", "ambientOcclusion", "height", "specular", "empty"],
+              "description": "PBR property stored in the red channel."
+            },
+            "G": {
+              "type": "string",
+              "enum": ["roughness", "metalness", "ambientOcclusion", "height", "specular", "empty"],
+              "description": "PBR property stored in the green channel."
+            },
+            "B": {
+              "type": "string",
+              "enum": ["roughness", "metalness", "ambientOcclusion", "height", "specular", "empty"],
+              "description": "PBR property stored in the blue channel."
+            },
+            "A": {
+              "type": "string",
+              "enum": ["roughness", "metalness", "ambientOcclusion", "height", "specular", "empty"],
+              "description": "PBR property stored in the alpha channel."
+            }
+          },
+          "additionalProperties": false,
+          "minProperties": 1,
+          "maxProperties": 4
+        }
+      },
+      "required": ["file", "channels"],
+      "additionalProperties": false
+    },
+    "emissiveMap": {
+      "type": ["string", "null"],
+      "description": "File path or URL to the emissive map (RGB).  This map defines self‑illuminated areas such as LEDs or backlights【421191919244459†L191-L196】.  If not present, use null."
+    },
+    "opacityMap": {
+      "type": ["string", "null"],
+      "description": "Optional file path or URL to the opacity map (grayscale), where white is opaque and black is transparent【421191919244459†L153-L163】."
+    }
+  },
+  "required": ["albedoMap", "normalMap", "packedMap"],
+  "additionalProperties": false
+}

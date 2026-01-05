@@ -7,6 +7,7 @@
 #include "dsp/DspRoutingGraph.h"
 #include "dsp/MemoryEchoes.h"
 #include "dsp/MacroMapper.h"
+#include "dsp/ExpressiveMacroMapper.h"
 #include "dsp/ModulationMatrix.h"
 #include "PresetManager.h"
 
@@ -92,6 +93,7 @@ private:
     // Separate features (not part of routing graph)
     monument::dsp::MemoryEchoes memoryEchoes;
     monument::dsp::MacroMapper macroMapper;
+    monument::dsp::ExpressiveMacroMapper expressiveMacroMapper;
     monument::dsp::ModulationMatrix modulationMatrix;
 
     // FIXED: Parameter cache for batched atomic loads (reduces overhead from 25+ sequential atomics)
@@ -103,10 +105,12 @@ private:
         float material, topology, viscosity, evolution;
         float chaosIntensity, elasticityDecay;
         float patina, abyss, corona, breath;  // Ancient Monuments Phase 5 expanded macros
+        float character, spaceType, energy, motion, color, dimension;  // Expressive Macros Phase 2
         float tubeCount, radiusVariation, metallicResonance, couplingStrength;
         float elasticity, recoveryTime, absorptionDrift, nonlinearity;
         float impossibilityDegree, pitchEvolutionRate, paradoxResonanceFreq, paradoxGain;
         float routingPreset;  // DSP routing architecture (0-7)
+        float macroMode;  // 0 = Ancient Monuments, 1 = Expressive Macros
         bool freeze;
     } paramCache{};
 
