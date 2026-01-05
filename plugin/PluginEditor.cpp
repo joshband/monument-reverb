@@ -185,6 +185,27 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     modMatrixPanel->setVisible(false);
     addAndMakeVisible(modMatrixPanel.get());
 
+    // Timeline Editor toggle button (Phase 5)
+    timelineToggleButton.setButtonText("TIMELINE");
+    timelineToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff242833));
+    timelineToggleButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffff9e4a));
+    timelineToggleButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffe6e1d6));
+    timelineToggleButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xff0d0f12));
+    timelineToggleButton.setClickingTogglesState(true);
+    timelineToggleButton.onClick = [this]()
+    {
+        timelineVisible = timelineToggleButton.getToggleState();
+        if (timelinePanel)
+            timelinePanel->setVisible(timelineVisible);
+        resized();
+    };
+    addAndMakeVisible(timelineToggleButton);
+
+    // Create timeline panel (Phase 5)
+    timelinePanel = std::make_unique<monument::ui::TimelineComponent>(processorRef.getSequenceScheduler());
+    timelinePanel->setVisible(false);
+    addAndMakeVisible(timelinePanel.get());
+
     // Populate preset list (factory + user)
     scanUserPresets();
     refreshPresetList();
@@ -282,9 +303,13 @@ void MonumentAudioProcessorEditor::resized()
     buttonRow.removeFromLeft(buttonSpacing);
     baseParamsToggleButton.setBounds(buttonRow.removeFromLeft(buttonWidth));
 
-    // Modulation toggle button below
-    auto modButtonArea = controlsArea.removeFromTop(50).withSizeKeepingCentre(buttonWidth, buttonHeight);
-    modMatrixToggleButton.setBounds(modButtonArea);
+    // Modulation and Timeline toggle buttons below
+    auto modTimelineButtonsArea = controlsArea.removeFromTop(50);
+    auto modTimelineRow = modTimelineButtonsArea.withSizeKeepingCentre(
+        (buttonWidth * 2) + buttonSpacing, buttonHeight);
+    modMatrixToggleButton.setBounds(modTimelineRow.removeFromLeft(buttonWidth));
+    modTimelineRow.removeFromLeft(buttonSpacing);
+    timelineToggleButton.setBounds(modTimelineRow.removeFromLeft(buttonWidth));
 
     // Base Parameters Section (only layout if visible)
     if (baseParamsVisible)
@@ -328,6 +353,8 @@ void MonumentAudioProcessorEditor::resized()
         targetHeight = 580;  // Full size with base parameters
     if (modMatrixVisible)
         targetHeight = 1080;  // Expanded with mod matrix
+    if (timelineVisible)
+        targetHeight = 800;   // Expanded with timeline editor
 
     if (getHeight() != targetHeight)
         setSize(900, targetHeight);
@@ -338,6 +365,14 @@ void MonumentAudioProcessorEditor::resized()
         auto panelBounds = getLocalBounds();
         panelBounds.removeFromTop(baseParamsVisible ? 580 : 260);
         modMatrixPanel->setBounds(panelBounds.reduced(10));
+    }
+
+    // Timeline Panel (if visible) (Phase 5)
+    if (timelineVisible && timelinePanel)
+    {
+        auto panelBounds = getLocalBounds();
+        panelBounds.removeFromTop(baseParamsVisible ? 580 : 260);
+        timelinePanel->setBounds(panelBounds.reduced(10));
     }
 }
 

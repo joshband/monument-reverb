@@ -77,6 +77,10 @@ target_sources(Monument
     dsp/ExpressiveMacroMapper.cpp
     dsp/ModulationMatrix.h
     dsp/ModulationMatrix.cpp
+    dsp/SequenceScheduler.h
+    dsp/SequenceScheduler.cpp
+    dsp/SequencePresets.h
+    dsp/SequencePresets.cpp
     dsp/TubeRayTracer.h
     dsp/TubeRayTracer.cpp
     dsp/ElasticHallway.h
@@ -101,6 +105,8 @@ target_sources(Monument
     ui/HeroKnob.h
     ui/ModMatrixPanel.h
     ui/ModMatrixPanel.cpp
+    ui/TimelineComponent.h
+    ui/TimelineComponent.cpp
 )
 
 # Add sprite sheet assets as embedded BinaryData
