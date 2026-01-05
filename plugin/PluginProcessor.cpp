@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "dsp/Chambers.h"
 
 #include <cmath>
 #if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
@@ -232,6 +233,12 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     paramCache.abyss = parameters.getRawParameterValue("abyss")->load();
     paramCache.corona = parameters.getRawParameterValue("corona")->load();
     paramCache.breath = parameters.getRawParameterValue("breath")->load();
+    paramCache.character = parameters.getRawParameterValue("character")->load();
+    paramCache.spaceType = parameters.getRawParameterValue("spaceType")->load();
+    paramCache.energy = parameters.getRawParameterValue("energy")->load();
+    paramCache.motion = parameters.getRawParameterValue("motion")->load();
+    paramCache.color = parameters.getRawParameterValue("color")->load();
+    paramCache.dimension = parameters.getRawParameterValue("dimension")->load();
     paramCache.tubeCount = parameters.getRawParameterValue("tubeCount")->load();
     paramCache.radiusVariation = parameters.getRawParameterValue("radiusVariation")->load();
     paramCache.metallicResonance = parameters.getRawParameterValue("metallicResonance")->load();
@@ -245,6 +252,7 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     paramCache.paradoxResonanceFreq = parameters.getRawParameterValue("paradoxResonanceFreq")->load();
     paramCache.paradoxGain = parameters.getRawParameterValue("paradoxGain")->load();
     paramCache.routingPreset = parameters.getRawParameterValue("routingPreset")->load();
+    paramCache.macroMode = parameters.getRawParameterValue("macroMode")->load();
 
     // Handle routing preset changes (Phase 1.5)
     const auto currentRoutingPreset = static_cast<int>(paramCache.routingPreset);
@@ -299,18 +307,70 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const auto paradoxResonanceFreq = paramCache.paradoxResonanceFreq;
     const auto paradoxGain = paramCache.paradoxGain;
 
-    // Compute macro-driven parameter targets (Ancient Monuments Phase 5 - 10 macros)
-    const auto macroTargets = macroMapper.computeTargets(
-        material,        // stone
-        topology,        // labyrinth
-        viscosity,       // mist
-        evolution,       // bloom
-        chaosIntensity,  // tempest
-        elasticityDecay, // echo
-        patina,
-        abyss,
-        corona,
-        breath);
+    // Compute macro-driven parameter targets
+    // Phase 2: Choose between Ancient Monuments (10 macros) or Expressive (6 macros)
+    monument::dsp::MacroMapper::ParameterTargets macroTargets;
+
+    if (paramCache.macroMode < 0.5f)  // 0 = Ancient Monuments
+    {
+        // Ancient Monuments Phase 5 - 10 macros
+        macroTargets = macroMapper.computeTargets(
+            material,        // stone
+            topology,        // labyrinth
+            viscosity,       // mist
+            evolution,       // bloom
+            chaosIntensity,  // tempest
+            elasticityDecay, // echo
+            patina,
+            abyss,
+            corona,
+            breath);
+    }
+    else  // 1 = Expressive Macros
+    {
+        // Expressive Macros Phase 2 - 6 macros
+        auto expressiveTargets = expressiveMacroMapper.computeTargets(
+            paramCache.character,
+            paramCache.spaceType,
+            paramCache.energy,
+            paramCache.motion,
+            paramCache.color,
+            paramCache.dimension);
+
+        // Convert ExpressiveMacroMapper::ParameterTargets to MacroMapper::ParameterTargets
+        // (both have same structure, just copy values)
+        macroTargets.time = expressiveTargets.time;
+        macroTargets.mass = expressiveTargets.mass;
+        macroTargets.density = expressiveTargets.density;
+        macroTargets.bloom = expressiveTargets.bloom;
+        macroTargets.air = expressiveTargets.air;
+        macroTargets.width = expressiveTargets.width;
+        macroTargets.mix = expressiveTargets.mix;
+        macroTargets.warp = expressiveTargets.warp;
+        macroTargets.drift = expressiveTargets.drift;
+        macroTargets.gravity = expressiveTargets.gravity;
+        macroTargets.pillarShape = expressiveTargets.pillarShape;
+        macroTargets.tubeCount = expressiveTargets.tubeCount;
+        macroTargets.radiusVariation = expressiveTargets.radiusVariation;
+        macroTargets.metallicResonance = expressiveTargets.metallicResonance;
+        macroTargets.couplingStrength = expressiveTargets.couplingStrength;
+        macroTargets.elasticity = expressiveTargets.elasticity;
+        macroTargets.recoveryTime = expressiveTargets.recoveryTime;
+        macroTargets.absorptionDrift = expressiveTargets.absorptionDrift;
+        macroTargets.nonlinearity = expressiveTargets.nonlinearity;
+        macroTargets.impossibilityDegree = expressiveTargets.impossibilityDegree;
+        macroTargets.pitchEvolutionRate = expressiveTargets.pitchEvolutionRate;
+        macroTargets.paradoxResonanceFreq = expressiveTargets.paradoxResonanceFreq;
+        macroTargets.paradoxGain = expressiveTargets.paradoxGain;
+
+        // Expressive Macros also selects routing preset via Space Type!
+        const auto expressiveRouting = static_cast<int>(expressiveTargets.routingPreset);
+        if (expressiveRouting != lastRoutingPreset)
+        {
+            routingGraph.loadRoutingPreset(expressiveTargets.routingPreset);
+            lastRoutingPreset = expressiveRouting;
+        }
+    }
 
     // Process modulation matrix (stub sources for Phase 2, returns 0 for all destinations)
     modulationMatrix.process(buffer, buffer.getNumSamples());
@@ -504,6 +564,23 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
                                           absorptionDriftEffective, nonlinearityEffective);
     routingGraph.setAlienAmplificationParams(impossibilityDegreeEffective, pitchEvolutionRateEffective,
                                                paradoxResonanceFreqEffective, paradoxGainEffective);
+
+    // Phase 1: Spatial positioning (Three-System Plan)
+    // Route modulation matrix values to spatial processor
+    const float modPositionX = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::PositionX);
+    const float modPositionY = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::PositionY);
+    const float modPositionZ = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::PositionZ);
+
+    // Apply spatial modulation to Chambers FDN (delay line 0 for now, can expand to all 8 lines later)
+    if (auto* chambers = routingGraph.getChambers())
+    {
+        if (auto* spatialProcessor = chambers->getSpatialProcessor())
+        {
+            // Modulation values are bipolar [-1, +1], map directly to position ranges
+            spatialProcessor->setPosition(0, modPositionX, modPositionY,
+                                         juce::jlimit(0.0f, 1.0f, 0.5f + modPositionZ * 0.5f));
+        }
+    }
 
 #if defined(MONUMENT_ENABLE_MEMORY)
     const float densityClamped = std::isfinite(densityEffective) ? juce::jlimit(0.0f, 1.0f, densityEffective) : 0.5f;
@@ -889,6 +966,17 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
         0));  // Default: Traditional Cathedral
 
     // ========================================================================
+    // MACRO SYSTEM SELECTOR (Phase 2 - Expressive Macros)
+    // Choose between Ancient Monuments (10 macros) or Expressive (6 macros)
+    // ========================================================================
+
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        "macroMode",
+        "Macro Mode",
+        juce::StringArray{"Ancient Monuments", "Expressive"},
+        0));  // Default: Ancient Monuments
+
+    // ========================================================================
     // MACRO CONTROLS (Phase 1 - Monument v0.2.0)
     // High-level, musically-meaningful controls that map to multiple parameters
     // ========================================================================
@@ -957,6 +1045,47 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
         "Breath",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.0f));  // 0 = dormant, 1 = living pulse
+
+    // ========================================================================
+    // EXPRESSIVE MACRO CONTROLS (Phase 2 - Monument v0.7.0)
+    // 6 musically-intuitive, performance-oriented controls
+    // ========================================================================
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "character",
+        "Character",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.5f));  // 0 = subtle, 1 = extreme
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "spaceType",
+        "Space Type",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.3f));  // 0=Chamber, 0.3=Hall, 0.5=Shimmer, 0.7=Granular, 0.9=Metallic
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "energy",
+        "Energy",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.1f));  // 0=Decay, 0.3=Sustain, 0.6=Grow, 0.9=Chaos
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "motion",
+        "Motion",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.2f));  // 0=Still, 0.3=Drift, 0.6=Pulse, 0.9=Random
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "color",
+        "Color",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.5f));  // 0=Dark, 0.5=Balanced, 0.8=Bright, 1.0=Spectral
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "dimension",
+        "Dimension",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.5f));  // 0=Intimate, 0.5=Room, 0.7=Cathedral, 1.0=Infinite
 
     // ========================================================================
     // PHYSICAL MODELING CONTROLS (Phase 5 - Monument v0.4.0)

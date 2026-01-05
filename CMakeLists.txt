@@ -44,7 +44,7 @@ juce_add_plugin(Monument
   COPY_PLUGIN_AFTER_BUILD ${MONUMENT_COPY_PLUGIN_AFTER_BUILD}
   PLUGIN_MANUFACTURER_CODE Mnmt
   PLUGIN_CODE Mnmt
-  FORMATS AU VST3
+  FORMATS AU VST3 Standalone
   PRODUCT_NAME "Monument"
 )
 
@@ -69,10 +69,24 @@ target_sources(Monument
     dsp/ParameterSmoother.cpp
     dsp/Chambers.h
     dsp/Chambers.cpp
+    dsp/SpatialProcessor.h
+    dsp/SpatialProcessor.cpp
     dsp/MacroMapper.h
     dsp/MacroMapper.cpp
+    dsp/ExpressiveMacroMapper.h
+    dsp/ExpressiveMacroMapper.cpp
     dsp/ModulationMatrix.h
     dsp/ModulationMatrix.cpp
+    dsp/TubeRayTracer.h
+    dsp/TubeRayTracer.cpp
+    dsp/ElasticHallway.h
+    dsp/ElasticHallway.cpp
+    dsp/AlienAmplification.h
+    dsp/AlienAmplification.cpp
+    dsp/DspRoutingGraph.h
+    dsp/DspRoutingGraph.cpp
+    dsp/ExperimentalModulation.h
+    dsp/ExperimentalModulation.cpp
     ui/MonumentKnob.h
     ui/MonumentKnob.cpp
     ui/MonumentToggle.h
@@ -84,6 +98,7 @@ target_sources(Monument
     ui/LayeredKnob.h
     ui/LayeredKnob.cpp
     ui/MonumentTimeKnob.h
+    ui/HeroKnob.h
     ui/ModMatrixPanel.h
     ui/ModMatrixPanel.cpp
 )
@@ -99,6 +114,7 @@ juce_add_binary_data(MonumentAssets
     assets/ui/knobs_test/indicator_metal.png
     assets/ui/knobs_test/detail_ring_engraved.png
     assets/ui/knobs_test/center_cap_brushed_metal.png
+    assets/ui/hero_knob_pbr/albedo_rgba.png
 )
 
 target_include_directories(Monument
@@ -173,6 +189,36 @@ if(MONUMENT_ENABLE_TESTS)
   )
   add_test(NAME monument_memory_echoes_test COMMAND monument_memory_echoes_test)
 
+  juce_add_console_app(monument_expressive_macro_demo
+    PRODUCT_NAME "Monument Expressive Macro Demo"
+  )
+  juce_generate_juce_header(monument_expressive_macro_demo)
+  target_sources(monument_expressive_macro_demo
+    PRIVATE
+      tests/ExpressiveMacroDemo.cpp
+      dsp/ExpressiveMacroMapper.cpp
+  )
+  target_include_directories(monument_expressive_macro_demo
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_compile_definitions(monument_expressive_macro_demo
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+  target_link_libraries(monument_expressive_macro_demo
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
   juce_add_console_app(monument_memory_echoes_harness
     PRODUCT_NAME "Monument Memory Echoes Harness"
   )
@@ -203,4 +249,35 @@ if(MONUMENT_ENABLE_TESTS)
       juce::juce_recommended_lto_flags
       juce::juce_recommended_warning_flags
   )
+
+  juce_add_console_app(monument_experimental_modulation_test
+    PRODUCT_NAME "Monument Experimental Modulation Test"
+  )
+  juce_generate_juce_header(monument_experimental_modulation_test)
+  target_sources(monument_experimental_modulation_test
+    PRIVATE
+      tests/ExperimentalModulationTest.cpp
+      dsp/ExperimentalModulation.cpp
+  )
+  target_include_directories(monument_experimental_modulation_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_compile_definitions(monument_experimental_modulation_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+  target_link_libraries(monument_experimental_modulation_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+  add_test(NAME monument_experimental_modulation_test COMMAND monument_experimental_modulation_test)
 endif()
