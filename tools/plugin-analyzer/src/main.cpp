@@ -33,6 +33,7 @@ struct AnalyzerConfig
     double sampleRate = 48000.0;
     int numChannels = 2;
     int blockSize = 512;
+    int presetIndex = -1;  // -1 = don't change preset, use plugin default
 };
 
 void printUsage()
@@ -44,6 +45,7 @@ void printUsage()
     std::cout << "Options:\n";
     std::cout << "  --plugin <path>         Path to VST3/AU plugin (required)\n";
     std::cout << "  --output <dir>          Output directory (default: ./test-results)\n";
+    std::cout << "  --preset <index>        Factory preset index (0-based)\n";
     std::cout << "  --test <type>           Test type: impulse|sweep|noise (default: impulse)\n";
     std::cout << "  --duration <seconds>    Test duration (default: 5.0)\n";
     std::cout << "  --samplerate <hz>       Sample rate (default: 48000)\n";
@@ -51,8 +53,8 @@ void printUsage()
     std::cout << "Examples:\n";
     std::cout << "  # Capture impulse response from Monument\n";
     std::cout << "  monument_plugin_analyzer --plugin ./build/Monument_artefacts/VST3/Monument.vst3\n\n";
-    std::cout << "  # Capture 10-second sine sweep\n";
-    std::cout << "  monument_plugin_analyzer --plugin Monument.vst3 --test sweep --duration 10\n";
+    std::cout << "  # Capture preset 7 (Cathedral of Glass) with 10-second duration\n";
+    std::cout << "  monument_plugin_analyzer --plugin Monument.vst3 --preset 7 --duration 10\n";
 }
 
 bool parseArguments(const juce::ArgumentList& args, AnalyzerConfig& config)
@@ -121,6 +123,8 @@ bool parseArguments(const juce::ArgumentList& args, AnalyzerConfig& config)
             config.sampleRate = args[i + 1].text.getDoubleValue();
         else if (args[i].text == "--channels")
             config.numChannels = args[i + 1].text.getIntValue();
+        else if (args[i].text == "--preset")
+            config.presetIndex = args[i + 1].text.getIntValue();
     }
 
     return true;
@@ -165,8 +169,26 @@ int runAnalysis(const AnalyzerConfig& config)
 
     loader.prepareToPlay(config.sampleRate, config.blockSize, config.numChannels);
 
-    // Set mix to 100% for wet signal capture
+    // Load factory preset if specified
     auto* plugin = loader.getPluginInstance();
+    if (plugin && config.presetIndex >= 0)
+    {
+        int numPresets = plugin->getNumPrograms();
+        if (config.presetIndex < numPresets)
+        {
+            plugin->setCurrentProgram(config.presetIndex);
+            juce::String presetName = plugin->getProgramName(config.presetIndex);
+            std::cout << "  ✓ Loaded preset " << config.presetIndex << ": "
+                     << presetName.toStdString() << "\n";
+        }
+        else
+        {
+            std::cerr << "  ✗ Warning: Preset index " << config.presetIndex
+                     << " out of range (0-" << (numPresets-1) << ")\n";
+        }
+    }
+
+    // Set mix to 100% for wet signal capture
     if (plugin)
     {
         for (int i = 0; i < plugin->getParameters().size(); ++i)

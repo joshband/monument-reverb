@@ -74,21 +74,26 @@ double MonumentAudioProcessor::getTailLengthSeconds() const
 
 int MonumentAudioProcessor::getNumPrograms()
 {
-    return 1;
+    return presetManager.getNumFactoryPresets();
 }
 
 int MonumentAudioProcessor::getCurrentProgram()
 {
-    return 0;
+    return currentProgramIndex;
 }
 
-void MonumentAudioProcessor::setCurrentProgram(int)
+void MonumentAudioProcessor::setCurrentProgram(int index)
 {
+    if (index >= 0 && index < presetManager.getNumFactoryPresets())
+    {
+        presetManager.loadFactoryPreset(index);
+        currentProgramIndex = index;
+    }
 }
 
-const juce::String MonumentAudioProcessor::getProgramName(int)
+const juce::String MonumentAudioProcessor::getProgramName(int index)
 {
-    return {};
+    return presetManager.getFactoryPresetName(index);
 }
 
 void MonumentAudioProcessor::changeProgramName(int, const juce::String&)

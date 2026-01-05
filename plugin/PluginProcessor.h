@@ -85,6 +85,7 @@ private:
 
     APVTS parameters;
     PresetManager presetManager;
+    int currentProgramIndex{0};  // Track current preset for JUCE program interface
     juce::AudioBuffer<float> dryBuffer;
 
     // DSP Routing Graph (replaces individual module instances)
