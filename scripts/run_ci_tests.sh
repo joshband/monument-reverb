@@ -48,6 +48,14 @@ python3 -c "import pyroomacoustics" 2>/dev/null || {
     pip3 install pyroomacoustics numpy scipy matplotlib
 }
 
+# Check UI testing dependencies if enabled
+if [ "${ENABLE_UI_TESTS:-0}" = "1" ]; then
+    python3 -c "import pyautogui" 2>/dev/null || {
+        echo -e "${YELLOW}WARNING: pyautogui not installed for UI tests, installing...${NC}"
+        pip3 install pyautogui pillow numpy
+    }
+fi
+
 # Check if plugin analyzer is built
 ANALYZER_PATH="$PROJECT_ROOT/build/monument_plugin_analyzer_artefacts/Debug/monument_plugin_analyzer"
 if [ ! -f "$ANALYZER_PATH" ]; then
@@ -126,9 +134,36 @@ else
     exit 1
 fi
 
+# Run UI visual regression tests (optional)
+if [ "${ENABLE_UI_TESTS:-0}" = "1" ]; then
+    echo ""
+    echo "Running UI visual regression tests..."
+
+    # Check if standalone app is built
+    STANDALONE_PATH="$PROJECT_ROOT/build/Monument_artefacts/Debug/Standalone/Monument.app"
+    if [ ! -d "$STANDALONE_PATH" ]; then
+        echo -e "${YELLOW}WARNING: Standalone app not found, skipping UI tests${NC}"
+        echo "Build it with: cmake --build build --target Monument_Standalone"
+    else
+        if python3 "$PROJECT_ROOT/tools/test_ui_visual.py" \
+            --baseline-dir "$TEST_RESULTS_DIR/ui-baseline" \
+            --output-dir "$TEST_RESULTS_DIR/ui-current" \
+            --threshold 0.02; then
+            echo -e "${GREEN}✓ UI visual tests passed${NC}"
+        else
+            echo -e "${RED}✗ UI visual tests failed${NC}"
+            echo "View report: open $TEST_RESULTS_DIR/ui-current/report.html"
+            exit 1
+        fi
+    fi
+fi
+
 echo ""
 echo -e "${GREEN}===== All Tests Passed =====${NC}"
 echo "Results: $TEST_RESULTS_DIR"
 echo "Report: $TEST_RESULTS_DIR/regression-report.json"
+if [ "${ENABLE_UI_TESTS:-0}" = "1" ]; then
+    echo "UI Report: $TEST_RESULTS_DIR/ui-current/report.html"
+fi
 
 exit 0
