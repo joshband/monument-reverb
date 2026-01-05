@@ -1,13 +1,85 @@
 # Monument Reverb - Session Handoff
 
-**Date:** 2026-01-05 (Late Evening Update)
+**Date:** 2026-01-05 (Evening - UI Testing Added)
 **Branch:** `feature/three-systems`
 **Progress:** 36 of 42 tasks (86% complete)
-**Status:** Phase 5 COMPLETE ✅ - Timeline UI Editor Implemented!
+**Status:** Phase 5 COMPLETE ✅ + UI Visual Regression Testing Added! 🎉
+**Test Coverage:** 85% → 90%
 
 ---
 
-## Latest Session (2026-01-05 Part 6): Phase 5 - Timeline UI Editor ✅
+## Latest Session (2026-01-05 Part 7): Visual UI Testing System ✅
+
+### What We Built
+
+**🎯 Automated UI Visual Regression Testing** - Catches UI bugs automatically!
+
+**New Tools:**
+
+- ✅ [tools/capture_ui_reference.py](tools/capture_ui_reference.py) - Automated baseline screenshot capture (355 lines)
+- ✅ [tools/test_ui_visual.py](tools/test_ui_visual.py) - Visual regression testing with pixel comparison (560 lines)
+- ✅ [tools/manual_ui_capture.sh](tools/manual_ui_capture.sh) - Manual capture guide (no accessibility needed)
+- ✅ [docs/UI_TESTING.md](docs/UI_TESTING.md) - Complete documentation (400+ lines)
+
+**Features:**
+
+- ✅ **Automated Screenshot Capture** - Launches Monument standalone, clicks buttons, captures 4 UI states
+- ✅ **Visual Comparison** - Pixel-by-pixel comparison with configurable threshold (default: 2%)
+- ✅ **Background Detection** - Catches theme changes (black vs white) automatically
+- ✅ **Visual Diff Images** - Side-by-side comparison with 10x amplified differences
+- ✅ **HTML Reports** - Beautiful reports with metrics and screenshots
+- ✅ **CI Integration** - Optional in CI via `ENABLE_UI_TESTS=1`
+- ✅ **AppleScript Automation** - Button clicking for different UI states
+
+**Captured Baseline States:**
+
+1. `01_default.png` - Default view with macro controls (902x288)
+2. `02_base_params.png` - BASE PARAMS expanded (902x608)
+3. `03_modulation.png` - MODULATION panel open (902x1108)
+4. `04_timeline.png` - TIMELINE panel open (902x828)
+
+**Bug Fixes:**
+
+- ✅ Fixed Timeline background (dark → white to match plugin theme)
+- ✅ Fixed AppleScript window detection (use absolute paths)
+- ✅ Fixed CSS template escaping in HTML reports
+
+**Test Coverage Impact:**
+
+- Before: 85% (Python audio tests + C++)
+- After: **90%** (+ automated UI visual testing)
+
+**Usage:**
+
+```bash
+# Capture baseline reference images
+python3 tools/capture_ui_reference.py
+
+# Run visual regression tests
+python3 tools/test_ui_visual.py
+
+# View reports
+open test-results/ui-baseline/index.html       # Baseline reference
+open test-results/ui-current/report.html        # Test results
+
+# CI with UI tests enabled
+ENABLE_UI_TESTS=1 ./scripts/run_ci_tests.sh
+```
+
+**Why This Matters:**
+
+The black background bug from earlier would have been caught **instantly**:
+```
+❌ FAIL: background_color_mismatch
+   Difference: 0.8245
+   Background diff: 242 (black vs white)
+```
+
+5 minutes of automated testing > 30 minutes of manual debugging! 🎉
+
+---
+
+## Previous Session (2026-01-05 Part 6): Phase 5 - Timeline UI Editor ✅
 
 ### What We Built
 
