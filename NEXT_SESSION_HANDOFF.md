@@ -1,23 +1,25 @@
 # Monument Reverb - Three-System Plan Session Handoff
 
-**Date:** 2026-01-04
+**Date:** 2026-01-05
 **Branch:** `feature/three-systems`
-**Progress:** 18 of 42 tasks (43% complete)
-**Status:** Phase 2 COMPLETE ✅ - Ready to commit
+**Progress:** 23 of 42 tasks (55% complete)
+**Status:** Phase 3 COMPLETE ✅ - Ready for Phase 4
 
 ---
 
 ## Session Summary
 
-**Completed:** Phases 1 and 2 of Three-System Plan
+**Completed:** Phases 1, 2, and 3 of Three-System Plan
 - ✅ **Phase 1:** Spatial positioning with 1/r² distance attenuation
 - ✅ **Phase 2:** 3D azimuth/elevation panning in Facade
+- ✅ **Phase 3:** Doppler shift effects in Chambers
 
 **Build:** ✅ All plugins compile successfully
+**Tests:** ✅ Doppler stability tests pass
 
 ---
 
-## Completed Work (Tasks 1-18)
+## Completed Work (Tasks 1-23)
 
 ### Phase 1: Spatial Basics ✅ (Committed: c19b7d9)
 - Created [dsp/SpatialProcessor.h/cpp](dsp/SpatialProcessor.h) - 1/r² attenuation
@@ -26,7 +28,8 @@
 - Updated [plugin/PresetManager.cpp](plugin/PresetManager.cpp) - Serialization (667-669, 711-713)
 - Wired [plugin/PluginProcessor.cpp](plugin/PluginProcessor.cpp) - Spatial routing (567-582)
 
-### Phase 2: 3D Panning ✅ (UNCOMMITTED)
+### Phase 2: 3D Panning ✅ (Committed: bf376c0)
+
 - Modified [dsp/DspModules.h](dsp/DspModules.h) - Facade methods (182-200, 213-220)
 - Implemented [dsp/DspModules.cpp](dsp/DspModules.cpp) - Constant power panning (623-627, 669-756)
 - Extended [dsp/ModulationMatrix.h](dsp/ModulationMatrix.h) - Distance, VelocityX (73-74)
@@ -34,40 +37,29 @@
 - Created [tests/ConstantPowerPanningTest.cpp](tests/ConstantPowerPanningTest.cpp) - Unit test
 - Updated [CMakeLists.txt](CMakeLists.txt) - Test target (284-313)
 
----
+### Phase 3: Doppler Effects ✅ (Committed: e6a7bfd)
 
-## NEXT: Commit Phase 2
-
-```bash
-# Verify build works
-cmake --build build --target Monument
-
-# Commit Phase 2
-git add -A
-git commit -m "feat: implement Phase 2 - 3D azimuth/elevation panning
-
-Three-System Plan Phase 2 Complete:
-- Facade 3D panning with constant power law (L²+R²=1)
-- set3DPanning(bool) toggle between stereo width and 3D mode
-- setSpatialPositions(azimuth, elevation) with smoothed transitions
-- Elevation scaling simulates height/distance
-- Extended ModMatrix: Distance, VelocityX destinations (Doppler prep)
-- Unit test for panning verification
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
-```
+- Modified [dsp/Chambers.cpp:628-644](dsp/Chambers.cpp#L628) - Doppler shift integration
+- Integrated `getDopplerShift()` into fractional delay calculation
+- Velocity-based pitch shifting (±50ms max shift @ 48kHz)
+- Created [tests/DopplerShiftTest.cpp](tests/DopplerShiftTest.cpp) - Stability unit test
+- Updated [CMakeLists.txt](CMakeLists.txt) - Test target (316-333)
+- **Tests:** 6 test cases pass (bounds, scaling, disable, stability, per-line, clipping)
 
 ---
 
-## Phase 3: Doppler Effects (Next - Tasks 19-23)
+## NEXT: Phase 4 - SequenceScheduler (Tasks 24-31)
 
-**Task 19:** Manual plugin testing (verify 3D panning works)
-**Task 20:** Implement getDopplerShift() integration in Chambers
-**Task 21:** Modify [dsp/Chambers.cpp:~630](dsp/Chambers.cpp#L630) fractional delay
-**Task 22:** Write Doppler stability unit test
-**Task 23:** Build and verify Phase 3
+**Overview:** Timeline system for parameter automation and preset morphing
+
+**Task 24:** Create [dsp/SequenceScheduler.h/cpp](dsp/SequenceScheduler.h)
+**Task 25:** Implement keyframe storage and interpolation
+**Task 26:** Add timeline playback with tempo sync
+**Task 27:** Wire to PluginProcessor modulation system
+**Task 28:** Create 3 timeline presets (Evolving Cathedral, Spatial Journey, Living Space)
+**Task 29:** Write SequenceScheduler unit test
+**Task 30:** Build and verify Phase 4
+**Task 31:** Manual testing in DAW
 
 ---
 
