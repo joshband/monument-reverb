@@ -380,6 +380,10 @@ ModulationMatrix::ModulationMatrix()
     }
 
     modulationValues.fill(0.0f);
+
+    // Initialize RNG for probability gating
+    std::random_device rd;
+    probabilityRng.seed(rd());
 }
 
 ModulationMatrix::~ModulationMatrix() = default;
@@ -448,13 +452,13 @@ void ModulationMatrix::process(const juce::AudioBuffer<float>& audioBuffer, int 
     // Initialize per-destination accumulators
     std::array<float, static_cast<size_t>(DestinationType::Count)> destinationSums{};
 
-    // Thread-safe: Lock while reading connections vector
+    // Thread-safe: Lock while reading connections array
     // Note: SpinLock is real-time safe (no blocking, just busy-wait)
     {
         const juce::SpinLock::ScopedLockType lock(connectionsLock);
 
         // Early exit optimization: no connections = no processing needed
-        if (connections.empty())
+        if (connectionCount == 0)
         {
             for (size_t i = 0; i < smoothers.size(); ++i)
                 modulationValues[i] = smoothers[i].getNextValue();
@@ -462,39 +466,50 @@ void ModulationMatrix::process(const juce::AudioBuffer<float>& audioBuffer, int 
         }
 
         // Accumulate modulation from all active connections
-        for (const auto& conn : connections)
-    {
-        if (!conn.enabled)
-            continue;
-
-        // Get source value
-        float sourceValue = 0.0f;
-        switch (conn.source)
+        for (int connIdx = 0; connIdx < connectionCount; ++connIdx)
         {
-            case SourceType::ChaosAttractor:
-                sourceValue = chaosGen ? chaosGen->getValue(conn.sourceAxis) : 0.0f;
-                break;
-            case SourceType::AudioFollower:
-                sourceValue = audioFollower ? audioFollower->getValue() : 0.0f;
-                break;
-            case SourceType::BrownianMotion:
-                sourceValue = brownianGen ? brownianGen->getValue() : 0.0f;
-                break;
-            case SourceType::EnvelopeTracker:
-                sourceValue = envTracker ? envTracker->getValue() : 0.0f;
-                break;
-            default:
-                break;
+            const auto& conn = connections[connIdx];
+            if (!conn.enabled)
+                continue;
+
+            // Probability gating: randomly skip modulation based on probability value
+            // 1.0 = always apply, 0.5 = apply 50% of the time, 0.0 = never apply
+            if (conn.probability < 1.0f)
+            {
+                // Generate random number [0, 1] and compare to probability
+                const float randomValue = probabilityDist(probabilityRng);
+                if (randomValue > conn.probability)
+                    continue;  // Skip this connection for this block
+            }
+
+            // Get source value
+            float sourceValue = 0.0f;
+            switch (conn.source)
+            {
+                case SourceType::ChaosAttractor:
+                    sourceValue = chaosGen ? chaosGen->getValue(conn.sourceAxis) : 0.0f;
+                    break;
+                case SourceType::AudioFollower:
+                    sourceValue = audioFollower ? audioFollower->getValue() : 0.0f;
+                    break;
+                case SourceType::BrownianMotion:
+                    sourceValue = brownianGen ? brownianGen->getValue() : 0.0f;
+                    break;
+                case SourceType::EnvelopeTracker:
+                    sourceValue = envTracker ? envTracker->getValue() : 0.0f;
+                    break;
+                default:
+                    break;
+            }
+
+            // Scale by connection depth (bipolar: -1 to +1)
+            const float modulation = sourceValue * conn.depth;
+
+            // Accumulate to destination
+            const size_t destIdx = static_cast<size_t>(conn.destination);
+            if (destIdx < destinationSums.size())
+                destinationSums[destIdx] += modulation;
         }
-
-        // Scale by connection depth (bipolar: -1 to +1)
-        const float modulation = sourceValue * conn.depth;
-
-        // Accumulate to destination
-        const size_t destIdx = static_cast<size_t>(conn.destination);
-        if (destIdx < destinationSums.size())
-            destinationSums[destIdx] += modulation;
-    }
     }  // End SpinLock scope - connections vector is no longer accessed
 
     // Apply smoothing and clamp to valid range
@@ -522,11 +537,13 @@ void ModulationMatrix::setConnection(
     DestinationType destination,
     int sourceAxis,
     float depth,
-    float smoothingMs)
+    float smoothingMs,
+    float probability)
 {
     // Sanitize inputs
     depth = juce::jlimit(-1.0f, 1.0f, depth);
     smoothingMs = juce::jlimit(20.0f, 1000.0f, smoothingMs);
+    probability = juce::jlimit(0.0f, 1.0f, probability);
 
     // Thread-safe: Lock before modifying connections
     const juce::SpinLock::ScopedLockType lock(connectionsLock);
@@ -540,20 +557,23 @@ void ModulationMatrix::setConnection(
         auto& conn = connections[static_cast<size_t>(existingIdx)];
         conn.depth = depth;
         conn.smoothingMs = smoothingMs;
+        conn.probability = probability;
         conn.enabled = true;
     }
-    else
+    else if (connectionCount < kMaxConnections)
     {
-        // Create new connection
-        Connection conn;
+        // Create new connection in the fixed-size array
+        auto& conn = connections[connectionCount];
         conn.source = source;
         conn.destination = destination;
         conn.sourceAxis = sourceAxis;
         conn.depth = depth;
         conn.smoothingMs = smoothingMs;
+        conn.probability = probability;
         conn.enabled = true;
-        connections.push_back(conn);
+        ++connectionCount;
     }
+    // else: connection limit reached, silently ignore
 
     // Update smoother time constant for this destination
     const size_t destIdx = static_cast<size_t>(destination);
@@ -570,8 +590,13 @@ void ModulationMatrix::removeConnection(
     const juce::SpinLock::ScopedLockType lock(connectionsLock);
 
     const int idx = findConnectionIndex(source, destination, sourceAxis);
-    if (idx >= 0)
-        connections.erase(connections.begin() + idx);
+    if (idx >= 0 && idx < connectionCount)
+    {
+        // Shift remaining elements down to fill the gap
+        for (int i = idx; i < connectionCount - 1; ++i)
+            connections[i] = connections[i + 1];
+        --connectionCount;
+    }
 }
 
 void ModulationMatrix::clearConnections()
@@ -579,9 +604,9 @@ void ModulationMatrix::clearConnections()
     // Thread-safe: Lock before clearing connections
     const juce::SpinLock::ScopedLockType lock(connectionsLock);
 
-    connections.clear();
+    connectionCount = 0;  // No allocation, just reset counter
 
-    // Reset all modulationvalues and smoothers
+    // Reset all modulation values and smoothers
     for (size_t i = 0; i < modulationValues.size(); ++i)
     {
         modulationValues[i] = 0.0f;
@@ -591,14 +616,18 @@ void ModulationMatrix::clearConnections()
 
 void ModulationMatrix::setConnections(const std::vector<Connection>& newConnections)
 {
-    // Thread-safe: Lock before modifying connections vector
+    // Thread-safe: Lock before modifying connections array
     const juce::SpinLock::ScopedLockType lock(connectionsLock);
 
-    connections = newConnections;
+    // Copy connections from vector to fixed-size array, respecting the max size
+    connectionCount = std::min(static_cast<int>(newConnections.size()), kMaxConnections);
+    for (int i = 0; i < connectionCount; ++i)
+        connections[i] = newConnections[i];
 
     // Update smoother time constants based on connections
-    for (const auto& conn : connections)
+    for (int i = 0; i < connectionCount; ++i)
     {
+        const auto& conn = connections[i];
         if (conn.enabled)
         {
             const size_t destIdx = static_cast<size_t>(conn.destination);
@@ -606,6 +635,19 @@ void ModulationMatrix::setConnections(const std::vector<Connection>& newConnecti
                 smoothers[destIdx].reset(sampleRateHz, conn.smoothingMs);
         }
     }
+}
+
+std::vector<ModulationMatrix::Connection> ModulationMatrix::getConnections() const noexcept
+{
+    // Thread-safe: Lock while reading connections array
+    const juce::SpinLock::ScopedLockType lock(connectionsLock);
+
+    // Return a copy of active connections as vector (safe for non-real-time use)
+    std::vector<Connection> result;
+    result.reserve(connectionCount);
+    for (int i = 0; i < connectionCount; ++i)
+        result.push_back(connections[i]);
+    return result;
 }
 
 float ModulationMatrix::getSourceValue(SourceType source, int axis) const noexcept
@@ -634,17 +676,112 @@ int ModulationMatrix::findConnectionIndex(
     DestinationType destination,
     int axis) const noexcept
 {
-    for (size_t i = 0; i < connections.size(); ++i)
+    for (int i = 0; i < connectionCount; ++i)
     {
         const auto& conn = connections[i];
         if (conn.source == source &&
             conn.destination == destination &&
             conn.sourceAxis == axis)
         {
-            return static_cast<int>(i);
+            return i;
         }
     }
     return -1;
+}
+
+// Helper function for randomization with configurable parameters
+namespace {
+    void randomizeConnectionsHelper(
+        ModulationMatrix* matrix,
+        int minConnections, int maxConnections,
+        float minDepth, float maxDepth)
+    {
+        // Thread-safe: Clear all existing connections first
+        matrix->clearConnections();
+
+        // Initialize random number generator with time-based seed for variety
+        std::random_device rd;
+        std::mt19937 rng(rd());
+
+        // Distribution for number of connections
+        std::uniform_int_distribution<int> numConnectionsDist(minConnections, maxConnections);
+        const int targetConnections = numConnectionsDist(rng);
+
+        // Distributions for random parameters
+        std::uniform_int_distribution<int> sourceDist(0, static_cast<int>(ModulationMatrix::SourceType::Count) - 1);
+        std::uniform_int_distribution<int> destDist(0, static_cast<int>(ModulationMatrix::DestinationType::Count) - 1);
+        std::uniform_real_distribution<float> depthDist(minDepth, maxDepth);
+        std::uniform_int_distribution<int> smoothingDist(100, 500);   // 100-500ms smoothing
+
+        // Bias: 70% positive depth, 30% negative depth (more musical)
+        std::uniform_real_distribution<float> signDist(0.0f, 1.0f);
+
+        // Create random connections, avoiding duplicates
+        int attempts = 0;
+        const int maxAttempts = targetConnections * 10;  // Prevent infinite loops
+
+        int connectionCount = 0;
+        while (connectionCount < targetConnections && attempts < maxAttempts)
+        {
+            attempts++;
+
+            // Generate random source and destination
+            auto source = static_cast<ModulationMatrix::SourceType>(sourceDist(rng));
+            auto dest = static_cast<ModulationMatrix::DestinationType>(destDist(rng));
+
+            // Determine source axis (chaos has 3 axes X/Y/Z, others have 1)
+            int sourceAxis = 0;
+            if (source == ModulationMatrix::SourceType::ChaosAttractor)
+            {
+                std::uniform_int_distribution<int> axisDist(0, 2);  // X, Y, or Z
+                sourceAxis = axisDist(rng);
+            }
+
+            // Skip if connection already exists (check via matrix)
+            const auto& connections = matrix->getConnections();
+            bool exists = false;
+            for (const auto& conn : connections)
+            {
+                if (conn.source == source && conn.destination == dest && conn.sourceAxis == sourceAxis)
+                {
+                    exists = true;
+                    break;
+                }
+            }
+            if (exists)
+                continue;
+
+            // Generate random depth with sign bias (70% positive, 30% negative)
+            float depth = depthDist(rng);
+            if (signDist(rng) < 0.3f)  // 30% chance of negative
+                depth = -depth;
+
+            // Generate random smoothing
+            float smoothing = static_cast<float>(smoothingDist(rng));
+
+            // Create the connection (uses setConnection which handles thread safety)
+            matrix->setConnection(source, dest, sourceAxis, depth, smoothing);
+            connectionCount++;
+        }
+
+        // If we couldn't create enough connections due to collisions, that's okay
+        // We'll have at least a few interesting connections
+    }
+}
+
+void ModulationMatrix::randomizeAll()
+{
+    randomizeConnectionsHelper(this, 4, 8, 0.2f, 0.6f);
+}
+
+void ModulationMatrix::randomizeSparse()
+{
+    randomizeConnectionsHelper(this, 2, 3, 0.2f, 0.4f);
+}
+
+void ModulationMatrix::randomizeDense()
+{
+    randomizeConnectionsHelper(this, 8, 12, 0.4f, 0.8f);
 }
 
 } // namespace dsp

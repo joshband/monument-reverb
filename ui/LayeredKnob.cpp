@@ -8,7 +8,7 @@ LayeredKnob::LayeredKnob(juce::AudioProcessorValueTreeState& state,
     // Label
     label.setText(labelText, juce::dontSendNotification);
     label.setJustificationType(juce::Justification::centred);
-    label.setColour(juce::Label::textColourId, juce::Colour(0xffe6e1d6));
+    label.setColour(juce::Label::textColourId, juce::Colour(0xff333333));  // Dark text for white background
     Component::addAndMakeVisible(label);
 
     // Get parameter
@@ -89,12 +89,12 @@ void LayeredKnob::paint(juce::Graphics& g)
         return;
     }
 
-    // Add subtle hover glow
-    if (isHovered)
-    {
-        g.setColour(juce::Colours::white.withAlpha(0.05f));
-        g.fillEllipse(controlArea.toFloat().reduced(2.0f));
-    }
+    // Hover effect temporarily disabled
+    // if (isHovered)
+    // {
+    //     g.setColour(juce::Colours::white.withAlpha(0.05f));
+    //     g.fillEllipse(controlArea.toFloat().reduced(2.0f));
+    // }
 
     // Calculate rendering bounds (square, centered)
     int size = juce::jmin(controlArea.getWidth(), controlArea.getHeight());

@@ -1,0 +1,46 @@
+{
+  "name": "audio-dsp-dev",
+  "version": "1.1.0",
+  "description": "Claude Code plugin for professional audio DSP, VST3/AU/AUv3 plugin development, React-JUCE UI, and photorealistic design systems",
+  "author": "Audio DSP Team",
+  "capabilities": {
+    "skills": true,
+    "agents": true,
+    "commands": true,
+    "hooks": true
+  },
+  "commands": [
+    "gen-plugin",
+    "gen-dsp",
+    "bench-dsp",
+    "gen-tests",
+    "gen-ui",
+    "gen-rgba-component-pack",
+    "gen-golden-tests",
+    "review-dsp"
+  ],
+  "agents": [
+    "dsp-expert",
+    "juce-vst3-au",
+    "juce-ui-controls",
+    "dsp-reviewer",
+    "simd-optimizer",
+    "auv3-swiftui-ui",
+    "swiftui-knob-canvas",
+    "photoreal-rgba-components",
+    "react-juce-ui"
+  ],
+  "skills": [
+    "dsp-core",
+    "realtime-safety",
+    "plugin-architecture",
+    "photorealistic-ui",
+    "juce-modules",
+    "auv3-core",
+    "auv3-lifecycle",
+    "auv3-ui-parameters",
+    "auv3-packaging",
+    "react-juce-core",
+    "parameter-binding"
+  ]
+}

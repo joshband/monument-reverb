@@ -280,4 +280,35 @@ if(MONUMENT_ENABLE_TESTS)
       juce::juce_recommended_warning_flags
   )
   add_test(NAME monument_experimental_modulation_test COMMAND monument_experimental_modulation_test)
+
+  juce_add_console_app(monument_constant_power_panning_test
+    PRODUCT_NAME "Monument Constant Power Panning Test"
+  )
+  juce_generate_juce_header(monument_constant_power_panning_test)
+  target_sources(monument_constant_power_panning_test
+    PRIVATE
+      tests/ConstantPowerPanningTest.cpp
+      dsp/DspModules.cpp
+  )
+  target_include_directories(monument_constant_power_panning_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_compile_definitions(monument_constant_power_panning_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+  target_link_libraries(monument_constant_power_panning_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+  add_test(NAME monument_constant_power_panning_test COMMAND monument_constant_power_panning_test)
 endif()
