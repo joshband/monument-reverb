@@ -82,6 +82,13 @@ MyPlugin/
 4. Implement proper state serialization
 5. Handle sample rate/block size changes
 
+## Monument Reverb Project
+
+**Build:** `cmake --build build --target Monument_All -j8` or `./scripts/rebuild_and_install.sh all`
+**Install:** Auto-installs to `~/Library/Audio/Plug-Ins/{VST3,Components}/Monument.{vst3,component}`
+**Tests:** `./scripts/run_ci_tests.sh` (comprehensive) or `ctest --test-dir build` (C++ only)
+**Docs:** See `docs/TESTING_GUIDE.md` and `docs/BUILD_PATTERNS.md` for detailed workflows
+
 ## Reference Skills
 
 Read these for detailed implementations:
