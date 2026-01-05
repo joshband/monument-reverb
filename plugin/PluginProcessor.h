@@ -10,6 +10,19 @@
 #include "dsp/ModulationMatrix.h"
 #include "PresetManager.h"
 
+/**
+ * @brief Processing modes for alternate signal routing
+ *
+ * Ancient Monuments themed routing modes that reorder physical modeling
+ * modules in different positions for dramatic sonic diversity.
+ */
+enum class ProcessingMode
+{
+    AncientWay,      // Traditional: Foundation → Pillars → Chambers → Weathering → Physical → Buttress → Facade
+    ResonantHalls,   // Metallic: TubeRayTracer BEFORE Chambers (bright metallic resonances)
+    BreathingStone   // Elastic: ElasticHallway SURROUNDS Chambers (organic breathing reverb)
+};
+
 class MonumentAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -57,6 +70,10 @@ public:
 
     monument::dsp::ModulationMatrix& getModulationMatrix() { return modulationMatrix; }
 
+    // Processing mode management (Ancient Monuments routing)
+    void setProcessingMode(ProcessingMode mode);
+    ProcessingMode getProcessingMode() const noexcept;
+
 private:
     enum class PresetTransitionState
     {
@@ -96,6 +113,11 @@ private:
     // Track last routing preset to detect changes
     int lastRoutingPreset{0};
 
+    // Processing mode state (Ancient Monuments routing modes)
+    ProcessingMode currentMode{ProcessingMode::AncientWay};
+    std::atomic<ProcessingMode> pendingMode{ProcessingMode::AncientWay};
+    std::atomic<bool> modeChangeRequested{false};
+
     // JUCE SmoothedValue for block-rate parameter smoothing (prevents zipper noise)
     juce::SmoothedValue<float> timeSmoother;
     juce::SmoothedValue<float> massSmoother;
@@ -122,6 +144,9 @@ private:
     juce::SmoothedValue<float> paradoxResonanceFreqSmoother;
     juce::SmoothedValue<float> paradoxGainSmoother;
 
+    // Processing mode transition gain (prevents clicks on mode change)
+    juce::SmoothedValue<float> modeTransitionGain;
+
     std::atomic<bool> presetResetRequested{false};
     PresetTransitionState presetTransition = PresetTransitionState::None;
     int presetFadeSamples = 0;
@@ -131,6 +156,11 @@ private:
     int memoryProvePulseInterval = 0;
     int memoryProvePulseRemaining = 0;
 #endif
+
+    // Processing mode implementations (Ancient Monuments routing)
+    void processBlockAncientWay(juce::AudioBuffer<float>& buffer);
+    void processBlockResonantHalls(juce::AudioBuffer<float>& buffer);
+    void processBlockBreathingStone(juce::AudioBuffer<float>& buffer);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MonumentAudioProcessor)
 };
