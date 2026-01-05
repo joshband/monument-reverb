@@ -17,19 +17,29 @@ Core priorities:
 
 ## Project Status
 
-**Current Phase**: Phase 4 - UI Enhancement (✅ Complete) | **Next**: Phase 5 - Polish & Release 🚀
+**Current Phase**: Phase 5 - Physical Modeling (✅ Complete) | **Next**: Phase 6 - Polish & Release 🚀
 
 Monument features a memory-free reverb architecture. Memory Echoes lives in a standalone repository with planned v1.6 reintegration.
 
-**Recent Updates** (2026-01-03 Evening):
+**Recent Updates** (2026-01-04):
 
+**Phase 5 Complete - Physical Modeling Integration** (2026-01-04):
+
+- ✅ **3 New DSP Modules**: TubeRayTracer, ElasticHallway, AlienAmplification
+- ✅ **12 New Parameters**: Tube network, elastic walls, non-Euclidean physics
+- ✅ **Macro Integration**: Physical parameters driven by Material, Topology, Viscosity, Evolution, Chaos, and Elasticity
+- ✅ **5 New Presets**: Metallic Corridor, Elastic Cathedral, Impossible Chamber, Breathing Tubes, Quantum Hall
+- ✅ **9 Additional "Living" Presets**: Dynamic Response, Chaotic Motion, Organic Evolution, Experimental Combinations (Task 3)
+- ✅ **Total Factory Presets**: 37 curated spaces
+
+**Phase 4 Complete - UI Enhancement** (2026-01-04):
+
+- ✅ **Unified Knob Design**: All 18 knobs use consistent codex brushed aluminum texture
+- ✅ **Clean White UI**: White background with dark text for high contrast
+- ✅ **Smooth Rotation**: Vertical drag interaction across all parameters
 - ✅ **ModMatrixPanel**: Professional modulation matrix UI with 4×15 grid
-- ✅ Color-coded sources (Chaos, Audio, Brownian, Envelope) with visual feedback
-- ✅ Interactive connection editing with depth/smoothing controls
-- ✅ LayeredKnob rendering system with photorealistic layers
-- ✅ Blender procedural knob generation pipeline
-- ✅ Standardized build workflow (incremental builds in ~6 seconds)
-- ✅ HIGH priority optimizations (parameter cache, smoothing, thread safety)
+- ✅ **LayeredKnob System**: Multi-layer rendering with alpha compositing
+- ✅ **HIGH Priority Optimizations**: Parameter cache, smoothing, thread safety
 
 ---
 
@@ -159,6 +169,37 @@ All parameters are normalized to [0, 1] unless noted. Mix is [0, 100].
 | Pillar Shape | Early reflection spacing | Compresses or expands tap intervals |
 | Pillar Mode | Early reflection palette | Glass, Stone, Fog tap profiles |
 
+### Physical Modeling Controls (Phase 5 Complete ✅)
+
+Monument includes three physics-based modeling modules that create impossible acoustic spaces:
+
+**TubeRayTracer Parameters:**
+
+| Control | Meaning | Behavior notes |
+| --- | --- | --- |
+| Tube Count | Network complexity | Number of interconnected metal tubes (1-8) |
+| Tube Radius Variation | Size diversity | Spread of tube diameters for varied resonance |
+| Metallic Resonance | Surface reflectivity | Brightness of metal ringing and harmonic content |
+| Tube Coupling Strength | Connection intensity | How strongly tubes influence each other |
+
+**ElasticHallway Parameters:**
+
+| Control | Meaning | Behavior notes |
+| --- | --- | --- |
+| Wall Elasticity | Deformation amount | How much walls bend under acoustic pressure |
+| Recovery Time | Return speed | Time for walls to return to rest position |
+| Absorption Drift | Material morphing | Slow evolution of wall absorption properties |
+| Elastic Nonlinearity | Deformation curve | Linear vs exponential wall response |
+
+**AlienAmplification Parameters:**
+
+| Control | Meaning | Behavior notes |
+| --- | --- | --- |
+| Impossibility Degree | Physics violation | Amount of non-Euclidean acoustic behavior |
+| Pitch Evolution | Frequency drift | Slow harmonic shifts in impossible space |
+| Paradox Frequency | Quantum effect | Rate of acoustic topology folding |
+| Paradox Gain | Amplification intensity | Energy gain from impossible reflections |
+
 ### Macro Controls & Modulation (Phase 2-4 Complete ✅)
 
 Monument includes a high-level macro system and visual modulation matrix for deep sound design.
@@ -188,7 +229,9 @@ Monument includes a high-level macro system and visual modulation matrix for dee
 
 ## Presets
 
-Monument ships with curated, whimsical presets that explore extremes and hybrids.
+Monument ships with **37 curated presets** that explore extremes, hybrids, physical modeling spaces, and living modulation.
+
+**Core Spaces:**
 
 - Init Patch: neutral starting point for new spaces
 - Cathedral of Glass: long, bright, high density shimmer
@@ -200,6 +243,31 @@ Monument ships with curated, whimsical presets that explore extremes and hybrids
 - Tesseract Chamber: long, low density, high drift
 - Stone Circles: tight, dry, and grounded
 - Frozen Monument (Engage Freeze): tuned for Freeze captures
+
+**Living Spaces (with modulation):**
+
+- Breathing Stone: AudioFollower → Bloom
+- Drifting Cathedral: BrownianMotion → Drift + Gravity
+- Chaos Hall: ChaosAttractor → Warp + Density
+- Living Pillars: EnvelopeTracker → PillarShape
+- Event Horizon Evolved: ChaosAttractor → Mass + BrownianMotion → Drift
+- Pulsing Cathedral: AudioFollower → Bloom (dynamic reverb swells)
+- Dynamic Shimmer: AudioFollower → Air (brightness responds to level)
+- Quantum Shimmer: ChaosAttractor → ImpossibilityDegree (physics violations)
+- Morphing Cathedral: ChaosAttractor → TubeCount + BrownianMotion → Drift
+- Fractal Space: ChaosAttractor → Warp (topology morphing)
+- Elastic Drift: BrownianMotion → Elasticity + RecoveryTime (breathing walls)
+- Spectral Wander: BrownianMotion → MetallicResonance (drifting brightness)
+- Impossible Hall: AudioFollower → ParadoxGain (triggered energy gain)
+- Breathing Chaos: ChaosAttractor → Elasticity (intermittent deformation)
+
+**Physical Modeling Spaces (Phase 5):**
+
+- Metallic Corridor: Resonant metal tube network
+- Elastic Cathedral: Breathing walls that deform with sound
+- Impossible Chamber: Physics-breaking alien acoustics
+- Breathing Tubes: Organic metal pipes with modulation
+- Quantum Hall: Non-Euclidean tube folding with chaos
 
 User presets can be saved as JSON in `~/Documents/MonumentPresets/`.
 
@@ -237,13 +305,19 @@ monument-reverb/
 - **Phase 1**: ✅ Foundation (JUCE setup, FDN reverb, base parameters)
 - **Phase 2**: ✅ Macro system (6 high-level controls integrated)
 - **Phase 3**: ✅ Modulation sources (4 sources, 16 destinations, living presets)
-- **Phase 4**: 🚀 UI Enhancement (90% complete)
+- **Phase 4**: ✅ UI Enhancement (Complete)
   - ✅ ModMatrix visual panel with interactive grid
   - ✅ LayeredKnob rendering system
   - ✅ Blender knob generation pipeline
-  - ⏳ Enhanced knob integration (final step)
-- **Phase 5**: 📋 Polish & release (preset browser, export/import)
-- **Phase 6**: 📋 Physical modules (Tubes, Elastic spaces)
+  - ✅ Unified codex knob integration
+- **Phase 5**: ✅ Physical Modeling (Complete)
+  - ✅ TubeRayTracer: Metal tube networks with ray-traced propagation
+  - ✅ ElasticHallway: Deformable walls responding to acoustic pressure
+  - ✅ AlienAmplification: Non-Euclidean physics with impossible amplification
+  - ✅ 12 new parameters with macro mapping integration
+  - ✅ 5 new presets exploring physical spaces
+  - ✅ 9 additional "Living" presets (Task 3 - Total: 37 presets)
+- **Phase 6**: 📋 Polish & release (preset browser, export/import, final optimization)
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed roadmap.
 

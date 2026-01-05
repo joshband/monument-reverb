@@ -211,6 +211,98 @@ const std::array<PresetManager::Preset, PresetManager::kNumFactoryPresets> Prese
             0.65f,  // evolution: high → pitch morphing
             0.85f,  // chaos: very high → alien physics
             0.50f)},// elasticity: moderate
+
+    // Phase 6: Additional "Living" Presets (Task 3)
+    {"Pulsing Cathedral", "Reverb size swells and grows with loud passages, creating dynamic spatial depth.",
+        makePresetWithMod(0.70f, 0.55f, 0.55f, 0.50f, 0.55f, 0.10f, 0.15f, 0.60f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::AudioFollower,
+                              monument::dsp::ModulationMatrix::DestinationType::Bloom, 0.60f, 0, 250.0f)})},
+
+    {"Dynamic Shimmer", "High-frequency air content increases with input level, brightening with intensity.",
+        makePresetWithMod(0.60f, 0.45f, 0.60f, 0.40f, 0.50f, 0.15f, 0.20f, 0.58f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::AudioFollower,
+                              monument::dsp::ModulationMatrix::DestinationType::Air, 0.50f, 0, 300.0f)})},
+
+    {"Quantum Shimmer", "Physics violations ebb and flow unpredictably, reality bending with chaotic motion.",
+        makePresetWithMod(0.65f, 0.60f, 0.50f, 0.55f, 0.45f, 0.40f, 0.35f, 0.62f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::ChaosAttractor,
+                              monument::dsp::ModulationMatrix::DestinationType::ImpossibilityDegree, 0.40f, 0, 350.0f)},
+            0.0f, 0.5f, 0.4f, 0.3f,
+            0.50f,  // material
+            0.70f,  // topology: non-Euclidean
+            0.50f,  // viscosity
+            0.60f,  // evolution
+            0.70f,  // chaos: high impossibility
+            0.40f)},// elasticity
+
+    {"Morphing Cathedral", "Tube network complexity shifts chaotically while space drifts slowly through dimensions.",
+        makePresetWithMod(0.75f, 0.55f, 0.50f, 0.45f, 0.50f, 0.20f, 0.25f, 0.63f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::ChaosAttractor,
+                              monument::dsp::ModulationMatrix::DestinationType::TubeCount, 0.30f, 1, 400.0f),
+             makeModConnection(monument::dsp::ModulationMatrix::SourceType::BrownianMotion,
+                              monument::dsp::ModulationMatrix::DestinationType::Drift, 0.40f, 0, 600.0f)},
+            0.0f, 0.5f, 0.4f, 0.3f,
+            0.65f,  // material: moderate metallic
+            0.60f,  // topology
+            0.55f,  // viscosity
+            0.50f,  // evolution
+            0.40f,  // chaos
+            0.30f)},// elasticity
+
+    {"Fractal Space", "Topology morphs through chaotic attractor states, folding space in strange ways.",
+        makePresetWithMod(0.70f, 0.50f, 0.55f, 0.50f, 0.40f, 0.60f, 0.30f, 0.60f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::ChaosAttractor,
+                              monument::dsp::ModulationMatrix::DestinationType::Warp, 0.50f, 2, 300.0f)})},
+
+    {"Elastic Drift", "Walls slowly breathe with random walk motion, deforming and recovering organically.",
+        makePresetWithMod(0.65f, 0.60f, 0.55f, 0.50f, 0.60f, 0.15f, 0.20f, 0.58f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::BrownianMotion,
+                              monument::dsp::ModulationMatrix::DestinationType::Elasticity, 0.60f, 0, 500.0f),
+             makeModConnection(monument::dsp::ModulationMatrix::SourceType::BrownianMotion,
+                              monument::dsp::ModulationMatrix::DestinationType::RecoveryTime, 0.40f, 0, 700.0f)},
+            0.0f, 0.5f, 0.4f, 0.3f,
+            0.40f,  // material: soft
+            0.50f,  // topology
+            0.75f,  // viscosity: thick, slow recovery
+            0.55f,  // evolution
+            0.25f,  // chaos: subtle
+            0.75f)},// elasticity: high wall deformation
+
+    {"Spectral Wander", "Tube brightness drifts organically, metallic resonances wandering through timbral space.",
+        makePresetWithMod(0.60f, 0.55f, 0.58f, 0.45f, 0.55f, 0.20f, 0.25f, 0.60f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::BrownianMotion,
+                              monument::dsp::ModulationMatrix::DestinationType::MetallicResonance, 0.50f, 0, 450.0f)},
+            0.0f, 0.5f, 0.4f, 0.3f,
+            0.70f,  // material: metallic
+            0.55f,  // topology
+            0.50f,  // viscosity
+            0.45f,  // evolution
+            0.20f,  // chaos
+            0.40f)},// elasticity
+
+    {"Impossible Hall", "Energy gain triggered by input level, stepped quantization creates rhythmic impossibility.",
+        makePresetWithMod(0.68f, 0.62f, 0.52f, 0.58f, 0.48f, 0.45f, 0.35f, 0.62f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::AudioFollower,
+                              monument::dsp::ModulationMatrix::DestinationType::ParadoxGain, 0.30f, 0, 200.0f)},
+            0.0f, 0.5f, 0.4f, 0.3f,
+            0.55f,  // material
+            0.75f,  // topology: non-Euclidean
+            0.50f,  // viscosity
+            0.65f,  // evolution
+            0.75f,  // chaos: high impossibility
+            0.45f)},// elasticity
+
+    {"Breathing Chaos", "Elastic walls deform intermittently as chaos waxes and wanes, alive but unpredictable.",
+        makePresetWithMod(0.62f, 0.58f, 0.60f, 0.48f, 0.52f, 0.30f, 0.28f, 0.58f,
+            {makeModConnection(monument::dsp::ModulationMatrix::SourceType::ChaosAttractor,
+                              monument::dsp::ModulationMatrix::DestinationType::Elasticity, 0.50f, 0, 350.0f)},
+            0.0f, 0.5f, 0.4f, 0.3f,
+            0.45f,  // material: softer
+            0.60f,  // topology
+            0.70f,  // viscosity: slower recovery
+            0.60f,  // evolution
+            0.55f,  // chaos: moderate-high
+            0.70f)},// elasticity: high deformation
 }};
 
 PresetManager::PresetManager(juce::AudioProcessorValueTreeState& apvts,
@@ -548,22 +640,30 @@ juce::String PresetManager::destinationTypeToString(monument::dsp::ModulationMat
     using DestinationType = monument::dsp::ModulationMatrix::DestinationType;
     switch (type)
     {
-        case DestinationType::Time:                return "Time";
-        case DestinationType::Mass:                return "Mass";
-        case DestinationType::Density:             return "Density";
-        case DestinationType::Bloom:               return "Bloom";
-        case DestinationType::Air:                 return "Air";
-        case DestinationType::Width:               return "Width";
-        case DestinationType::Mix:                 return "Mix";
-        case DestinationType::Warp:                return "Warp";
-        case DestinationType::Drift:               return "Drift";
-        case DestinationType::Gravity:             return "Gravity";
-        case DestinationType::PillarShape:         return "PillarShape";
-        case DestinationType::TubeCount:           return "TubeCount";
-        case DestinationType::MetallicResonance:   return "MetallicResonance";
-        case DestinationType::Elasticity:          return "Elasticity";
-        case DestinationType::ImpossibilityDegree: return "ImpossibilityDegree";
-        default:                                   return "Unknown";
+        case DestinationType::Time:                  return "Time";
+        case DestinationType::Mass:                  return "Mass";
+        case DestinationType::Density:               return "Density";
+        case DestinationType::Bloom:                 return "Bloom";
+        case DestinationType::Air:                   return "Air";
+        case DestinationType::Width:                 return "Width";
+        case DestinationType::Mix:                   return "Mix";
+        case DestinationType::Warp:                  return "Warp";
+        case DestinationType::Drift:                 return "Drift";
+        case DestinationType::Gravity:               return "Gravity";
+        case DestinationType::PillarShape:           return "PillarShape";
+        case DestinationType::TubeCount:             return "TubeCount";
+        case DestinationType::RadiusVariation:       return "RadiusVariation";
+        case DestinationType::MetallicResonance:     return "MetallicResonance";
+        case DestinationType::CouplingStrength:      return "CouplingStrength";
+        case DestinationType::Elasticity:            return "Elasticity";
+        case DestinationType::RecoveryTime:          return "RecoveryTime";
+        case DestinationType::AbsorptionDrift:       return "AbsorptionDrift";
+        case DestinationType::Nonlinearity:          return "Nonlinearity";
+        case DestinationType::ImpossibilityDegree:   return "ImpossibilityDegree";
+        case DestinationType::PitchEvolutionRate:    return "PitchEvolutionRate";
+        case DestinationType::ParadoxResonanceFreq:  return "ParadoxResonanceFreq";
+        case DestinationType::ParadoxGain:           return "ParadoxGain";
+        default:                                     return "Unknown";
     }
 }
 
@@ -580,20 +680,28 @@ monument::dsp::ModulationMatrix::SourceType PresetManager::stringToSourceType(co
 monument::dsp::ModulationMatrix::DestinationType PresetManager::stringToDestinationType(const juce::String& str)
 {
     using DestinationType = monument::dsp::ModulationMatrix::DestinationType;
-    if (str == "Time")                return DestinationType::Time;
-    if (str == "Mass")                return DestinationType::Mass;
-    if (str == "Density")             return DestinationType::Density;
-    if (str == "Bloom")               return DestinationType::Bloom;
-    if (str == "Air")                 return DestinationType::Air;
-    if (str == "Width")               return DestinationType::Width;
-    if (str == "Mix")                 return DestinationType::Mix;
-    if (str == "Warp")                return DestinationType::Warp;
-    if (str == "Drift")               return DestinationType::Drift;
-    if (str == "Gravity")             return DestinationType::Gravity;
-    if (str == "PillarShape")         return DestinationType::PillarShape;
-    if (str == "TubeCount")           return DestinationType::TubeCount;
-    if (str == "MetallicResonance")   return DestinationType::MetallicResonance;
-    if (str == "Elasticity")          return DestinationType::Elasticity;
-    if (str == "ImpossibilityDegree") return DestinationType::ImpossibilityDegree;
+    if (str == "Time")                  return DestinationType::Time;
+    if (str == "Mass")                  return DestinationType::Mass;
+    if (str == "Density")               return DestinationType::Density;
+    if (str == "Bloom")                 return DestinationType::Bloom;
+    if (str == "Air")                   return DestinationType::Air;
+    if (str == "Width")                 return DestinationType::Width;
+    if (str == "Mix")                   return DestinationType::Mix;
+    if (str == "Warp")                  return DestinationType::Warp;
+    if (str == "Drift")                 return DestinationType::Drift;
+    if (str == "Gravity")               return DestinationType::Gravity;
+    if (str == "PillarShape")           return DestinationType::PillarShape;
+    if (str == "TubeCount")             return DestinationType::TubeCount;
+    if (str == "RadiusVariation")       return DestinationType::RadiusVariation;
+    if (str == "MetallicResonance")     return DestinationType::MetallicResonance;
+    if (str == "CouplingStrength")      return DestinationType::CouplingStrength;
+    if (str == "Elasticity")            return DestinationType::Elasticity;
+    if (str == "RecoveryTime")          return DestinationType::RecoveryTime;
+    if (str == "AbsorptionDrift")       return DestinationType::AbsorptionDrift;
+    if (str == "Nonlinearity")          return DestinationType::Nonlinearity;
+    if (str == "ImpossibilityDegree")   return DestinationType::ImpossibilityDegree;
+    if (str == "PitchEvolutionRate")    return DestinationType::PitchEvolutionRate;
+    if (str == "ParadoxResonanceFreq")  return DestinationType::ParadoxResonanceFreq;
+    if (str == "ParadoxGain")           return DestinationType::ParadoxGain;
     return DestinationType::Warp;  // Default fallback
 }
