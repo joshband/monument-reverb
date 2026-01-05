@@ -80,6 +80,42 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     routingPresetAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         processorRef.getAPVTS(), "routingPreset", routingPresetBox);
 
+    // Processing Mode Selector (Ancient Monuments Routing)
+    processingModeLabel.setText("Mode:", juce::dontSendNotification);
+    processingModeLabel.setJustificationType(juce::Justification::centredRight);
+    processingModeLabel.setColour(juce::Label::textColourId, juce::Colour(0xff666666));
+    addAndMakeVisible(processingModeLabel);
+
+    processingModeBox.addItem("Ancient Way", 1);
+    processingModeBox.addItem("Resonant Halls", 2);
+    processingModeBox.addItem("Breathing Stone", 3);
+    processingModeBox.setSelectedId(1, juce::dontSendNotification);
+    processingModeBox.setTextWhenNothingSelected("Ancient Way");
+    processingModeBox.setJustificationType(juce::Justification::centred);
+    processingModeBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff14171b));
+    processingModeBox.setColour(juce::ComboBox::textColourId, juce::Colour(0xffe6e1d6));
+    processingModeBox.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff3a3f46));
+    processingModeBox.setColour(juce::ComboBox::arrowColourId, juce::Colour(0xffe6e1d6));
+    processingModeBox.setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xff14171b));
+    processingModeBox.setColour(juce::PopupMenu::textColourId, juce::Colour(0xffe6e1d6));
+    processingModeBox.setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(0xff242833));
+    processingModeBox.setColour(juce::PopupMenu::highlightedTextColourId, juce::Colour(0xffe6e1d6));
+    processingModeBox.onChange = [this]()
+    {
+        const int selectedId = processingModeBox.getSelectedId();
+        ProcessingMode mode = ProcessingMode::AncientWay;
+
+        switch (selectedId)
+        {
+            case 1: mode = ProcessingMode::AncientWay; break;
+            case 2: mode = ProcessingMode::ResonantHalls; break;
+            case 3: mode = ProcessingMode::BreathingStone; break;
+        }
+
+        processorRef.setProcessingMode(mode);
+    };
+    addAndMakeVisible(processingModeBox);
+
     // Preset browser styling
     presetBox.setTextWhenNothingSelected("Presets");
     presetBox.setJustificationType(juce::Justification::centred);
@@ -202,6 +238,15 @@ void MonumentAudioProcessorEditor::resized()
     auto archLabel = topBar.removeFromRight(archLabelWidth);
     routingPresetLabel.setBounds(archLabel);
     routingPresetBox.setBounds(archDropdown);
+
+    // Processing Mode Selector (next to routing architecture)
+    topBar.removeFromRight(10);  // Small gap
+    const auto modeLabelWidth = 50;
+    const auto modeDropdownWidth = 150;
+    auto modeDropdown = topBar.removeFromRight(modeDropdownWidth);
+    auto modeLabel = topBar.removeFromRight(modeLabelWidth);
+    processingModeLabel.setBounds(modeLabel);
+    processingModeBox.setBounds(modeDropdown);
 
     // Macro Controls Section
     area.removeFromTop(25);  // Label space

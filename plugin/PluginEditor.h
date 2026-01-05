@@ -54,6 +54,10 @@ private:
     juce::ComboBox routingPresetBox;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> routingPresetAttachment;
 
+    // Processing Mode Selector (Ancient Monuments Routing)
+    juce::Label processingModeLabel;
+    juce::ComboBox processingModeBox;
+
     // Modulation Matrix Panel
     juce::TextButton modMatrixToggleButton;
     std::unique_ptr<monument::ui::ModMatrixPanel> modMatrixPanel;

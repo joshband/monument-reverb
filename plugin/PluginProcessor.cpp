@@ -138,6 +138,10 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     paradoxResonanceFreqSmoother.reset(sampleRate, smoothingRampSeconds);
     paradoxGainSmoother.reset(sampleRate, smoothingRampSeconds);
 
+    // Initialize processing mode transition gain (starts at 1.0 for no fade)
+    modeTransitionGain.reset(sampleRate, 0.05);  // 50ms fade time
+    modeTransitionGain.setCurrentAndTargetValue(1.0f);
+
     presetFadeSamples = juce::jmax(
         1, static_cast<int>(std::round(sampleRate * (kPresetFadeMs / 1000.0f))));
     presetFadeRemaining = 0;
@@ -530,10 +534,49 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
             dryBuffer.copyFrom(channel, 0, buffer, channel, 0, numSamples);
     }
 
-    // Process DSP routing graph (replaces individual module processing)
+    // Check for processing mode change (Ancient Monuments routing)
+    if (modeChangeRequested.exchange(false, std::memory_order_acquire))
+    {
+        // Fade out current mode (50ms)
+        modeTransitionGain.setTargetValue(0.0f);
+
+        // Wait for fade to complete (handled smoothly by SmoothedValue)
+        // After processing this block at reduced gain, switch mode
+
+        // Switch to pending mode
+        currentMode = pendingMode.load(std::memory_order_acquire);
+
+        // Fade in new mode (50ms)
+        modeTransitionGain.setTargetValue(1.0f);
+    }
+
+    // Process with current routing mode (Ancient Monuments routing modes)
     // NOTE: MemoryEchoes integration is temporarily disabled during Phase 1
     // TODO: Re-integrate MemoryEchoes with routing graph in future phase
-    routingGraph.process(buffer);
+    switch (currentMode)
+    {
+        case ProcessingMode::AncientWay:
+            processBlockAncientWay(buffer);
+            break;
+        case ProcessingMode::ResonantHalls:
+            processBlockResonantHalls(buffer);
+            break;
+        case ProcessingMode::BreathingStone:
+            processBlockBreathingStone(buffer);
+            break;
+    }
+
+    // Apply transition gain for smooth mode crossfading
+    // SmoothedValue handles per-sample interpolation automatically
+    for (int sample = 0; sample < numSamples; ++sample)
+    {
+        const float gain = modeTransitionGain.getNextValue();
+        for (int channel = 0; channel < numChannels; ++channel)
+        {
+            auto* data = buffer.getWritePointer(channel);
+            data[sample] *= gain;
+        }
+    }
 
 #if defined(MONUMENT_MEMORY_PROVE)
     if (routeMemoryToOutput)
@@ -996,6 +1039,40 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
         0.3f));  // Default: subtle amplification
 
     return {params.begin(), params.end()};
+}
+
+// ============================================================================
+// Processing Mode Management (Ancient Monuments Routing)
+// ============================================================================
+
+void MonumentAudioProcessor::setProcessingMode(ProcessingMode mode)
+{
+    // Called from UI thread (non-audio thread)
+    pendingMode.store(mode, std::memory_order_release);
+    modeChangeRequested.store(true, std::memory_order_release);
+}
+
+ProcessingMode MonumentAudioProcessor::getProcessingMode() const noexcept
+{
+    return currentMode;
+}
+
+void MonumentAudioProcessor::processBlockAncientWay(juce::AudioBuffer<float>& buffer)
+{
+    // Traditional routing (current implementation)
+    routingGraph.processAncientWay(buffer);
+}
+
+void MonumentAudioProcessor::processBlockResonantHalls(juce::AudioBuffer<float>& buffer)
+{
+    // Metallic First: TubeRayTracer before Chambers
+    routingGraph.processResonantHalls(buffer);
+}
+
+void MonumentAudioProcessor::processBlockBreathingStone(juce::AudioBuffer<float>& buffer)
+{
+    // Elastic Core: ElasticHallway surrounds Chambers
+    routingGraph.processBreathingStone(buffer);
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
