@@ -312,3 +312,22 @@ if(MONUMENT_ENABLE_TESTS)
   )
   add_test(NAME monument_constant_power_panning_test COMMAND monument_constant_power_panning_test)
 endif()
+
+# Doppler Shift Test (Phase 3: Three-System Plan)
+if(BUILD_TESTING)
+  add_executable(monument_doppler_shift_test
+    tests/DopplerShiftTest.cpp
+    dsp/SpatialProcessor.cpp
+  )
+  target_include_directories(monument_doppler_shift_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_link_libraries(monument_doppler_shift_test PRIVATE
+      juce::juce_audio_basics
+      juce::juce_core
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+  add_test(NAME monument_doppler_shift_test COMMAND monument_doppler_shift_test)
+endif()
