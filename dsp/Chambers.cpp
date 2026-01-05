@@ -624,7 +624,17 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
                 ? std::sin(driftPhase[i]) * driftDepth
                 : 0.0f;
             const float driftedDelay = juce::jmax(1.0f, delaySamples[i] + modOffset);
-            float delayedSample = readFractionalDelay(lineData[i], delayBufferLength, readPos, driftedDelay);
+
+            // Apply Doppler shift to delay time (Phase 3: Three-System Plan)
+            float finalDelay = driftedDelay;
+            if (spatialProcessor)
+            {
+                const float dopplerShift = spatialProcessor->getDopplerShift(static_cast<int>(i));
+                finalDelay += dopplerShift;
+                finalDelay = juce::jmax(1.0f, finalDelay); // Ensure positive delay
+            }
+
+            float delayedSample = readFractionalDelay(lineData[i], delayBufferLength, readPos, finalDelay);
 
             // Apply spatial distance attenuation (Phase 1: Three-System Plan)
             if (spatialProcessor)
