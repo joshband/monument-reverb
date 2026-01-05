@@ -8,6 +8,7 @@
 #include "ui/MonumentTimeKnob.h"
 #include "ui/HeroKnob.h"
 #include "ui/ModMatrixPanel.h"
+#include "ui/TimelineComponent.h"
 
 class MonumentAudioProcessorEditor : public juce::AudioProcessorEditor
 {
@@ -62,6 +63,11 @@ private:
     juce::TextButton modMatrixToggleButton;
     std::unique_ptr<monument::ui::ModMatrixPanel> modMatrixPanel;
     bool modMatrixVisible{false};
+
+    // Timeline Editor Panel (Phase 5)
+    juce::TextButton timelineToggleButton;
+    std::unique_ptr<monument::ui::TimelineComponent> timelinePanel;
+    bool timelineVisible{false};
 
     // Base Parameters visibility toggle
     juce::TextButton baseParamsToggleButton;
