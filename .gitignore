@@ -50,3 +50,6 @@ scripts/*_variants.py
 # Generated assets (large files, not version controlled)
 assets/textures/
 assets/ui/knobs_enhanced/
+
+# Test output (generated audio captures and analysis)
+test-results/
