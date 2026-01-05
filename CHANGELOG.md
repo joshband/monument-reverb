@@ -10,6 +10,73 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Memory Echoes development has moved to a standalone repository. Monument's
   release line is intentionally memory-free until the planned v1.6 reintegration.
 
+### Task 3 Complete: 9 New "Living" Presets (2026-01-04)
+
+**Status**: ✅ Complete
+
+**Implementation Summary**:
+
+- Added 9 new "Living" presets showcasing creative modulation routings
+- Total factory presets: 37 (28 existing + 9 new)
+- Updated preset count in PresetManager.h from 28 to 37
+- Enhanced destination type serialization to support all physical modeling parameters
+
+**New Preset Categories**:
+
+**Dynamic Response (AudioFollower-driven):**
+
+1. **Pulsing Cathedral** - Reverb size swells with input level
+2. **Dynamic Shimmer** - High-frequency air increases with intensity
+
+**Chaotic Motion (ChaosAttractor-driven):**
+
+1. **Quantum Shimmer** - Physics violations ebb and flow unpredictably
+2. **Morphing Cathedral** - Tube complexity shifts chaotically while space drifts
+3. **Fractal Space** - Topology morphs through chaotic attractor states
+
+**Organic Evolution (BrownianMotion-driven):**
+
+1. **Elastic Drift** - Walls breathe with random walk motion
+2. **Spectral Wander** - Tube brightness drifts organically
+
+**Experimental Combinations:**
+
+1. **Impossible Hall** - Energy gain triggered by input (explores ParadoxGain)
+2. **Breathing Chaos** - Elastic walls deform intermittently with chaos
+
+**Files Modified**:
+
+- [plugin/PresetManager.h:77](plugin/PresetManager.h) - Updated kNumFactoryPresets (28 → 37)
+- [plugin/PresetManager.cpp:215-305](plugin/PresetManager.cpp) - Added 9 new presets
+- [plugin/PresetManager.cpp:546-615](plugin/PresetManager.cpp) - Enhanced destination serialization
+
+**Impact**:
+
+- Demonstrates full modulation system capabilities across all 4 sources
+- Provides ready-to-use starting points for sonic exploration
+- Showcases physical modeling parameter modulation
+- Enables instant creative discovery through preset browsing
+
+### Task 2 Complete: Randomize Modulation Button (2026-01-04)
+
+**Status**: ✅ Verified complete (already implemented in codebase)
+
+**Implementation Verification**:
+
+- Three randomization methods in ModulationMatrix (randomizeSparse, randomizeAll, randomizeDense)
+- Thread-safe using SpinLock for connection vector access
+- Musical safety constraints: depth ±60% max, smoothing ≥100ms
+- UI popup menu with 4 options (Sparse/Normal/Dense/Clear All)
+- Button located in top-right of modulation matrix panel
+- JUCE DSP Expert Review: Grade A- (92/100) - Real-time safe, thread-safe, efficient
+
+**Files Verified**:
+
+- [dsp/ModulationMatrix.h:161-187](dsp/ModulationMatrix.h) - Method declarations
+- [dsp/ModulationMatrix.cpp:668-761](dsp/ModulationMatrix.cpp) - Implementation
+- [ui/ModMatrixPanel.h:70](ui/ModMatrixPanel.h) - Button declaration
+- [ui/ModMatrixPanel.cpp:33-41,636-681](ui/ModMatrixPanel.cpp) - UI and menu
+
 ### Changed - Preset System v4 Migration (2026-01-04)
 
 - **Preset Format v3→v4**: Migrated preset system to support 10 Ancient Monuments macros
@@ -18,6 +85,34 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   - All 28 factory presets updated with new macro support via default parameters
   - User presets from v3 will seamlessly load with sensible defaults for new macros
   - See [plugin/PresetManager.h:37-41](plugin/PresetManager.h) and [plugin/PresetManager.cpp:7](plugin/PresetManager.cpp)
+
+### Added - Modulation Matrix UI Enhancements (2026-01-04)
+
+- **Enhanced Randomization**: 4 randomization modes for creative modulation exploration
+  - **Sparse Mode** (2-3 connections, ±20-40% depth): Subtle, focused modulation for gentle movement
+  - **Normal Mode** (4-8 connections, ±20-60% depth): Balanced modulation density (default behavior)
+  - **Dense Mode** (8-12 connections, ±40-80% depth): Extreme, complex modulation for chaotic spaces
+  - **Clear All**: Remove all connections, reset to static state
+  - Accessed via dropdown menu on "Randomize" button in ModMatrixPanel
+  - See [ui/ModMatrixPanel.h](ui/ModMatrixPanel.h) and [ui/ModMatrixPanel.cpp](ui/ModMatrixPanel.cpp)
+- **Connection Presets**: 5 preset slots for saving/loading complete modulation routing configurations
+  - **Save Button**: Store current routing to slots 1-5 (shows connection count in labels)
+  - **Load Button**: Recall routing from saved presets (prevents loading from empty slots)
+  - Preserves all connection properties: source, destination, depth, smoothing, probability
+  - Use cases: snapshot random configs, switch between performance states, share routing templates
+  - See [ui/ModMatrixPanel.cpp:460-520](ui/ModMatrixPanel.cpp)
+- **Probability Gates**: Per-connection probability parameter (0-100%) for intermittent modulation
+  - **0%**: Connection never applies modulation (effectively disabled)
+  - **50%**: Modulation active ~50% of the time (unpredictable gating)
+  - **100%**: Always active (traditional continuous modulation)
+  - Block-rate probability evaluation (not per-sample) for efficiency
+  - Creates evolving, non-repeating soundscapes and rhythmic texture variations
+  - Orange-colored slider in ModMatrixPanel for visual distinction
+  - See [dsp/ModulationMatrix.h:23](dsp/ModulationMatrix.h) and [dsp/ModulationMatrix.cpp:82-95](dsp/ModulationMatrix.cpp)
+- **Character Encoding Fixes**: Removed emoji and special characters for ASCII compatibility
+  - "Randomize" button text (removed emoji that displayed as superscript 2)
+  - Bullets changed from "•" to "-" (was showing as "â€¢")
+  - Arrows changed from "→" to "->" (ASCII-safe)
 
 ### Added - Phase 5: Physical Modeling Integration Complete (2026-01-04)
 

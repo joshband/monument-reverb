@@ -74,7 +74,7 @@ public:
 
     juce::File getDefaultUserPresetDirectory() const;
 
-    static constexpr size_t kNumFactoryPresets = 28;  // 18 original + 5 "Living" + 5 Physical Modeling presets (Phase 5)
+    static constexpr size_t kNumFactoryPresets = 37;  // 18 original + 5 "Living" (Phase 3) + 5 Physical Modeling (Phase 5) + 9 "Living" (Phase 6/Task 3)
     static const std::array<Preset, kNumFactoryPresets>& getFactoryPresets();
 
 private:
