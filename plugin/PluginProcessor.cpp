@@ -116,6 +116,7 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     // Prepare separate features (not part of routing graph)
     memoryEchoes.prepare(sampleRate, samplesPerBlock, numChannels);
     modulationMatrix.prepare(sampleRate, samplesPerBlock, numChannels);
+    sequenceScheduler.prepare(sampleRate, samplesPerBlock);  // Phase 4: Timeline automation
 
     // Initialize JUCE SmoothedValue for macro parameter smoothing (50ms ramp time)
     const double smoothingRampSeconds = 0.05;  // 50ms = smooth but responsive
@@ -258,6 +259,40 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     paramCache.paradoxGain = parameters.getRawParameterValue("paradoxGain")->load();
     paramCache.routingPreset = parameters.getRawParameterValue("routingPreset")->load();
     paramCache.macroMode = parameters.getRawParameterValue("macroMode")->load();
+
+    // Process sequence scheduler (Phase 4: Timeline automation)
+    // This must happen BEFORE using paramCache values, so sequenced values can override them
+    sequenceScheduler.process(getPlayHead()->getPosition(), buffer.getNumSamples());
+
+    // Apply sequence scheduler overrides to paramCache (if any parameters are automated)
+    using ParamId = monument::dsp::SequenceScheduler::ParameterId;
+    #define APPLY_SEQUENCED_PARAM(paramId, cacheField) \
+        if (auto value = sequenceScheduler.getParameterValue(ParamId::paramId)) \
+            paramCache.cacheField = *value;
+
+    APPLY_SEQUENCED_PARAM(Time, time)
+    APPLY_SEQUENCED_PARAM(Mass, mass)
+    APPLY_SEQUENCED_PARAM(Density, density)
+    APPLY_SEQUENCED_PARAM(Bloom, bloom)
+    APPLY_SEQUENCED_PARAM(Gravity, gravity)
+    APPLY_SEQUENCED_PARAM(Warp, warp)
+    APPLY_SEQUENCED_PARAM(Drift, drift)
+    APPLY_SEQUENCED_PARAM(Memory, memory)
+    APPLY_SEQUENCED_PARAM(MemoryDepth, memoryDepth)
+    APPLY_SEQUENCED_PARAM(MemoryDecay, memoryDecay)
+    APPLY_SEQUENCED_PARAM(MemoryDrift, memoryDrift)
+    APPLY_SEQUENCED_PARAM(Mix, mix)
+    APPLY_SEQUENCED_PARAM(Material, material)
+    APPLY_SEQUENCED_PARAM(Topology, topology)
+    APPLY_SEQUENCED_PARAM(Viscosity, viscosity)
+    APPLY_SEQUENCED_PARAM(Evolution, evolution)
+    APPLY_SEQUENCED_PARAM(ChaosIntensity, chaosIntensity)
+    APPLY_SEQUENCED_PARAM(ElasticityDecay, elasticityDecay)
+    APPLY_SEQUENCED_PARAM(Patina, patina)
+    APPLY_SEQUENCED_PARAM(Abyss, abyss)
+    APPLY_SEQUENCED_PARAM(Corona, corona)
+    APPLY_SEQUENCED_PARAM(Breath, breath)
+    #undef APPLY_SEQUENCED_PARAM
 
     // Handle routing preset changes (Phase 1.5)
     const auto currentRoutingPreset = static_cast<int>(paramCache.routingPreset);

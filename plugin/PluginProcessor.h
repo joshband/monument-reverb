@@ -9,6 +9,7 @@
 #include "dsp/MacroMapper.h"
 #include "dsp/ExpressiveMacroMapper.h"
 #include "dsp/ModulationMatrix.h"
+#include "dsp/SequenceScheduler.h"
 #include "PresetManager.h"
 
 /**
@@ -70,6 +71,7 @@ public:
     void loadUserPreset(const juce::File& sourceFile);
 
     monument::dsp::ModulationMatrix& getModulationMatrix() { return modulationMatrix; }
+    monument::dsp::SequenceScheduler& getSequenceScheduler() { return sequenceScheduler; }  // Phase 4
 
     // Processing mode management (Ancient Monuments routing)
     void setProcessingMode(ProcessingMode mode);
@@ -96,6 +98,7 @@ private:
     monument::dsp::MacroMapper macroMapper;
     monument::dsp::ExpressiveMacroMapper expressiveMacroMapper;
     monument::dsp::ModulationMatrix modulationMatrix;
+    monument::dsp::SequenceScheduler sequenceScheduler;  // Phase 4: Timeline automation
 
     // FIXED: Parameter cache for batched atomic loads (reduces overhead from 25+ sequential atomics)
     struct ParameterCache

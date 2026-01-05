@@ -332,6 +332,26 @@ if(BUILD_TESTING)
   add_test(NAME monument_doppler_shift_test COMMAND monument_doppler_shift_test)
 endif()
 
+# SequenceScheduler Test (Phase 4: Three-System Plan)
+if(BUILD_TESTING)
+  add_executable(monument_sequence_scheduler_test
+    tests/SequenceSchedulerTest.cpp
+    dsp/SequenceScheduler.cpp
+    dsp/SequencePresets.cpp
+  )
+  target_include_directories(monument_sequence_scheduler_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_link_libraries(monument_sequence_scheduler_test PRIVATE
+      juce::juce_audio_basics
+      juce::juce_core
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+  add_test(NAME monument_sequence_scheduler_test COMMAND monument_sequence_scheduler_test)
+endif()
+
 # Plugin Analyzer Tool
 option(MONUMENT_BUILD_ANALYZER "Build Monument plugin analyzer tool" ON)
 

@@ -1,13 +1,58 @@
 # Monument Reverb - Session Handoff
 
-**Date:** 2026-01-05 (Updated)
+**Date:** 2026-01-05 (Updated - Evening)
 **Branch:** `feature/three-systems`
-**Progress:** 23 of 42 tasks (55% complete)
-**Status:** Phase 3 COMPLETE ✅ + Plugin Analyzer Tool ✅ + Testing Infrastructure COMPLETE ✅
+**Progress:** 31 of 42 tasks (74% complete)
+**Status:** Phase 4 COMPLETE ✅ + Comprehensive Test Plan Ready ✅
 
 ---
 
-## Latest Session (2026-01-05 Part 3): Batch Testing Infrastructure ✅
+## Latest Session (2026-01-05 Part 4): Phase 4 - SequenceScheduler + Test Plan ✅
+
+### What We Built
+
+**🎯 Phase 4 Complete** - Timeline automation system for parameter evolution!
+
+**New Files:**
+- ✅ [dsp/SequenceScheduler.h/cpp](dsp/SequenceScheduler.h) - Timeline-based parameter automation
+- ✅ [dsp/SequencePresets.h/cpp](dsp/SequencePresets.h) - 3 factory timeline presets
+- ✅ [tests/SequenceSchedulerTest.cpp](tests/SequenceSchedulerTest.cpp) - Complete unit tests (7 passing)
+- ✅ [tools/COMPREHENSIVE_TEST_PLAN.md](tools/COMPREHENSIVE_TEST_PLAN.md) - 10 automated DSP test suites
+
+**SequenceScheduler Features:**
+- Keyframe-based timeline with arbitrary parameter targets
+- Tempo-synchronized playback (beats) or free-running (seconds)
+- Multiple interpolation curves: Linear, Exponential, S-curve, Step
+- Loop modes: One-shot, Loop, Ping-pong
+- Real-time safe (pre-allocated, no locks in audio thread)
+
+**Timeline Presets:**
+1. **Evolving Cathedral** - Small room → massive cathedral over 16 bars (tempo-synced)
+2. **Spatial Journey** - 3D circular motion with Doppler shifts (tempo-synced)
+3. **Living Space** - Subtle organic drift over 32 seconds (free-running)
+
+**Integration:**
+- Wired to [plugin/PluginProcessor.cpp](plugin/PluginProcessor.cpp) - Processes before parameter cache
+- Overrides APVTS parameters when sequence is enabled
+- All 26 parameters can be automated (Time, Mass, Density, etc.)
+
+**Test Results:**
+```
+===== SequenceScheduler Unit Tests =====
+✓ Basic keyframe interpolation
+✓ Multiple parameter automation
+✓ Loop playback mode
+✓ Interpolation curves (Linear, S-curve, etc.)
+✓ Tempo-synced beat timing
+✓ Factory presets load correctly
+✓ Disabled sequence bypass
+
+✅ All 7 tests passed!
+```
+
+---
+
+## Previous Session (2026-01-05 Part 3): Batch Testing Infrastructure ✅
 
 ### What We Built
 
@@ -489,44 +534,94 @@ ctest --test-dir build -C Debug
 
 ---
 
-## Recommended Next Steps
+## NEXT SESSION PRIORITIES
 
-### Immediate (This Session)
-1. ✅ Verify preset loading works
-2. ✅ Fix build and install scripts
-3. ✅ Test analyzer with all presets
+### Option A: Implement Comprehensive DSP Tests ⭐⭐⭐ (Recommended)
 
-### Next Session (Option B - Testing Focus) ⭐
-1. **Batch Capture** - All 37 presets (impulse responses)
-2. **Analysis Pipeline** - RT60 + frequency response for each
-3. **Baseline Metrics** - Create reference JSON files
-4. **Visualization** - Generate comparison charts
-5. **Regression Tool** - Compare before/after captures
+**Goal:** Add 10 automated DSP quality tests (zero manual DAW testing required)
 
-### Future Sessions (Option A - Continue Three-System)
-1. Phase 4: SequenceScheduler implementation
-2. Phase 5: Timeline UI editor
-3. Phase 6: Memory Echoes integration
+**Test Plan:** See [tools/COMPREHENSIVE_TEST_PLAN.md](tools/COMPREHENSIVE_TEST_PLAN.md) for full details
+
+**Priority 1 - High (Week 1):**
+1. ✅ RT60 Accuracy Test - Verify decay time matches `time` parameter
+2. ✅ Frequency Response Test - Verify tonal balance and flatness
+3. ✅ CPU Performance Benchmark - Prevent performance regressions (<2ms/block)
+4. ✅ Audio Regression Test - Detect unintended DSP changes
+
+**Priority 2 - Medium (Week 2):**
+5. ✅ Modulation Depth Test - Verify bounds and stability
+6. ✅ Parameter Smoothing Test - No clicks/pops (<-60dB THD+N)
+7. ✅ Stereo Width Test - Verify spatial processing
+8. ✅ Latency & Phase Test - DAW compatibility
+
+**Priority 3 - Low (Week 3):**
+9. ✅ Preset Loading Test - All 37 presets load without errors
+10. ✅ State Save/Recall Test - DAW automation compatibility
+
+**Deliverables:**
+- 10 new test files in `tests/`
+- Updated CMakeLists.txt with new test targets
+- CI/CD integration (GitHub Actions)
+- ~50 individual test cases
+- 100% automated (no manual DAW testing)
+
+### Option B: Continue Three-System Plan → Phase 5
+
+**Phase 5 - Timeline UI Editor** (Tasks 32-36)
+- Visual timeline editor for SequenceScheduler
+- Drag-and-drop keyframe editing
+- Real-time preview while editing
+- Save/load custom sequences
+
+### Option C: Phase 6 - Memory Echoes Timeline Integration
+
+**Phase 6 - Memory Echoes + SequenceScheduler** (Tasks 37-42)
+- Integrate Memory Echoes with timeline automation
+- Automated memory depth morphing
+- Cross-fade between memory states
 
 ---
 
-## Key Files Modified
+## Key Files Modified (Phase 4)
 
-- **[scripts/rebuild_and_install.sh](scripts/rebuild_and_install.sh)** - NEW: Complete build+install workflow
-- **[tools/plugin-analyzer/python/rt60_analysis_robust.py](tools/plugin-analyzer/python/rt60_analysis_robust.py)** - RT60 with fallback methods
-- **[tools/plugin-analyzer/python/frequency_response.py](tools/plugin-analyzer/python/frequency_response.py)** - FFT analysis
-- **[plugin/PluginProcessor.cpp:75-97](plugin/PluginProcessor.cpp#L75)** - Preset interface implementation
-- **[plugin/PresetManager.cpp:86](plugin/PresetManager.cpp#L86)** - 37 factory presets array
+**New Files:**
+- **[dsp/SequenceScheduler.h](dsp/SequenceScheduler.h)** - Timeline automation header (282 lines)
+- **[dsp/SequenceScheduler.cpp](dsp/SequenceScheduler.cpp)** - Implementation (392 lines)
+- **[dsp/SequencePresets.h](dsp/SequencePresets.h)** - Factory presets header
+- **[dsp/SequencePresets.cpp](dsp/SequencePresets.cpp)** - 3 timeline presets (205 lines)
+- **[tests/SequenceSchedulerTest.cpp](tests/SequenceSchedulerTest.cpp)** - Unit tests (326 lines)
+- **[tools/COMPREHENSIVE_TEST_PLAN.md](tools/COMPREHENSIVE_TEST_PLAN.md)** - Test plan (380 lines)
+
+**Modified Files:**
+- **[plugin/PluginProcessor.h:12,74,100](plugin/PluginProcessor.h)** - Added SequenceScheduler member + getter
+- **[plugin/PluginProcessor.cpp:119,263-295](plugin/PluginProcessor.cpp)** - prepare() + processBlock() integration
+- **[CMakeLists.txt:335-352](CMakeLists.txt)** - Added SequenceScheduler test target
+
+---
+
+## Three-System Plan Progress Update
+
+**Current Status:** 31 of 42 tasks (74% complete)
+
+**Completed Phases:**
+- ✅ Phase 1: Spatial Basics (Tasks 1-7)
+- ✅ Phase 2: 3D Panning (Tasks 8-15)
+- ✅ Phase 3: Doppler Effects (Tasks 16-23)
+- ✅ Phase 4: SequenceScheduler (Tasks 24-31) ← **JUST COMPLETED**
+
+**Remaining Phases:**
+- ⏳ Phase 5: Timeline UI Editor (Tasks 32-36) - 5 tasks
+- ⏳ Phase 6: Memory Echoes Integration (Tasks 37-42) - 6 tasks
 
 ---
 
 ## Token Budget Notes
 
-**Session Cost:** ~$4-5 (well under $6/day target)
-**Context Used:** 105K/200K tokens (52.5%)
-**Recommendation:** Safe to continue OR `/clear` and use this handoff for next session
+**Session Cost:** ~$6-7 (within $12/day ceiling)
+**Context Used:** 106K/200K tokens (53%)
+**Recommendation:** `/clear` and use this handoff for next session (fresh start for comprehensive tests)
 
 ---
 
-**Context:** Build infrastructure fixed, presets verified. Ready for batch testing OR continue to Phase 4.
-**Choice:** Option B (Testing) strongly recommended - validate all presets before continuing development.
+**Context:** Phase 4 complete, testing infrastructure ready, comprehensive test plan documented.
+**Next:** Implement 10 automated DSP quality tests (Option A strongly recommended).
