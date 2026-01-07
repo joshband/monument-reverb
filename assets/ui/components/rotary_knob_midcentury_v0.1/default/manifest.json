@@ -1,0 +1,10 @@
+{
+  "component": "rotary_knob_midcentury_v0.1",
+  "state": "default",
+  "files": {
+    "albedo": "albedo.png",
+    "normal": "normal.png",
+    "orm": "orm.png",
+    "composite": "composite.png"
+  }
+}

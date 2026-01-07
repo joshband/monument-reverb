@@ -32,6 +32,7 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
     void timerCallback() override;
+    void visibilityChanged() override;
 
     /**
      * @brief Refresh UI to match current sequence state.

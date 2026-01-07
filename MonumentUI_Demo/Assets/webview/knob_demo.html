@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebView PBR Knob</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        .knob-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            margin: 0 auto 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .knob-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+            pointer-events: none;
+        }
+
+        /* Contact Shadow - beneath knob */
+        .layer-shadow {
+            background-image: url('../knobs/knob_geode/contact_shadow.png');
+            opacity: 0.6;
+            /* Normal blend (default) */
+        }
+
+        /* Base Albedo - color/diffuse */
+        .layer-albedo {
+            background-image: url('../knobs/knob_geode/albedo.png');
+            opacity: 1.0;
+        }
+
+        /* Ambient Occlusion - darkens crevices */
+        .layer-ao {
+            background-image: url('../knobs/knob_geode/ao.png');
+            mix-blend-mode: multiply;
+            opacity: 0.5;
+        }
+
+        /* Glow Core - center LED */
+        .layer-glow-core {
+            background-image: url('../knobs/knob_geode/glow_core.png');
+            mix-blend-mode: screen;
+            opacity: 0.7;
+        }
+
+        /* Glow Crystal - material shine */
+        .layer-glow-crystal {
+            background-image: url('../knobs/knob_geode/glow_crystal.png');
+            mix-blend-mode: screen;
+            opacity: 0.6;
+        }
+
+        /* Highlight - specular reflections */
+        .layer-highlight {
+            background-image: url('../knobs/knob_geode/highlight.png');
+            mix-blend-mode: screen;
+            opacity: 0.4;
+            transition: opacity 0.15s ease;
+        }
+
+        .knob-container:hover .layer-highlight {
+            opacity: 0.6;
+        }
+
+        /* Indicator - rotation pointer */
+        .layer-indicator {
+            background-image: url('../knobs/knob_geode/indicator.png');
+            opacity: 0.9;
+            transform: rotate(0deg);
+            transition: transform 0.1s ease-out;
+        }
+
+        .label {
+            color: #ffffff;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .value-display {
+            color: #888;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .info {
+            color: #666;
+            font-size: 12px;
+            margin-top: 20px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .blend-mode-list {
+            margin-top: 10px;
+            text-align: left;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="label">WebView PBR Knob (CSS Blend Modes)</div>
+
+        <div class="knob-container" id="knob">
+            <div class="knob-layer layer-shadow"></div>
+            <div class="knob-layer layer-albedo"></div>
+            <div class="knob-layer layer-ao"></div>
+            <div class="knob-layer layer-glow-core"></div>
+            <div class="knob-layer layer-glow-crystal"></div>
+            <div class="knob-layer layer-highlight"></div>
+            <div class="knob-layer layer-indicator"></div>
+        </div>
+
+        <div class="value-display">Value: <span id="value">0.50</span> (0.00 - 1.00)</div>
+
+        <div class="info">
+            <strong>CSS Blend Modes Active:</strong>
+            <div class="blend-mode-list">
+                • Albedo: normal<br>
+                • AO: multiply (darkens)<br>
+                • Glow Core: screen (brightens)<br>
+                • Glow Crystal: screen (brightens)<br>
+                • Highlight: screen (brightens)<br>
+                • Indicator: normal (rotates)
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const knob = document.getElementById('knob');
+        const indicator = document.querySelector('.layer-indicator');
+        const valueDisplay = document.getElementById('value');
+
+        let value = 0.5;
+        let isDragging = false;
+        let startY = 0;
+        let startValue = 0;
+
+        function updateKnob(newValue) {
+            // Clamp value to 0.0 - 1.0
+            value = Math.max(0, Math.min(1, newValue));
+
+            // Map to -135° to +135°
+            const angle = (value * 270) - 135;
+
+            // Update indicator rotation
+            indicator.style.transform = `rotate(${angle}deg)`;
+
+            // Update display
+            valueDisplay.textContent = value.toFixed(2);
+
+            // Send to JUCE (if choc webview communication is set up)
+            if (window.sendValueToJUCE) {
+                window.sendValueToJUCE(value);
+            }
+        }
+
+        // Mouse drag interaction
+        knob.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startY = e.clientY;
+            startValue = value;
+            knob.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            const deltaY = startY - e.clientY;
+            const sensitivity = 0.005;
+            const newValue = startValue + (deltaY * sensitivity);
+
+            updateKnob(newValue);
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                knob.style.cursor = 'pointer';
+            }
+        });
+
+        // Wheel scroll
+        knob.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = -e.deltaY * 0.001;
+            updateKnob(value + delta);
+        });
+
+        // Initialize
+        updateKnob(0.5);
+    </script>
+</body>
+</html>
