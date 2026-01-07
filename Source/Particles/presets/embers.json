@@ -1,0 +1,39 @@
+{
+  "version": "0.1",
+  "behavior_id": "embers",
+  "description": "Glowing embers with fluid motion and audio reactivity",
+  "emission": {
+    "mode": "continuous",
+    "rate": 25,
+    "burst": { "enabled": true, "trigger": "audio_peak", "count": 8, "cooldown_ms": 150 },
+    "initial_state": {
+      "velocity": { "type": "radial", "min": 15.0, "max": 45.0 },
+      "energy": 0.85,
+      "size": { "min": 1.2, "max": 2.8 }
+    }
+  },
+  "forces": [
+    { "type": "curl_noise", "strength": 3.5, "scale": 0.35, "time_scale": 0.25, "modulate_by": "audio_rms" },
+    { "type": "drag", "coefficient": 0.88 }
+  ],
+  "modulation": {
+    "audio_inputs": {
+      "rms": { "smoothing_ms": 80, "clamp": [0.0, 1.0] },
+      "peak": { "smoothing_ms": 30, "threshold": 0.6 }
+    },
+    "bindings": [
+      { "source": "rms", "target": "curl_noise.strength", "mode": "range", "range": [2.0, 6.0] }
+    ]
+  },
+  "lifecycle": {
+    "lifetime_ms": { "min": 1800, "max": 3200 },
+    "energy_decay": { "type": "exponential", "rate": 0.35 },
+    "size_decay": { "type": "linear", "rate": 0.12 }
+  },
+  "stability": {
+    "max_particles": 300,
+    "max_velocity": 80.0,
+    "force_clamp": 12.0,
+    "bounds": { "mode": "soft", "margin": 80 }
+  }
+}

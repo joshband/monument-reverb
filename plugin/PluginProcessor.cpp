@@ -798,12 +798,20 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 
 juce::AudioProcessorEditor* MonumentAudioProcessor::createEditor()
 {
+#if defined(MONUMENT_TESTING)
+    return nullptr;
+#else
     return new MonumentAudioProcessorEditor(*this);
+#endif
 }
 
 bool MonumentAudioProcessor::hasEditor() const
 {
+#if defined(MONUMENT_TESTING)
+    return false;
+#else
     return true;
+#endif
 }
 
 void MonumentAudioProcessor::getStateInformation(juce::MemoryBlock& destData)

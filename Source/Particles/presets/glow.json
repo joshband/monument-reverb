@@ -1,0 +1,41 @@
+{
+  "version": "0.1",
+  "behavior_id": "glow",
+  "description": "Knob halo / aura with audio energy emphasis",
+  "emission": {
+    "mode": "continuous",
+    "rate": 34,
+    "burst": { "enabled": true, "trigger": "audio_peak", "count": 10, "cooldown_ms": 150 },
+    "initial_state": {
+      "velocity": { "type": "radial", "min": 0.02, "max": 0.06 },
+      "energy": 1.0,
+      "size": { "min": 0.6, "max": 1.1 }
+    }
+  },
+  "forces": [
+    { "type": "curl_noise", "strength": 0.32, "scale": 0.55, "time_scale": 0.18, "modulate_by": "audio_rms" },
+    { "type": "cursor_field", "mode": "attract", "radius": 120, "strength": 0.25, "lag": 0.82 },
+    { "type": "drag", "coefficient": 0.9 }
+  ],
+  "modulation": {
+    "audio_inputs": {
+      "rms": { "smoothing_ms": 50, "clamp": [0.0, 1.0] },
+      "peak": { "smoothing_ms": 18, "threshold": 0.65 }
+    },
+    "bindings": [
+      { "source": "rms", "target": "curl_noise.strength", "mode": "range", "range": [0.25, 0.55] },
+      { "source": "peak", "target": "emission.burst", "mode": "trigger" }
+    ]
+  },
+  "lifecycle": {
+    "lifetime_ms": { "min": 900, "max": 1800 },
+    "energy_decay": { "type": "exponential", "rate": 0.85 },
+    "size_decay": { "type": "linear", "rate": 0.18 }
+  },
+  "stability": {
+    "max_particles": 360,
+    "max_velocity": 2.2,
+    "force_clamp": 1.1,
+    "bounds": { "mode": "soft", "margin": 32 }
+  }
+}

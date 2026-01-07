@@ -50,6 +50,15 @@ juce_add_plugin(Monument
 
 juce_generate_juce_header(Monument)
 
+# Monument UI Playground - standalone GUI application
+juce_add_gui_app(MonumentPlayground
+  PRODUCT_NAME "Monument UI Playground"
+  COMPANY_NAME "Monument Audio"
+  BUNDLE_ID "com.monumentaudio.monument.playground"
+)
+
+juce_generate_juce_header(MonumentPlayground)
+
 target_sources(Monument
   PRIVATE
     plugin/PluginProcessor.h
@@ -119,6 +128,50 @@ target_sources(Monument
     ui/TimelineComponent.cpp
 )
 
+# Playground application sources (PHASE 1: Stub implementations only)
+target_sources(MonumentPlayground
+  PRIVATE
+    playground/PlaygroundApp.cpp
+    playground/MainComponent.h
+    playground/MainComponent.cpp
+    playground/LayerCompositor.h
+    playground/LayerCompositor.cpp
+    playground/ComponentPack.h
+    playground/ComponentPack.cpp
+    playground/AudioEngine.h
+    playground/AudioEngine.cpp
+    # Particle system (PHASE 6: Behavior-only simulation)
+    Source/Particles/ParticleBehaviorDSL.h
+    Source/Particles/ParticleBehaviorDSL.cpp
+    Source/Particles/ParticleForces.h
+    Source/Particles/ParticleForces.cpp
+    Source/Particles/ParticleSignals.h
+    Source/Particles/ParticleSystem.h
+    Source/Particles/ParticleSystem.cpp
+    Source/Particles/ParticleTypes.h
+)
+
+target_include_directories(MonumentPlayground
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_compile_definitions(MonumentPlayground
+  PRIVATE
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+)
+
+target_link_libraries(MonumentPlayground
+  PRIVATE
+    juce::juce_audio_utils
+    juce::juce_dsp
+  PUBLIC
+    juce::juce_recommended_config_flags
+    juce::juce_recommended_lto_flags
+    juce::juce_recommended_warning_flags
+)
+
 # Add sprite sheet assets as embedded BinaryData
 # Using HEADER_NAME and NAMESPACE to make it accessible
 juce_add_binary_data(MonumentAssets
@@ -168,10 +221,71 @@ endif()
 
 if(MONUMENT_ENABLE_TESTS)
   enable_testing()
-  add_executable(monument_smoke_test
-    tests/smoke-test.cpp
+  juce_add_console_app(monument_smoke_test
+    PRODUCT_NAME "Monument Smoke Test"
   )
-  add_test(NAME monument_smoke_test COMMAND monument_smoke_test)
+  juce_generate_juce_header(monument_smoke_test)
+  target_sources(monument_smoke_test
+    PRIVATE
+      tests/smoke-test.cpp
+      plugin/PluginProcessor.h
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.h
+      plugin/PresetManager.cpp
+      dsp/DspModule.h
+      dsp/DspModules.h
+      dsp/DspModules.cpp
+      dsp/DspRoutingGraph.h
+      dsp/DspRoutingGraph.cpp
+      dsp/AllpassDiffuser.h
+      dsp/AllpassDiffuser.cpp
+      dsp/MemoryEchoes.h
+      dsp/MemoryEchoes.cpp
+      dsp/ParameterSmoother.h
+      dsp/ParameterSmoother.cpp
+      dsp/Chambers.h
+      dsp/Chambers.cpp
+      dsp/SpatialProcessor.h
+      dsp/SpatialProcessor.cpp
+      dsp/MacroMapper.h
+      dsp/MacroMapper.cpp
+      dsp/ModulationMatrix.h
+      dsp/ModulationMatrix.cpp
+      dsp/ExpressiveMacroMapper.h
+      dsp/ExpressiveMacroMapper.cpp
+      dsp/SequenceScheduler.h
+      dsp/SequenceScheduler.cpp
+      dsp/SequencePresets.h
+      dsp/SequencePresets.cpp
+      dsp/TubeRayTracer.h
+      dsp/TubeRayTracer.cpp
+      dsp/ElasticHallway.h
+      dsp/ElasticHallway.cpp
+      dsp/AlienAmplification.h
+      dsp/AlienAmplification.cpp
+  )
+  target_include_directories(monument_smoke_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_compile_definitions(monument_smoke_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+  target_link_libraries(monument_smoke_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+      MonumentAssets
+  )
+  add_test(NAME monument_smoke_test COMMAND monument_smoke_test_artefacts/Debug/monument_smoke_test)
 
   juce_add_console_app(monument_memory_echoes_test
     PRODUCT_NAME "Monument Memory Echoes Test"

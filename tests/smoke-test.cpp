@@ -1,10 +1,20 @@
-#include <cmath>
+#include <JuceHeader.h>
+
+#include "plugin/PluginProcessor.h"
 
 int main()
 {
-    const double input = 0.5;
-    const double expected = 0.25;
-    const double actual = input * input;
+    juce::ScopedJuceInitialiser_GUI juceInit;
 
-    return std::abs(actual - expected) < 1.0e-12 ? 0 : 1;
+    MonumentAudioProcessor processor;
+    processor.prepareToPlay(44100.0, 512);
+
+    juce::AudioBuffer<float> buffer(2, 512);
+    buffer.clear();
+
+    juce::MidiBuffer midi;
+    processor.processBlock(buffer, midi);
+    processor.releaseResources();
+
+    return 0;
 }
