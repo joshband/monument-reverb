@@ -103,6 +103,16 @@ target_sources(Monument
     ui/LayeredKnob.cpp
     ui/MonumentTimeKnob.h
     ui/HeroKnob.h
+    ui/PhotorealisticKnob.h
+    ui/PhotorealisticKnob.cpp
+    ui/StoneBackgroundComponent.h
+    ui/StoneBackgroundComponent.cpp
+    ui/EnhancedBackgroundComponent.h
+    ui/EnhancedBackgroundComponent.cpp
+    ui/CollapsiblePanel.h
+    ui/CollapsiblePanel.cpp
+    ui/HeaderBar.h
+    ui/HeaderBar.cpp
     ui/ModMatrixPanel.h
     ui/ModMatrixPanel.cpp
     ui/TimelineComponent.h

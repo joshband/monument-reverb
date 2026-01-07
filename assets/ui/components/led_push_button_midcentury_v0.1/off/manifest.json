@@ -1,0 +1,11 @@
+{
+  "component": "led_push_button_midcentury_v0.1",
+  "state": "off",
+  "files": {
+    "albedo": "albedo.png",
+    "normal": "normal.png",
+    "orm": "orm.png",
+    "composite": "composite.png",
+    "emissive": "emissive.png"
+  }
+}

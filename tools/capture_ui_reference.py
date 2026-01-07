@@ -301,9 +301,19 @@ class MonumentUICapture:
         print(f"\nView report: open {report_file}")
 
     def cleanup(self):
-        """Close Monument app."""
+        """Close Monument app and ensure all processes are terminated."""
         print("\nClosing Monument...")
+        # First try graceful shutdown
         subprocess.run(["killall", "Monument"],
+                      stderr=subprocess.DEVNULL, check=False)
+        time.sleep(0.5)
+
+        # Force kill any remaining processes
+        subprocess.run(["killall", "-9", "Monument"],
+                      stderr=subprocess.DEVNULL, check=False)
+
+        # Also clean up any zombie screencaptureui processes
+        subprocess.run(["killall", "-9", "screencaptureui"],
                       stderr=subprocess.DEVNULL, check=False)
 
 

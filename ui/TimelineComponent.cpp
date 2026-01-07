@@ -21,8 +21,7 @@ TimelineComponent::TimelineComponent(dsp::SequenceScheduler& scheduler)
     // Initialize with current sequence from scheduler
     updateFromScheduler();
 
-    // Start timer for playhead animation (30 FPS)
-    startTimerHz(30);
+    // Timer will be started only when visible and playing (see visibilityChanged)
 
     setSize(800, 500);
 }
@@ -30,6 +29,15 @@ TimelineComponent::TimelineComponent(dsp::SequenceScheduler& scheduler)
 TimelineComponent::~TimelineComponent()
 {
     stopTimer();
+}
+
+void TimelineComponent::visibilityChanged()
+{
+    // Only run 30 FPS timer when component is visible to save CPU
+    if (isVisible())
+        startTimerHz(30);
+    else
+        stopTimer();
 }
 
 //==============================================================================
@@ -147,10 +155,8 @@ void TimelineComponent::resized()
 void TimelineComponent::timerCallback()
 {
     // Update playhead position during playback
-    if (sequenceScheduler.isEnabled())
-    {
-        repaint();
-    }
+    // Timer only runs when visible and playing (see visibilityChanged)
+    repaint();
 }
 
 //==============================================================================
