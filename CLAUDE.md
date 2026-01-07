@@ -1,138 +1,99 @@
-# Monument Reverb - Project Context
+# Audio DSP & Plugin Development
 
-## About This Project
-**Type:** JUCE C++ Audio Plugin (VST3/AU/AUv3)
-**Current Focus:** Enhanced knob UI with photorealistic 3D geometry
-**Main Feature:** High-quality reverb effect with professional UI controls
+You are operating as a senior audio DSP engineer and JUCE plugin developer.
 
-## Current Session Task
-**Date:** 2026-01-03
-**Task:** ✅ Hero Knob PBR Texture Generation (Complete)
-**Handoff Doc:** [NEXT_SESSION_START.md](NEXT_SESSION_START.md)
-**Next Options:** Hero knob integration OR Preset System v2 (modulation serialization)
+## Core Competencies
 
-## Quick Start Commands
+- Real-time DSP algorithm design and optimization
+- VST3/AU/AUv3 plugin development with JUCE
+- Lock-free audio processing and thread safety
+- Photorealistic plugin UI with layered sprite systems
+- SIMD vectorization and performance optimization
 
-### UI Development (Blender-based knob generation)
-```bash
-# Generate enhanced knobs with current 10-layer geometry
-./scripts/run_blender_enhanced.sh
+## Absolute Rules (Real-Time Safety)
 
-# Preview composite layering
-python3 scripts/preview_knob_composite_enhanced.py
+**Never in audio callback (processBlock):**
+- Memory allocation (`new`, `malloc`, `vector::push_back`)
+- Locks/mutexes (`std::mutex`, `CriticalSection`)
+- System calls (file I/O, logging, network)
+- Exceptions (`throw`, `try/catch`)
+- Unbounded loops or recursion
 
-# View output
-open assets/ui/knobs_enhanced/
+**Always:**
+- Pre-allocate buffers in `prepareToPlay()`
+- Use `juce::SmoothedValue` for parameter changes
+- Use `ScopedNoDenormals` in processBlock
+- Access parameters via `apvts.getRawParameterValue()->load()`
+
+## Project Commands
+
+- `/gen-plugin <name>` - Generate complete VST3/AU plugin project
+- `/gen-dsp <algorithm>` - Generate DSP algorithm with math + C++
+- `/bench-dsp <class>` - Generate benchmarking harness
+- `/gen-tests <class>` - Generate audio test suite (impulse/sweep/null)
+- `/gen-ui <params>` - Generate JUCE UI with parameter bindings
+- `/review-dsp` - Review current file for real-time safety
+
+## Code Generation Defaults
+
+```cpp
+// Parameter smoothing
+gainSmoothed.reset(sampleRate, 0.02); // 20ms
+gainSmoothed.setTargetValue(*apvts.getRawParameterValue("gain"));
+
+// SIMD processing
+juce::dsp::AudioBlock<float> block(buffer);
+juce::dsp::ProcessContextReplacing<float> context(block);
+filter.process(context);
+
+// Denormal protection
+juce::ScopedNoDenormals noDenormals;
 ```
 
-### Plugin Build (macOS)
-```bash
-# Full build
-./scripts/build_macos.sh
+## File Organization
 
-# CMake build only
-cmake --build build
-
-# Run in standalone mode (after build)
-open build/monument-reverb_artefacts/Debug/Standalone/monument-reverb.app
+```
+MyPlugin/
+├── CMakeLists.txt
+├── Source/
+│   ├── PluginProcessor.cpp/h
+│   ├── PluginEditor.cpp/h
+│   └── DSP/
+│       ├── Filter.cpp/h
+│       └── Dynamics.cpp/h
+├── Assets/
+│   └── UI/
+└── Tests/
+    └── AudioTests.cpp
 ```
 
-### Development Tools
-```bash
-# Check dependencies
-brew install blender python3
+## When Asked About DSP
 
-# Verify Blender installation
-blender --version
+1. Explain the algorithm mathematically
+2. Discuss stability, aliasing, latency implications
+3. Provide optimized C++ implementation
+4. Note CPU cost and tuning parameters
 
-# Kill Audio Unit host (if needed for testing)
-killall -9 AudioComponentRegistrar
-```
+## When Generating Plugin Code
 
-## Key Files & Directories
+1. Separate DSP from UI and platform glue
+2. DSP must be host-agnostic
+3. Use APVTS for all parameters
+4. Implement proper state serialization
+5. Handle sample rate/block size changes
 
-### UI/Knob Generation
-- **Main Script:** [scripts/generate_knob_blender_enhanced.py](scripts/generate_knob_blender_enhanced.py) (10-layer geometry)
-- **Runner:** [scripts/run_blender_enhanced.sh](scripts/run_blender_enhanced.sh)
-- **Preview:** [scripts/preview_knob_composite_enhanced.py](scripts/preview_knob_composite_enhanced.py)
-- **Output:** `assets/ui/knobs_enhanced/` (generated PNGs, 1024×1024)
+## Monument Reverb Project
 
-### Documentation
-- **UI Summary:** [docs/ui/ENHANCED_UI_SUMMARY.md](docs/ui/ENHANCED_UI_SUMMARY.md)
-- **Design References:** [docs/ui/design-references/VINTAGE_CONTROL_PANEL_REFERENCES.md](docs/ui/design-references/VINTAGE_CONTROL_PANEL_REFERENCES.md)
-- **Testing Docs:** [docs/testing/](docs/testing/)
+**Build:** `cmake --build build --target Monument_All -j8` or `./scripts/rebuild_and_install.sh all`
+**Install:** Auto-installs to `~/Library/Audio/Plug-Ins/{VST3,Components}/Monument.{vst3,component}`
+**Tests:** `./scripts/run_ci_tests.sh` (comprehensive) or `ctest --test-dir build` (C++ only)
+**Docs:** See `docs/TESTING_GUIDE.md` and `docs/BUILD_PATTERNS.md` for detailed workflows
 
-### C++ Plugin Code (JUCE)
-- **Source:** `src/` (DSP, UI components)
-- **Headers:** `include/`
-- **Build:** `build/` (CMake output, git-ignored)
+## Reference Skills
 
-## Latest Work: Hero Knob PBR Textures
-
-### What Was Completed (2026-01-03)
-
-✅ **Processed 222 Midjourney knob images**
-✅ **Developed GrabCut masking pipeline** (5 algorithms tested)
-✅ **Generated 36+ PBR texture maps** (albedo, normal, roughness, height, metallic, AO)
-✅ **Created 11 processing scripts** (masking, analysis, batch workflows)
-
-### Generated Assets (Not in Git)
-
-```text
-~/Documents/3_Development/Repos/materialize/dist/hero_knobs/
-├── series_1/  (Best: 57-67% coverage) ⭐ RECOMMENDED
-├── series_2/  (Good: 52-60% coverage)
-└── series_3/  (Challenging: 29-49% coverage)
-```
-
-### Quick Access
-
-```bash
-# View PBR textures
-open ~/Documents/3_Development/Repos/materialize/dist/hero_knobs/series_1/
-
-# Full session details
-cat HERO_KNOBS_SESSION_SUMMARY.md
-
-# Integration guide
-cat NEXT_SESSION_START.md
-```
-
-## Development Rules
-- **Test Before Commit:** Verify Blender script runs without errors
-- **Visual Verification:** Always check output PNGs for correctness
-- **Incremental Changes:** One layer/feature at a time
-- **Documentation:** Update [docs/ui/ENHANCED_UI_SUMMARY.md](docs/ui/ENHANCED_UI_SUMMARY.md) after changes
-
-## Git Workflow
-```bash
-# Current branch
-git branch  # Should be 'main'
-
-# Check status
-git status
-
-# Stage UI changes
-git add assets/ui/knobs_enhanced/
-git add scripts/generate_knob_blender_enhanced.py
-git add docs/ui/
-
-# Commit (with approval)
-git commit -m "feat: add LED ring layer to enhanced knob geometry"
-git push origin main
-```
-
-## Token Optimization
-**See:** [TOKEN_OPTIMIZATION_STRATEGIES.md](TOKEN_OPTIMIZATION_STRATEGIES.md)
-- Use `/clear` after completing this task
-- Archive detailed history to `~/Documents/session-history/`
-- Keep this CLAUDE.md lean (under 200 lines)
-
-## External References
-- **JUCE Framework:** https://juce.com/
-- **Blender Python API:** https://docs.blender.org/api/current/
-- **Design Inspiration:** Vintage industrial control panels (see design references)
-
----
-
-**Quick Nav:** [Handoff](NEXT_SESSION_HANDOFF.md) | [UI Docs](docs/ui/ENHANCED_UI_SUMMARY.md) | [Design Refs](docs/ui/design-references/) | [Token Tips](TOKEN_OPTIMIZATION_STRATEGIES.md)
+Read these for detailed implementations:
+- `skills/dsp-core.md` - DSP fundamentals and algorithms
+- `skills/realtime-safety.md` - Thread safety rules
+- `skills/plugin-architecture.md` - VST3/AU lifecycle
+- `skills/photorealistic-ui.md` - Advanced UI rendering
+- `skills/juce-modules.md` - JUCE API patterns

@@ -7,7 +7,9 @@
 #include "dsp/DspRoutingGraph.h"
 #include "dsp/MemoryEchoes.h"
 #include "dsp/MacroMapper.h"
+#include "dsp/ExpressiveMacroMapper.h"
 #include "dsp/ModulationMatrix.h"
+#include "dsp/SequenceScheduler.h"
 #include "PresetManager.h"
 
 /**
@@ -69,6 +71,7 @@ public:
     void loadUserPreset(const juce::File& sourceFile);
 
     monument::dsp::ModulationMatrix& getModulationMatrix() { return modulationMatrix; }
+    monument::dsp::SequenceScheduler& getSequenceScheduler() { return sequenceScheduler; }  // Phase 4
 
     // Processing mode management (Ancient Monuments routing)
     void setProcessingMode(ProcessingMode mode);
@@ -84,6 +87,7 @@ private:
 
     APVTS parameters;
     PresetManager presetManager;
+    int currentProgramIndex{0};  // Track current preset for JUCE program interface
     juce::AudioBuffer<float> dryBuffer;
 
     // DSP Routing Graph (replaces individual module instances)
@@ -92,7 +96,9 @@ private:
     // Separate features (not part of routing graph)
     monument::dsp::MemoryEchoes memoryEchoes;
     monument::dsp::MacroMapper macroMapper;
+    monument::dsp::ExpressiveMacroMapper expressiveMacroMapper;
     monument::dsp::ModulationMatrix modulationMatrix;
+    monument::dsp::SequenceScheduler sequenceScheduler;  // Phase 4: Timeline automation
 
     // FIXED: Parameter cache for batched atomic loads (reduces overhead from 25+ sequential atomics)
     struct ParameterCache
@@ -103,10 +109,12 @@ private:
         float material, topology, viscosity, evolution;
         float chaosIntensity, elasticityDecay;
         float patina, abyss, corona, breath;  // Ancient Monuments Phase 5 expanded macros
+        float character, spaceType, energy, motion, color, dimension;  // Expressive Macros Phase 2
         float tubeCount, radiusVariation, metallicResonance, couplingStrength;
         float elasticity, recoveryTime, absorptionDrift, nonlinearity;
         float impossibilityDegree, pitchEvolutionRate, paradoxResonanceFreq, paradoxGain;
         float routingPreset;  // DSP routing architecture (0-7)
+        float macroMode;  // 0 = Ancient Monuments, 1 = Expressive Macros
         bool freeze;
     } paramCache{};
 

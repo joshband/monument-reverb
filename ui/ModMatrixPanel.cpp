@@ -30,6 +30,43 @@ ModMatrixPanel::ModMatrixPanel(dsp::ModulationMatrix& matrix)
     connectionListDisplay.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::plain)));
     addAndMakeVisible(connectionListDisplay);
 
+    // Setup randomize button with popup menu
+    randomizeButton.setButtonText("Randomize v");
+    randomizeButton.setTooltip("Create random modulation connections (click for options)");
+    randomizeButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff3a3f46));
+    randomizeButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff6b9bd1));
+    randomizeButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffe6e1d6));
+    randomizeButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    randomizeButton.onClick = [this]() { showRandomizeMenu(); };
+    addAndMakeVisible(randomizeButton);
+
+    // Setup save preset button
+    savePresetButton.setButtonText("Save");
+    savePresetButton.setTooltip("Save current routing to preset slot");
+    savePresetButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff3a3f46));
+    savePresetButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff6b9bd1));
+    savePresetButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffe6e1d6));
+    savePresetButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    savePresetButton.onClick = [this]() { showSavePresetMenu(); };
+    addAndMakeVisible(savePresetButton);
+
+    // Setup load preset button
+    loadPresetButton.setButtonText("Load");
+    loadPresetButton.setTooltip("Load routing from preset slot");
+    loadPresetButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff3a3f46));
+    loadPresetButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff6b9bd1));
+    loadPresetButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffe6e1d6));
+    loadPresetButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    loadPresetButton.onClick = [this]() { showLoadPresetMenu(); };
+    addAndMakeVisible(loadPresetButton);
+
+    // Initialize presets with default names
+    for (int i = 0; i < 5; ++i)
+    {
+        presets[i].name = "Slot " + juce::String(i + 1);
+        presets[i].isEmpty = true;
+    }
+
     // Setup control sliders
     setupControlSliders();
 
@@ -95,7 +132,7 @@ void ModMatrixPanel::paint(juce::Graphics& g)
     // Title
     g.setFont(juce::Font(juce::FontOptions(16.0f, juce::Font::bold)));
     g.setColour(juce::Colour(0xffe6e1d6));
-    g.drawText("MODULATION MATRIX", 10, 5, getWidth() - 20, 25, juce::Justification::centredLeft);
+    g.drawText("MODULATION MATRIX", 10, 5, 200, 25, juce::Justification::centredLeft);
 
     // Separator line
     g.setColour(juce::Colour(0xff3a3f46));
@@ -105,7 +142,18 @@ void ModMatrixPanel::paint(juce::Graphics& g)
 void ModMatrixPanel::resized()
 {
     auto bounds = getLocalBounds().reduced(10);
-    bounds.removeFromTop(35); // Title area
+
+    // Title area with buttons
+    auto titleArea = bounds.removeFromTop(35);
+    auto buttonArea = titleArea.removeFromRight(270);  // Wider for 3 buttons
+    buttonArea.removeFromTop(5);  // Vertical centering
+
+    // Layout buttons right-to-left
+    loadPresetButton.setBounds(buttonArea.removeFromRight(60).withHeight(24));
+    buttonArea.removeFromRight(5);  // Spacing
+    savePresetButton.setBounds(buttonArea.removeFromRight(50).withHeight(24));
+    buttonArea.removeFromRight(5);  // Spacing
+    randomizeButton.setBounds(buttonArea.removeFromRight(115).withHeight(24));
 
     // Connection grid area
     auto gridArea = bounds.removeFromTop(220);
@@ -161,7 +209,7 @@ void ModMatrixPanel::resized()
     bounds.removeFromTop(10); // Spacing
 
     // Control sliders area
-    auto controlsArea = bounds.removeFromTop(75);
+    auto controlsArea = bounds.removeFromTop(105);  // Taller for 3 sliders
 
     depthLabel.setBounds(controlsArea.removeFromTop(18));
     depthSlider.setBounds(controlsArea.removeFromTop(24));
@@ -170,6 +218,11 @@ void ModMatrixPanel::resized()
 
     smoothingLabel.setBounds(controlsArea.removeFromTop(18));
     smoothingSlider.setBounds(controlsArea.removeFromTop(24));
+
+    controlsArea.removeFromTop(4);
+
+    probabilityLabel.setBounds(controlsArea.removeFromTop(18));
+    probabilitySlider.setBounds(controlsArea.removeFromTop(24));
 }
 
 void ModMatrixPanel::updateFromMatrix()
@@ -311,6 +364,23 @@ void ModMatrixPanel::setupControlSliders()
     smoothingSlider.setEnabled(false);
     smoothingSlider.onValueChange = [this]() { onSmoothingChanged(); };
     addAndMakeVisible(smoothingSlider);
+
+    // Probability slider
+    probabilityLabel.setText("Probability (%): (select connection)", juce::dontSendNotification);
+    probabilityLabel.setFont(juce::Font(juce::FontOptions(12.0f)));
+    probabilityLabel.setColour(juce::Label::textColourId, juce::Colour(0xffa8a49c));
+    addAndMakeVisible(probabilityLabel);
+
+    probabilitySlider.setRange(0.0, 100.0, 1.0);
+    probabilitySlider.setValue(100.0);
+    probabilitySlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    probabilitySlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 60, 20);
+    probabilitySlider.setColour(juce::Slider::backgroundColourId, juce::Colour(0xff14171b));
+    probabilitySlider.setColour(juce::Slider::trackColourId, juce::Colour(0xffe89547));  // Orange for probability
+    probabilitySlider.setColour(juce::Slider::thumbColourId, juce::Colour(0xffe6e1d6));
+    probabilitySlider.setEnabled(false);
+    probabilitySlider.onValueChange = [this]() { onProbabilityChanged(); };
+    addAndMakeVisible(probabilitySlider);
 }
 
 void ModMatrixPanel::onConnectionButtonClicked(ConnectionButton* button)
@@ -334,13 +404,17 @@ void ModMatrixPanel::onConnectionButtonClicked(ConnectionButton* button)
         // Update sliders
         depthSlider.setValue(0.5, juce::dontSendNotification);
         smoothingSlider.setValue(200.0, juce::dontSendNotification);
+        probabilitySlider.setValue(100.0, juce::dontSendNotification);
         depthSlider.setEnabled(true);
         smoothingSlider.setEnabled(true);
+        probabilitySlider.setEnabled(true);
 
-        depthLabel.setText("Depth: " + getSourceName(button->source) + " → " +
+        depthLabel.setText("Depth: " + getSourceName(button->source) + " -> " +
                           getDestinationName(button->destination), juce::dontSendNotification);
-        smoothingLabel.setText("Smoothing (ms): " + getSourceName(button->source) + " → " +
+        smoothingLabel.setText("Smoothing (ms): " + getSourceName(button->source) + " -> " +
                                getDestinationName(button->destination), juce::dontSendNotification);
+        probabilityLabel.setText("Probability (%): " + getSourceName(button->source) + " -> " +
+                                 getDestinationName(button->destination), juce::dontSendNotification);
     }
     else
     {
@@ -352,8 +426,10 @@ void ModMatrixPanel::onConnectionButtonClicked(ConnectionButton* button)
             selectedConnection.isValid = false;
             depthSlider.setEnabled(false);
             smoothingSlider.setEnabled(false);
+            probabilitySlider.setEnabled(false);
             depthLabel.setText("Depth: (select connection)", juce::dontSendNotification);
             smoothingLabel.setText("Smoothing (ms): (select connection)", juce::dontSendNotification);
+            probabilityLabel.setText("Probability (%): (select connection)", juce::dontSendNotification);
         }
         else
         {
@@ -370,17 +446,21 @@ void ModMatrixPanel::onConnectionButtonClicked(ConnectionButton* button)
                 {
                     depthSlider.setValue(conn.depth, juce::dontSendNotification);
                     smoothingSlider.setValue(conn.smoothingMs, juce::dontSendNotification);
+                    probabilitySlider.setValue(conn.probability * 100.0f, juce::dontSendNotification);
                     break;
                 }
             }
 
             depthSlider.setEnabled(true);
             smoothingSlider.setEnabled(true);
+            probabilitySlider.setEnabled(true);
 
-            depthLabel.setText("Depth: " + getSourceName(button->source) + " → " +
+            depthLabel.setText("Depth: " + getSourceName(button->source) + " -> " +
                               getDestinationName(button->destination), juce::dontSendNotification);
-            smoothingLabel.setText("Smoothing (ms): " + getSourceName(button->source) + " → " +
+            smoothingLabel.setText("Smoothing (ms): " + getSourceName(button->source) + " -> " +
                                    getDestinationName(button->destination), juce::dontSendNotification);
+            probabilityLabel.setText("Probability (%): " + getSourceName(button->source) + " -> " +
+                                     getDestinationName(button->destination), juce::dontSendNotification);
         }
     }
 
@@ -394,7 +474,7 @@ void ModMatrixPanel::onDepthChanged()
 
     const float newDepth = static_cast<float>(depthSlider.getValue());
 
-    // Update the connection (preserves existing smoothing)
+    // Update the connection (preserves existing smoothing and probability)
     const auto& connections = modulationMatrix.getConnections();
     for (const auto& conn : connections)
     {
@@ -406,7 +486,8 @@ void ModMatrixPanel::onDepthChanged()
                 selectedConnection.destination,
                 0,
                 newDepth,
-                conn.smoothingMs
+                conn.smoothingMs,
+                conn.probability
             );
             break;
         }
@@ -422,7 +503,7 @@ void ModMatrixPanel::onSmoothingChanged()
 
     const float newSmoothing = static_cast<float>(smoothingSlider.getValue());
 
-    // Update the connection (preserves existing depth)
+    // Update the connection (preserves existing depth and probability)
     const auto& connections = modulationMatrix.getConnections();
     for (const auto& conn : connections)
     {
@@ -434,7 +515,37 @@ void ModMatrixPanel::onSmoothingChanged()
                 selectedConnection.destination,
                 0,
                 conn.depth,
-                newSmoothing
+                newSmoothing,
+                conn.probability
+            );
+            break;
+        }
+    }
+
+    refreshConnectionList();
+}
+
+void ModMatrixPanel::onProbabilityChanged()
+{
+    if (!selectedConnection.isValid)
+        return;
+
+    const float newProbability = static_cast<float>(probabilitySlider.getValue()) / 100.0f;  // Convert % to 0-1
+
+    // Update the connection (preserves existing depth and smoothing)
+    const auto& connections = modulationMatrix.getConnections();
+    for (const auto& conn : connections)
+    {
+        if (conn.source == selectedConnection.source &&
+            conn.destination == selectedConnection.destination)
+        {
+            modulationMatrix.setConnection(
+                selectedConnection.source,
+                selectedConnection.destination,
+                0,
+                conn.depth,
+                conn.smoothingMs,
+                newProbability
             );
             break;
         }
@@ -455,7 +566,7 @@ void ModMatrixPanel::refreshConnectionList()
         if (!conn.enabled)
             continue;
 
-        listText += "• " + getSourceName(conn.source) + " → " +
+        listText += "- " + getSourceName(conn.source) + " -> " +
                     getDestinationName(conn.destination) +
                     " (depth: " + juce::String(conn.depth, 2) +
                     ", smooth: " + juce::String(conn.smoothingMs, 0) + "ms)\n";
@@ -520,6 +631,156 @@ juce::Colour ModMatrixPanel::getSourceColour(dsp::ModulationMatrix::SourceType s
         default:
             return juce::Colour(0xff6b9bd1);
     }
+}
+
+void ModMatrixPanel::showRandomizeMenu()
+{
+    juce::PopupMenu menu;
+
+    menu.addItem(1, "Sparse (2-3 connections, subtle)", true);
+    menu.addItem(2, "Normal (4-8 connections)", true);
+    menu.addItem(3, "Dense (8-12 connections, extreme)", true);
+    menu.addSeparator();
+    menu.addItem(4, "Clear All", true);
+
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&randomizeButton),
+        [this](int result)
+        {
+            if (result == 0)
+                return;  // User cancelled
+
+            // Clear current selection
+            selectedConnection.isValid = false;
+            depthSlider.setEnabled(false);
+            smoothingSlider.setEnabled(false);
+            probabilitySlider.setEnabled(false);
+            depthLabel.setText("Depth: (select connection)", juce::dontSendNotification);
+            smoothingLabel.setText("Smoothing (ms): (select connection)", juce::dontSendNotification);
+            probabilityLabel.setText("Probability (%): (select connection)", juce::dontSendNotification);
+
+            // Execute selected action
+            switch (result)
+            {
+                case 1:  // Sparse
+                    modulationMatrix.randomizeSparse();
+                    break;
+                case 2:  // Normal
+                    modulationMatrix.randomizeAll();
+                    break;
+                case 3:  // Dense
+                    modulationMatrix.randomizeDense();
+                    break;
+                case 4:  // Clear All
+                    modulationMatrix.clearConnections();
+                    break;
+            }
+
+            // Update UI to reflect changes
+            updateFromMatrix();
+        });
+}
+
+void ModMatrixPanel::onRandomizeClicked()
+{
+    // Legacy method - now unused (kept for compatibility if needed)
+    // Call normal randomization
+    modulationMatrix.randomizeAll();
+    updateFromMatrix();
+}
+
+void ModMatrixPanel::showSavePresetMenu()
+{
+    juce::PopupMenu menu;
+
+    const auto& connections = modulationMatrix.getConnections();
+    if (connections.empty())
+    {
+        menu.addItem(0, "(No connections to save)", false);
+        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&savePresetButton));
+        return;
+    }
+
+    // Add preset slots
+    for (int i = 0; i < 5; ++i)
+    {
+        juce::String label = presets[i].name;
+        if (!presets[i].isEmpty)
+            label += " (overwrite)";
+
+        menu.addItem(i + 1, label, true);
+    }
+
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&savePresetButton),
+        [this, connections](int result)
+        {
+            if (result == 0)
+                return;  // User cancelled
+
+            int slotIndex = result - 1;
+            if (slotIndex >= 0 && slotIndex < 5)
+            {
+                // Save current connections to preset slot
+                presets[slotIndex].connections = connections;
+                presets[slotIndex].isEmpty = false;
+
+                // Update preset name with connection count
+                presets[slotIndex].name = "Slot " + juce::String(slotIndex + 1) +
+                                         " (" + juce::String(connections.size()) + " conn)";
+            }
+        });
+}
+
+void ModMatrixPanel::showLoadPresetMenu()
+{
+    juce::PopupMenu menu;
+
+    // Check if any presets exist
+    bool hasPresets = false;
+    for (int i = 0; i < 5; ++i)
+    {
+        if (!presets[i].isEmpty)
+        {
+            hasPresets = true;
+            break;
+        }
+    }
+
+    if (!hasPresets)
+    {
+        menu.addItem(0, "(No saved presets)", false);
+        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&loadPresetButton));
+        return;
+    }
+
+    // Add preset slots
+    for (int i = 0; i < 5; ++i)
+    {
+        menu.addItem(i + 1, presets[i].name, !presets[i].isEmpty);
+    }
+
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&loadPresetButton),
+        [this](int result)
+        {
+            if (result == 0)
+                return;  // User cancelled
+
+            int slotIndex = result - 1;
+            if (slotIndex >= 0 && slotIndex < 5 && !presets[slotIndex].isEmpty)
+            {
+                // Load connections from preset slot
+                modulationMatrix.setConnections(presets[slotIndex].connections);
+
+                // Clear current selection
+                selectedConnection.isValid = false;
+                depthSlider.setEnabled(false);
+                smoothingSlider.setEnabled(false);
+                depthLabel.setText("Depth: (select connection)", juce::dontSendNotification);
+                smoothingLabel.setText("Smoothing (ms): (select connection)", juce::dontSendNotification);
+
+                // Update UI
+                updateFromMatrix();
+            }
+        });
 }
 
 } // namespace ui

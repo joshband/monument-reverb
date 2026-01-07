@@ -3,29 +3,32 @@
 MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcessor& p)
     : juce::AudioProcessorEditor(&p),
       processorRef(p),
-      // Macro Controls - All using HeroKnob (codex brushed aluminum)
-      materialKnob(processorRef.getAPVTS(), "material", "Material"),
-      topologyKnob(processorRef.getAPVTS(), "topology", "Topology"),
-      viscosityKnob(processorRef.getAPVTS(), "viscosity", "Viscosity"),
-      evolutionKnob(processorRef.getAPVTS(), "evolution", "Evolution"),
-      chaosKnob(processorRef.getAPVTS(), "chaosIntensity", "Chaos"),
-      elasticityKnob(processorRef.getAPVTS(), "elasticityDecay", "Elasticity"),
-      patinaKnob(processorRef.getAPVTS(), "patina", "Patina"),
-      abyssKnob(processorRef.getAPVTS(), "abyss", "Abyss"),
-      coronaKnob(processorRef.getAPVTS(), "corona", "Corona"),
-      breathKnob(processorRef.getAPVTS(), "breath", "Breath"),
-      // Base Parameters - All using HeroKnob (codex brushed aluminum)
-      mixKnob(processorRef.getAPVTS(), "mix", "Mix"),
-      timeKnob(processorRef.getAPVTS(), "time", "Time"),
-      sizeHeroKnob(processorRef.getAPVTS(), "size", "Size"),
-      massKnob(processorRef.getAPVTS(), "mass", "Mass"),
-      densityKnob(processorRef.getAPVTS(), "density", "Density"),
-      bloomKnob(processorRef.getAPVTS(), "bloom", "Bloom"),
-      airKnob(processorRef.getAPVTS(), "air", "Air"),
-      widthKnob(processorRef.getAPVTS(), "width", "Width"),
-      warpKnob(processorRef.getAPVTS(), "warp", "Warp"),
-      driftKnob(processorRef.getAPVTS(), "drift", "Drift"),
-      gravityKnob(processorRef.getAPVTS(), "gravity", "Gravity"),
+      // Macro Controls - All PhotorealisticKnob with strategic stone variant distribution
+      // Material/topology/viscosity → StoneType1 (irregular cosmic stone)
+      materialKnob(processorRef.getAPVTS(), "material", "Material", PhotorealisticKnob::Style::StoneType2_Variant0),
+      topologyKnob(processorRef.getAPVTS(), "topology", "Topology", PhotorealisticKnob::Style::StoneType1_Variant0),
+      viscosityKnob(processorRef.getAPVTS(), "viscosity", "Viscosity", PhotorealisticKnob::Style::StoneType1_Variant1),
+      // Evolution/chaos/elasticity → StoneType2 (polished LED stone)
+      evolutionKnob(processorRef.getAPVTS(), "evolution", "Evolution", PhotorealisticKnob::Style::StoneType2_Variant1),
+      chaosKnob(processorRef.getAPVTS(), "chaosIntensity", "Chaos", PhotorealisticKnob::Style::StoneType2_Variant2),
+      elasticityKnob(processorRef.getAPVTS(), "elasticityDecay", "Elasticity", PhotorealisticKnob::Style::StoneType2_Variant3),
+      // Ancient params → StoneType3 (weathered stone)
+      patinaKnob(processorRef.getAPVTS(), "patina", "Patina", PhotorealisticKnob::Style::StoneType3_Variant0),
+      abyssKnob(processorRef.getAPVTS(), "abyss", "Abyss", PhotorealisticKnob::Style::StoneType3_Variant1),
+      coronaKnob(processorRef.getAPVTS(), "corona", "Corona", PhotorealisticKnob::Style::StoneType3_Variant2),
+      breathKnob(processorRef.getAPVTS(), "breath", "Breath", PhotorealisticKnob::Style::StoneType3_Variant3),
+      // Base Parameters - PhotorealisticKnob with distributed stone variants
+      mixKnob(processorRef.getAPVTS(), "mix", "Mix", PhotorealisticKnob::Style::StoneType1_Variant2),
+      timeKnob(processorRef.getAPVTS(), "time", "Time", PhotorealisticKnob::Style::StoneType1_Variant3),
+      sizeHeroKnob(processorRef.getAPVTS(), "size", "Size", PhotorealisticKnob::Style::StoneType2_Variant0),
+      massKnob(processorRef.getAPVTS(), "mass", "Mass", PhotorealisticKnob::Style::StoneType2_Variant1),
+      densityKnob(processorRef.getAPVTS(), "density", "Density", PhotorealisticKnob::Style::StoneType2_Variant2),
+      bloomKnob(processorRef.getAPVTS(), "bloom", "Bloom", PhotorealisticKnob::Style::StoneType2_Variant3),
+      airKnob(processorRef.getAPVTS(), "air", "Air", PhotorealisticKnob::Style::StoneType3_Variant0),
+      widthKnob(processorRef.getAPVTS(), "width", "Width", PhotorealisticKnob::Style::StoneType3_Variant1),
+      warpKnob(processorRef.getAPVTS(), "warp", "Warp", PhotorealisticKnob::Style::StoneType3_Variant2),
+      driftKnob(processorRef.getAPVTS(), "drift", "Drift", PhotorealisticKnob::Style::StoneType3_Variant3),
+      gravityKnob(processorRef.getAPVTS(), "gravity", "Gravity", PhotorealisticKnob::Style::StoneType1_Variant0),
       freezeToggle(processorRef.getAPVTS(), "freeze", "Freeze")
 {
     // Add macro controls (primary interface)
@@ -58,63 +61,6 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     addAndMakeVisible(presetBox);
     addAndMakeVisible(savePresetButton);
 
-    // Routing Architecture Selector (Phase 1.5)
-    routingPresetLabel.setText("Architecture", juce::dontSendNotification);
-    routingPresetLabel.setJustificationType(juce::Justification::centred);
-    routingPresetLabel.setColour(juce::Label::textColourId, juce::Colour(0xff666666));
-    addAndMakeVisible(routingPresetLabel);
-
-    routingPresetBox.setTextWhenNothingSelected("Traditional Cathedral");
-    routingPresetBox.setJustificationType(juce::Justification::centred);
-    routingPresetBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff14171b));
-    routingPresetBox.setColour(juce::ComboBox::textColourId, juce::Colour(0xffe6e1d6));
-    routingPresetBox.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff3a3f46));
-    routingPresetBox.setColour(juce::ComboBox::arrowColourId, juce::Colour(0xffe6e1d6));
-    routingPresetBox.setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xff14171b));
-    routingPresetBox.setColour(juce::PopupMenu::textColourId, juce::Colour(0xffe6e1d6));
-    routingPresetBox.setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(0xff242833));
-    routingPresetBox.setColour(juce::PopupMenu::highlightedTextColourId, juce::Colour(0xffe6e1d6));
-    addAndMakeVisible(routingPresetBox);
-
-    // Create APVTS attachment for routing preset
-    routingPresetAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        processorRef.getAPVTS(), "routingPreset", routingPresetBox);
-
-    // Processing Mode Selector (Ancient Monuments Routing)
-    processingModeLabel.setText("Mode:", juce::dontSendNotification);
-    processingModeLabel.setJustificationType(juce::Justification::centredRight);
-    processingModeLabel.setColour(juce::Label::textColourId, juce::Colour(0xff666666));
-    addAndMakeVisible(processingModeLabel);
-
-    processingModeBox.addItem("Ancient Way", 1);
-    processingModeBox.addItem("Resonant Halls", 2);
-    processingModeBox.addItem("Breathing Stone", 3);
-    processingModeBox.setSelectedId(1, juce::dontSendNotification);
-    processingModeBox.setTextWhenNothingSelected("Ancient Way");
-    processingModeBox.setJustificationType(juce::Justification::centred);
-    processingModeBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff14171b));
-    processingModeBox.setColour(juce::ComboBox::textColourId, juce::Colour(0xffe6e1d6));
-    processingModeBox.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff3a3f46));
-    processingModeBox.setColour(juce::ComboBox::arrowColourId, juce::Colour(0xffe6e1d6));
-    processingModeBox.setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xff14171b));
-    processingModeBox.setColour(juce::PopupMenu::textColourId, juce::Colour(0xffe6e1d6));
-    processingModeBox.setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(0xff242833));
-    processingModeBox.setColour(juce::PopupMenu::highlightedTextColourId, juce::Colour(0xffe6e1d6));
-    processingModeBox.onChange = [this]()
-    {
-        const int selectedId = processingModeBox.getSelectedId();
-        ProcessingMode mode = ProcessingMode::AncientWay;
-
-        switch (selectedId)
-        {
-            case 1: mode = ProcessingMode::AncientWay; break;
-            case 2: mode = ProcessingMode::ResonantHalls; break;
-            case 3: mode = ProcessingMode::BreathingStone; break;
-        }
-
-        processorRef.setProcessingMode(mode);
-    };
-    addAndMakeVisible(processingModeBox);
 
     // Preset browser styling
     presetBox.setTextWhenNothingSelected("Presets");
@@ -135,35 +81,6 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     savePresetButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xffe6e1d6));
     savePresetButton.onClick = [this]() { showSavePresetDialog(); };
 
-    // Base Parameters toggle button
-    baseParamsToggleButton.setButtonText("BASE PARAMS");
-    baseParamsToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff242833));
-    baseParamsToggleButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff8b7355));
-    baseParamsToggleButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffe6e1d6));
-    baseParamsToggleButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xff0d0f12));
-    baseParamsToggleButton.setClickingTogglesState(true);
-    baseParamsToggleButton.onClick = [this]()
-    {
-        baseParamsVisible = baseParamsToggleButton.getToggleState();
-
-        // Toggle visibility of all base parameter controls
-        mixKnob.setVisible(baseParamsVisible);
-        timeKnob.setVisible(baseParamsVisible);
-        sizeHeroKnob.setVisible(baseParamsVisible);
-        massKnob.setVisible(baseParamsVisible);
-        densityKnob.setVisible(baseParamsVisible);
-        bloomKnob.setVisible(baseParamsVisible);
-        airKnob.setVisible(baseParamsVisible);
-        widthKnob.setVisible(baseParamsVisible);
-        warpKnob.setVisible(baseParamsVisible);
-        driftKnob.setVisible(baseParamsVisible);
-        gravityKnob.setVisible(baseParamsVisible);
-        freezeToggle.setVisible(baseParamsVisible);
-
-        resized();
-    };
-    addAndMakeVisible(baseParamsToggleButton);
-
     // Modulation Matrix toggle button
     modMatrixToggleButton.setButtonText("MODULATION");
     modMatrixToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff242833));
@@ -180,7 +97,7 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     };
     addAndMakeVisible(modMatrixToggleButton);
 
-    // Create modulation matrix panel
+    // Create modulation matrix panel (kept separate for now)
     modMatrixPanel = std::make_unique<monument::ui::ModMatrixPanel>(processorRef.getModulationMatrix());
     modMatrixPanel->setVisible(false);
     addAndMakeVisible(modMatrixPanel.get());
@@ -189,156 +106,268 @@ MonumentAudioProcessorEditor::MonumentAudioProcessorEditor(MonumentAudioProcesso
     scanUserPresets();
     refreshPresetList();
 
-    setSize(900, 580);
+    // Create HeaderBar (will be added to top of layout)
+    headerBar = std::make_unique<HeaderBar>(processorRef.getAPVTS());
+    addAndMakeVisible(headerBar.get());
+
+    // Create CollapsiblePanels for the three main sections
+    // Panel 1: THE MACRO CONTROL (10 knobs in 2 rows of 5)
+    macroControlPanel = std::make_unique<CollapsiblePanel>("THE MACRO CONTROL");
+    macroControlPanel->setExpandedHeight(280); // Two rows of knobs + padding
+    macroControlPanel->setExpanded(true, false); // Start expanded, no animation
+    macroControlPanel->onExpandedChanged = [this]() { resized(); };
+    addAndMakeVisible(macroControlPanel.get());
+
+    // Panel 2: THE FOUNDATION (11 base params + freeze toggle)
+    foundationPanel = std::make_unique<CollapsiblePanel>("THE FOUNDATION");
+    foundationPanel->setExpandedHeight(300); // Grid of base parameters
+    foundationPanel->setExpanded(false, false); // Start collapsed
+    foundationPanel->onExpandedChanged = [this]() { resized(); };
+    addAndMakeVisible(foundationPanel.get());
+
+    // Panel 3: THE MODULATION NEXUS (timeline component)
+    modulationNexusPanel = std::make_unique<CollapsiblePanel>("THE MODULATION NEXUS");
+    modulationNexusPanel->setExpandedHeight(560); // Timeline height
+    modulationNexusPanel->setExpanded(false, false); // Start collapsed
+    modulationNexusPanel->onExpandedChanged = [this]() { resized(); };
+
+    // Create and set timeline as the panel content
+    auto* timeline = new monument::ui::TimelineComponent(processorRef.getSequenceScheduler());
+    modulationNexusPanel->setContentComponent(timeline);
+
+    addAndMakeVisible(modulationNexusPanel.get());
+
+    // Add enhanced dark stone background with animated wisps (bottom-most component)
+    addAndMakeVisible(enhancedBackground);
+    enhancedBackground.toBack();
+
+    setSize(900, 600);
 }
 
 MonumentAudioProcessorEditor::~MonumentAudioProcessorEditor() = default;
 
-void MonumentAudioProcessorEditor::paint(juce::Graphics& g)
+void MonumentAudioProcessorEditor::paint(juce::Graphics&)
 {
-    g.fillAll(juce::Colours::white);  // Changed from black to white
-    g.setColour(juce::Colour(0xff333333));  // Darker text for white background
-
-    // Title
-    g.setFont(juce::Font(juce::FontOptions(20.0f, juce::Font::bold)));
-    g.drawFittedText("Monument", getLocalBounds().removeFromTop(35), juce::Justification::centred, 1);
-
-    // Macro section label
-    g.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
-    g.setColour(juce::Colour(0xff666666));  // Medium gray for white background
-    g.drawFittedText("MACRO CONTROLS", juce::Rectangle<int>(24, 45, getWidth() - 48, 20),
-                     juce::Justification::centredLeft, 1);
-
-    // Base parameters section (only show if visible)
-    if (baseParamsVisible)
-    {
-        // Separator line after macros
-        g.setColour(juce::Colour(0xffcccccc));  // Light gray separator for white background
-        g.drawLine(24.0f, 185.0f, static_cast<float>(getWidth() - 24), 185.0f, 1.0f);
-
-        // Base parameters label
-        g.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
-        g.setColour(juce::Colour(0xff666666));  // Medium gray for white background
-        g.drawFittedText("BASE PARAMETERS", juce::Rectangle<int>(24, 195, getWidth() - 48, 20),
-                         juce::Justification::centredLeft, 1);
-    }
+    // Background is handled by EnhancedBackgroundComponent
+    // All other UI elements are handled by child components
 }
 
 void MonumentAudioProcessorEditor::resized()
 {
-    auto area = getLocalBounds().reduced(24);
+    // Fill background to entire component
+    enhancedBackground.setBounds(getLocalBounds());
 
-    // Top Bar: Title + Architecture Selector
-    auto topBar = area.removeFromTop(35);
-    // Architecture dropdown in top-right
-    const int archLabelWidth = 90;
-    const int archDropdownWidth = 200;
-    topBar.removeFromRight(10);  // Right margin
-    auto archDropdown = topBar.removeFromRight(archDropdownWidth);
-    auto archLabel = topBar.removeFromRight(archLabelWidth);
-    routingPresetLabel.setBounds(archLabel);
-    routingPresetBox.setBounds(archDropdown);
+    const int margin = 10;
+    const int headerHeight = 70;
+    auto area = getLocalBounds();
 
-    // Processing Mode Selector (next to routing architecture)
-    topBar.removeFromRight(10);  // Small gap
-    const auto modeLabelWidth = 50;
-    const auto modeDropdownWidth = 150;
-    auto modeDropdown = topBar.removeFromRight(modeDropdownWidth);
-    auto modeLabel = topBar.removeFromRight(modeLabelWidth);
-    processingModeLabel.setBounds(modeLabel);
-    processingModeBox.setBounds(modeDropdown);
+    // Header Bar at top
+    if (headerBar)
+    {
+        headerBar->setBounds(area.removeFromTop(headerHeight));
+    }
 
-    // Macro Controls Section
-    area.removeFromTop(25);  // Label space
-    // Ancient Monuments Phase 5 - 10 macro controls
-    auto macroArea = area.removeFromTop(115);
-    const auto macroWidth = macroArea.getWidth() / 10;  // Was /6, now /10
-
-    materialKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
-    topologyKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
-    viscosityKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
-    evolutionKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
-    chaosKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
-    elasticityKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
-    patinaKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
-    abyssKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
-    coronaKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
-    breathKnob.setBounds(macroArea.removeFromLeft(macroWidth).reduced(6));
-
-    // Control buttons area (below macros)
-    area.removeFromTop(10);  // Spacing
-    auto controlsArea = area.removeFromTop(100);
+    // Preset controls area (below header)
+    area.removeFromTop(margin);
+    auto presetArea = area.removeFromTop(40);
     const int buttonWidth = 150;
-    const int buttonHeight = 35;
     const int buttonSpacing = 10;
+    auto presetRow = presetArea.withSizeKeepingCentre((buttonWidth * 3) + (buttonSpacing * 2), 35);
+    presetBox.setBounds(presetRow.removeFromLeft(buttonWidth));
+    presetRow.removeFromLeft(buttonSpacing);
+    savePresetButton.setBounds(presetRow.removeFromLeft(buttonWidth));
+    presetRow.removeFromLeft(buttonSpacing);
 
-    // Center the control buttons horizontally
-    auto buttonRow = controlsArea.withSizeKeepingCentre(
-        (buttonWidth * 3) + (buttonSpacing * 2), buttonHeight);
-
-    presetBox.setBounds(buttonRow.removeFromLeft(buttonWidth));
-    buttonRow.removeFromLeft(buttonSpacing);
-    savePresetButton.setBounds(buttonRow.removeFromLeft(buttonWidth));
-    buttonRow.removeFromLeft(buttonSpacing);
-    baseParamsToggleButton.setBounds(buttonRow.removeFromLeft(buttonWidth));
-
-    // Modulation toggle button below
-    auto modButtonArea = controlsArea.removeFromTop(50).withSizeKeepingCentre(buttonWidth, buttonHeight);
+    // Modulation Matrix toggle button
+    auto modButtonArea = presetRow.removeFromLeft(buttonWidth);
     modMatrixToggleButton.setBounds(modButtonArea);
 
-    // Base Parameters Section (only layout if visible)
-    if (baseParamsVisible)
+    area.removeFromTop(margin);
+
+    // Panel 1: THE MACRO CONTROL (10 knobs, 2 rows of 5)
+    if (macroControlPanel)
     {
-        area.removeFromTop(10);  // Separator space
-        area.removeFromTop(25);  // Base params label space
+        const int panelHeight = macroControlPanel->isExpanded() ?
+            macroControlPanel->getExpandedHeight() : macroControlPanel->getCollapsedHeight();
+        auto panelBounds = area.removeFromTop(panelHeight);
+        macroControlPanel->setBounds(panelBounds);
 
-        // Base Parameters Grid (4x3)
-        auto gridArea = area.reduced(10);
-        const auto columnWidth = gridArea.getWidth() / 4;
-        const auto rowHeight = gridArea.getHeight() / 3;
-
-        auto cell = [&](int row, int column)
+        // Position macro knobs inside the panel if expanded
+        if (macroControlPanel->isExpanded())
         {
-            return juce::Rectangle<int>(gridArea.getX() + column * columnWidth,
-                                        gridArea.getY() + row * rowHeight,
-                                        columnWidth,
-                                        rowHeight)
-                .reduced(6);
-        };
+            auto macroArea = panelBounds.withTrimmedTop(45).reduced(margin); // Skip header
+            const int knobSize = 100;
+            const int knobsPerRow = 5;
+            const int spacing = (macroArea.getWidth() - (knobsPerRow * knobSize)) / (knobsPerRow + 1);
 
-        mixKnob.setBounds(cell(0, 0));
-        timeKnob.setBounds(cell(0, 1));
-        sizeHeroKnob.setBounds(cell(0, 2));
-        massKnob.setBounds(cell(0, 3));
+            // Row 1: Material, Topology, Viscosity, Evolution, Chaos
+            int x = macroArea.getX() + spacing;
+            int y = macroArea.getY() + 10;
+            materialKnob.setBounds(x, y, knobSize, knobSize); x += knobSize + spacing;
+            topologyKnob.setBounds(x, y, knobSize, knobSize); x += knobSize + spacing;
+            viscosityKnob.setBounds(x, y, knobSize, knobSize); x += knobSize + spacing;
+            evolutionKnob.setBounds(x, y, knobSize, knobSize); x += knobSize + spacing;
+            chaosKnob.setBounds(x, y, knobSize, knobSize);
 
-        densityKnob.setBounds(cell(1, 0));
-        bloomKnob.setBounds(cell(1, 1));
-        airKnob.setBounds(cell(1, 2));
-        widthKnob.setBounds(cell(1, 3));
+            // Row 2: Elasticity, Patina, Abyss, Corona, Breath
+            x = macroArea.getX() + spacing;
+            y += knobSize + 20;
+            elasticityKnob.setBounds(x, y, knobSize, knobSize); x += knobSize + spacing;
+            patinaKnob.setBounds(x, y, knobSize, knobSize); x += knobSize + spacing;
+            abyssKnob.setBounds(x, y, knobSize, knobSize); x += knobSize + spacing;
+            coronaKnob.setBounds(x, y, knobSize, knobSize); x += knobSize + spacing;
+            breathKnob.setBounds(x, y, knobSize, knobSize);
 
-        warpKnob.setBounds(cell(2, 0));
-        driftKnob.setBounds(cell(2, 1));
-        freezeToggle.setBounds(cell(2, 2));
-        gravityKnob.setBounds(cell(2, 3));
+            // Show macro knobs
+            materialKnob.setVisible(true);
+            topologyKnob.setVisible(true);
+            viscosityKnob.setVisible(true);
+            evolutionKnob.setVisible(true);
+            chaosKnob.setVisible(true);
+            elasticityKnob.setVisible(true);
+            patinaKnob.setVisible(true);
+            abyssKnob.setVisible(true);
+            coronaKnob.setVisible(true);
+            breathKnob.setVisible(true);
+        }
+        else
+        {
+            // Hide macro knobs when panel collapsed
+            materialKnob.setVisible(false);
+            topologyKnob.setVisible(false);
+            viscosityKnob.setVisible(false);
+            evolutionKnob.setVisible(false);
+            chaosKnob.setVisible(false);
+            elasticityKnob.setVisible(false);
+            patinaKnob.setVisible(false);
+            abyssKnob.setVisible(false);
+            coronaKnob.setVisible(false);
+            breathKnob.setVisible(false);
+        }
+
+        area.removeFromTop(margin);
     }
 
-    // Dynamic window sizing based on visibility
-    int targetHeight = 260;  // Compact size (macros + controls only)
-    if (baseParamsVisible)
-        targetHeight = 580;  // Full size with base parameters
-    if (modMatrixVisible)
-        targetHeight = 1080;  // Expanded with mod matrix
+    // Panel 2: THE FOUNDATION (11 base params + freeze)
+    if (foundationPanel)
+    {
+        const int panelHeight = foundationPanel->isExpanded() ?
+            foundationPanel->getExpandedHeight() : foundationPanel->getCollapsedHeight();
+        auto panelBounds = area.removeFromTop(panelHeight);
+        foundationPanel->setBounds(panelBounds);
 
-    if (getHeight() != targetHeight)
-        setSize(900, targetHeight);
+        // Position base param knobs inside the panel if expanded
+        if (foundationPanel->isExpanded())
+        {
+            auto gridArea = panelBounds.withTrimmedTop(45).reduced(margin * 2);
+            const int columns = 4;
+            const int rows = 3;
+            const int cellWidth = gridArea.getWidth() / columns;
+            const int cellHeight = gridArea.getHeight() / rows;
 
-    // Modulation Matrix Panel (if visible)
+            auto cell = [&](int row, int col)
+            {
+                return juce::Rectangle<int>(
+                    gridArea.getX() + col * cellWidth,
+                    gridArea.getY() + row * cellHeight,
+                    cellWidth,
+                    cellHeight
+                ).reduced(6);
+            };
+
+            mixKnob.setBounds(cell(0, 0));
+            timeKnob.setBounds(cell(0, 1));
+            sizeHeroKnob.setBounds(cell(0, 2));
+            massKnob.setBounds(cell(0, 3));
+
+            densityKnob.setBounds(cell(1, 0));
+            bloomKnob.setBounds(cell(1, 1));
+            airKnob.setBounds(cell(1, 2));
+            widthKnob.setBounds(cell(1, 3));
+
+            warpKnob.setBounds(cell(2, 0));
+            driftKnob.setBounds(cell(2, 1));
+            freezeToggle.setBounds(cell(2, 2));
+            gravityKnob.setBounds(cell(2, 3));
+
+            // Show base param knobs
+            mixKnob.setVisible(true);
+            timeKnob.setVisible(true);
+            sizeHeroKnob.setVisible(true);
+            massKnob.setVisible(true);
+            densityKnob.setVisible(true);
+            bloomKnob.setVisible(true);
+            airKnob.setVisible(true);
+            widthKnob.setVisible(true);
+            warpKnob.setVisible(true);
+            driftKnob.setVisible(true);
+            gravityKnob.setVisible(true);
+            freezeToggle.setVisible(true);
+        }
+        else
+        {
+            // Hide base param knobs when panel collapsed
+            mixKnob.setVisible(false);
+            timeKnob.setVisible(false);
+            sizeHeroKnob.setVisible(false);
+            massKnob.setVisible(false);
+            densityKnob.setVisible(false);
+            bloomKnob.setVisible(false);
+            airKnob.setVisible(false);
+            widthKnob.setVisible(false);
+            warpKnob.setVisible(false);
+            driftKnob.setVisible(false);
+            gravityKnob.setVisible(false);
+            freezeToggle.setVisible(false);
+        }
+
+        area.removeFromTop(margin);
+    }
+
+    // Panel 3: THE MODULATION NEXUS (timeline)
+    if (modulationNexusPanel)
+    {
+        const int panelHeight = modulationNexusPanel->isExpanded() ?
+            modulationNexusPanel->getExpandedHeight() : modulationNexusPanel->getCollapsedHeight();
+        auto panelBounds = area.removeFromTop(panelHeight);
+        modulationNexusPanel->setBounds(panelBounds);
+
+        area.removeFromTop(margin);
+    }
+
+    // Modulation Matrix Panel (separate, toggle-able)
     if (modMatrixVisible && modMatrixPanel)
     {
-        auto panelBounds = getLocalBounds();
-        panelBounds.removeFromTop(baseParamsVisible ? 580 : 260);
-        modMatrixPanel->setBounds(panelBounds.reduced(10));
+        const int modMatrixHeight = 500;
+        modMatrixPanel->setBounds(area.removeFromTop(modMatrixHeight));
     }
+
+    // Calculate total required height and resize window if needed
+    int totalHeight = headerHeight + margin + 40 + margin; // Header + preset area
+
+    totalHeight += macroControlPanel ?
+        (macroControlPanel->isExpanded() ? macroControlPanel->getExpandedHeight() : macroControlPanel->getCollapsedHeight()) + margin : 0;
+
+    totalHeight += foundationPanel ?
+        (foundationPanel->isExpanded() ? foundationPanel->getExpandedHeight() : foundationPanel->getCollapsedHeight()) + margin : 0;
+
+    totalHeight += modulationNexusPanel ?
+        (modulationNexusPanel->isExpanded() ? modulationNexusPanel->getExpandedHeight() : modulationNexusPanel->getCollapsedHeight()) + margin : 0;
+
+    if (modMatrixVisible)
+        totalHeight += 500;
+
+    totalHeight += margin; // Bottom margin
+
+    // Update window size if needed
+    if (getHeight() != totalHeight)
+        setSize(900, totalHeight);
+
+    // Update background panel dividers
+    std::vector<float> dividers;
+    dividers.push_back(static_cast<float>(headerHeight));
+    dividers.push_back(static_cast<float>(headerHeight + margin + 40 + margin));
+    enhancedBackground.setPanelDividers(dividers);
 }
 
 void MonumentAudioProcessorEditor::scanUserPresets()

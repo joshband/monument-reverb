@@ -50,3 +50,12 @@ scripts/*_variants.py
 # Generated assets (large files, not version controlled)
 assets/textures/
 assets/ui/knobs_enhanced/
+
+# Test output (generated audio captures and analysis)
+test-results/
+
+# Large filmstrip files (>50MB)
+assets/ui/knobs_photorealistic/*_filmstrip.png
+
+# Build directories
+MonumentUI_Demo/build/

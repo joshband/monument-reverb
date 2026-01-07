@@ -4,6 +4,7 @@
 #include <array>
 #include <vector>
 #include <memory>
+#include <random>
 
 namespace monument
 {
@@ -51,11 +52,26 @@ public:
         Drift,
         Gravity,
         PillarShape,
-        // Future physical modeling parameters
+        // Physical modeling parameters (Phase 5)
         TubeCount,
+        RadiusVariation,
         MetallicResonance,
+        CouplingStrength,
         Elasticity,
+        RecoveryTime,
+        AbsorptionDrift,
+        Nonlinearity,
         ImpossibilityDegree,
+        PitchEvolutionRate,
+        ParadoxResonanceFreq,
+        ParadoxGain,
+        // Spatial positioning (Phase 1: Three-System Plan)
+        PositionX,           // Spatial X position for delay line 0 [-1, +1]
+        PositionY,           // Spatial Y position for delay line 0 [-1, +1]
+        PositionZ,           // Spatial Z position for delay line 0 [0, +1]
+        // Phase 2: Doppler and distance modulation
+        Distance,            // Distance from listener (read-only, computed from position)
+        VelocityX,           // Horizontal velocity for Doppler shift [-1, +1]
         Count  // Total number of destinations
     };
 
@@ -69,6 +85,7 @@ public:
         int sourceAxis{0};              // Some sources have multiple outputs (e.g., chaos X/Y/Z)
         float depth{0.0f};             // Modulation amount: -1 to +1 (bipolar)
         float smoothingMs{200.0f};     // Lag filter time constant (20-1000ms)
+        float probability{1.0f};       // Probability gate: 0.0 = never, 1.0 = always (intermittent modulation)
         bool enabled{false};           // Connection active/inactive
 
         Connection() = default;
@@ -121,9 +138,11 @@ public:
      *
      * If a connection from this source to this destination already exists, it's updated.
      * Otherwise, a new connection is created.
+     *
+     * @param probability Probability gate (0.0-1.0). 1.0 = always active, 0.5 = active 50% of time
      */
     void setConnection(SourceType source, DestinationType destination,
-                      int sourceAxis, float depth, float smoothingMs);
+                      int sourceAxis, float depth, float smoothingMs, float probability = 1.0f);
 
     /**
      * @brief Remove a modulation connection.
@@ -137,13 +156,45 @@ public:
 
     /**
      * @brief Get all active connections (for preset save/load and UI display).
+     *
+     * Returns a copy of the connections vector for preset serialization and UI.
+     * This is not called during real-time audio processing.
      */
-    const std::vector<Connection>& getConnections() const noexcept { return connections; }
+    std::vector<Connection> getConnections() const noexcept;
 
     /**
      * @brief Set all connections at once (for preset loading).
      */
     void setConnections(const std::vector<Connection>& newConnections);
+
+    /**
+     * @brief Randomize all modulation connections for instant sound design exploration.
+     *
+     * Creates 4-8 random connections with musical constraints:
+     * - Depth limited to ±60% (not ±100%) for safety
+     * - Smoothing always ≥100ms to prevent zipper noise
+     * - Skips duplicate source/destination pairs
+     *
+     * This provides "happy accidents" and instant sonic exploration without overwhelming
+     * the user or creating unstable/extreme parameter values.
+     */
+    void randomizeAll();
+
+    /**
+     * @brief Randomize with sparse connections (subtle modulation).
+     *
+     * Creates 2-3 random connections with conservative depth (±20-40%).
+     * Ideal for subtle, organic parameter evolution.
+     */
+    void randomizeSparse();
+
+    /**
+     * @brief Randomize with dense connections (extreme modulation).
+     *
+     * Creates 8-12 random connections with higher depth (±40-80%).
+     * Ideal for chaotic, evolving soundscapes.
+     */
+    void randomizeDense();
 
     /**
      * @brief Get raw output from a specific modulation source (for UI visualization).
@@ -167,15 +218,21 @@ private:
     std::unique_ptr<BrownianMotion> brownianGen;
     std::unique_ptr<EnvelopeTracker> envTracker;
 
-    // Active modulation connections
-    std::vector<Connection> connections;
-    mutable juce::SpinLock connectionsLock;  // Thread-safe access to connections vector
+    // Active modulation connections (fixed-size array to prevent real-time allocations)
+    static constexpr int kMaxConnections = 256;
+    std::array<Connection, kMaxConnections> connections{};
+    int connectionCount = 0;
+    mutable juce::SpinLock connectionsLock;  // Thread-safe access to connections array
 
     // Per-destination modulation accumulators (smoothed output values)
     std::array<float, static_cast<size_t>(DestinationType::Count)> modulationValues{};
 
     // Smoothing filters (one per destination)
     std::array<juce::SmoothedValue<float>, static_cast<size_t>(DestinationType::Count)> smoothers;
+
+    // Random number generator for probability gating (mutable for const process())
+    mutable std::mt19937 probabilityRng;
+    mutable std::uniform_real_distribution<float> probabilityDist{0.0f, 1.0f};
 
     // Helper: find existing connection index, or -1 if not found
     int findConnectionIndex(SourceType source, DestinationType destination, int axis) const noexcept;

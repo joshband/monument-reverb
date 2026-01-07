@@ -45,8 +45,28 @@ public:
     void setMode(int modeIndex);
     void setWarp(float warp);
 
-    // Loads a short impulse response (<= 50ms) for pseudo-convolution of early taps.
-    // This should be called off the audio thread.
+    /**
+     * @brief Load impulse response for pseudo-convolution of early taps
+     *
+     * ⚠️ CRITICAL: MUST be called off-audio-thread only
+     *
+     * Safe to call from:
+     * - GUI thread (preset loading)
+     * - Background loader thread
+     * - Initialization code
+     *
+     * NEVER call from:
+     * - process() method
+     * - Audio callback thread
+     * - While isProcessing == true
+     *
+     * Performs file I/O and heap allocations which are not real-time safe.
+     * Maximum IR length is 50ms at the current sample rate.
+     *
+     * @param file Path to audio file (WAV, AIFF, etc.)
+     * @return true if load successful, false otherwise
+     * @throws std::runtime_error if called from audio thread (debug builds)
+     */
     bool loadImpulseResponse(const juce::File& file);
     void clearImpulseResponse();
 
@@ -101,6 +121,9 @@ private:
     // Signal threshold for deferred tap updates (prevents clicks during active audio)
     float inputPeakMagnitude = 0.0f;
     static constexpr float kTapUpdateThreshold = 0.001f;  // ~-60dB
+
+    // Track whether we're processing to catch audio-thread misuse of loadImpulseResponse
+    bool isProcessing = false;
 };
 
 class Weathering final : public DSPModule
@@ -156,6 +179,26 @@ public:
     void setAir(float airAmount);
     void setOutputGain(float gainLinear);
 
+    /**
+     * @brief Enable/disable 3D panning mode (Phase 2: Three-System Plan)
+     *
+     * When enabled, uses azimuth/elevation for spatial positioning.
+     * When disabled, uses traditional mid-side stereo width control.
+     *
+     * @param enable True to use 3D panning, false for stereo width
+     */
+    void set3DPanning(bool enable) noexcept;
+
+    /**
+     * @brief Set 3D spatial position via azimuth and elevation (Phase 2: Three-System Plan)
+     *
+     * Uses constant power panning law for perceptually smooth positioning.
+     *
+     * @param azimuth Horizontal angle in degrees: -90° (left) to +90° (right), 0° = center
+     * @param elevation Vertical angle in degrees: -90° (down) to +90° (up), 0° = horizontal
+     */
+    void setSpatialPositions(float azimuthDegrees, float elevationDegrees) noexcept;
+
 private:
     double sampleRateHz = 44100.0;
     int maxBlockSize = 0;
@@ -166,6 +209,15 @@ private:
     juce::AudioBuffer<float> airState;
     float airCoefficient = 0.0f;
     juce::SmoothedValue<float> airGainSmoother;  // Per-sample smoothing for airGain
+
+    // Phase 2: Three-System Plan - 3D Panning
+    bool use3DPanning = false;
+    float azimuthDegrees = 0.0f;     // -90° (left) to +90° (right)
+    float elevationDegrees = 0.0f;   // -90° (down) to +90° (up)
+
+    // Constant power panning gains (smoothed for click-free transitions)
+    juce::SmoothedValue<float> leftGainSmoother;
+    juce::SmoothedValue<float> rightGainSmoother;
 };
 
 } // namespace dsp

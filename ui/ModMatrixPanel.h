@@ -66,11 +66,29 @@ private:
     juce::Label connectionsLabel;
     juce::TextEditor connectionListDisplay;
 
+    // Randomize button (top-right of panel)
+    juce::TextButton randomizeButton;
+
+    // Preset buttons
+    juce::TextButton savePresetButton;
+    juce::TextButton loadPresetButton;
+
+    // Preset storage (5 preset slots)
+    struct ConnectionPreset
+    {
+        juce::String name;
+        std::vector<dsp::ModulationMatrix::Connection> connections;
+        bool isEmpty{true};
+    };
+    std::array<ConnectionPreset, 5> presets;
+
     // Connection editing controls (for selected connection)
     juce::Label depthLabel;
     juce::Slider depthSlider;
     juce::Label smoothingLabel;
     juce::Slider smoothingSlider;
+    juce::Label probabilityLabel;
+    juce::Slider probabilitySlider;
 
     // Currently selected connection (for editing)
     struct SelectedConnection
@@ -85,6 +103,11 @@ private:
     void onConnectionButtonClicked(ConnectionButton* button);
     void onDepthChanged();
     void onSmoothingChanged();
+    void onProbabilityChanged();
+    void onRandomizeClicked();
+    void showRandomizeMenu();
+    void showSavePresetMenu();
+    void showLoadPresetMenu();
 
     // Helpers
     void setupConnectionGrid();

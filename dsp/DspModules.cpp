@@ -108,6 +108,10 @@ void Pillars::reset()
 void Pillars::process(juce::AudioBuffer<float>& buffer)
 {
     juce::ScopedNoDenormals noDenormals;
+
+    // Mark that we're processing (used to catch misuse of loadImpulseResponse)
+    juce::ScopedValueSetter<bool> processingScope(isProcessing, true);
+
     const auto numSamples = buffer.getNumSamples();
     const auto numChannels = buffer.getNumChannels();
     const auto densityScale = juce::jmap(juce::jlimit(0.0f, 1.0f, densityAmount), 0.25f, 0.85f);
@@ -273,6 +277,13 @@ void Pillars::setWarp(float warp)
 
 bool Pillars::loadImpulseResponse(const juce::File& file)
 {
+    // Debug check: catch audio-thread misuse
+    if (isProcessing)
+    {
+        jassertfalse;  // Triggers in debug builds
+        return false;  // Fail safely in release builds
+    }
+
     if (!file.existsAsFile() || sampleRateHz <= 0.0)
         return false;
 
@@ -608,6 +619,12 @@ void Facade::prepare(double sampleRate, int blockSize, int numChannels)
     airGainSmoother.reset(sampleRate, 0.01);  // 10ms smoothing
     setAir(air);
     airGainSmoother.setCurrentAndTargetValue(juce::jmap(air, -0.3f, 0.35f));
+
+    // Phase 2: Three-System Plan - Initialize 3D panning gain smoothers (20ms ramp for smooth transitions)
+    leftGainSmoother.reset(sampleRate, 0.02);
+    rightGainSmoother.reset(sampleRate, 0.02);
+    leftGainSmoother.setCurrentAndTargetValue(0.707f);   // sqrt(0.5) for center position
+    rightGainSmoother.setCurrentAndTargetValue(0.707f);
 }
 
 void Facade::reset()
@@ -649,14 +666,35 @@ void Facade::process(juce::AudioBuffer<float>& buffer)
     auto* left = buffer.getWritePointer(0);
     auto* right = buffer.getWritePointer(1);
 
-    for (int sample = 0; sample < numSamples; ++sample)
+    // Phase 2: Three-System Plan - Choose between 3D panning and traditional stereo width
+    if (use3DPanning)
     {
-        const float mid = 0.5f * (left[sample] + right[sample]);
-        float side = 0.5f * (left[sample] - right[sample]);
-        side *= widthLocal;
+        // 3D azimuth/elevation panning using constant power law
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            // Mix to mono first (sum L+R)
+            const float mono = 0.5f * (left[sample] + right[sample]);
 
-        left[sample] = (mid + side) * gainLocal;
-        right[sample] = (mid - side) * gainLocal;
+            // Apply smoothed panning gains (constant power law, calculated in setSpatialPositions)
+            const float leftGain = leftGainSmoother.getNextValue();
+            const float rightGain = rightGainSmoother.getNextValue();
+
+            left[sample] = mono * leftGain * gainLocal;
+            right[sample] = mono * rightGain * gainLocal;
+        }
+    }
+    else
+    {
+        // Traditional mid-side stereo width processing
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            const float mid = 0.5f * (left[sample] + right[sample]);
+            float side = 0.5f * (left[sample] - right[sample]);
+            side *= widthLocal;
+
+            left[sample] = (mid + side) * gainLocal;
+            right[sample] = (mid - side) * gainLocal;
+        }
     }
 }
 
@@ -679,6 +717,42 @@ void Facade::setAir(float airAmount)
 void Facade::setOutputGain(float gainLinear)
 {
     outputGain = juce::jmax(0.0f, gainLinear);
+}
+
+void Facade::set3DPanning(bool enable) noexcept
+{
+    use3DPanning = enable;
+}
+
+void Facade::setSpatialPositions(float azimuthDegreesInput, float elevationDegreesInput) noexcept
+{
+    // Phase 2: Three-System Plan - 3D panning using constant power law
+    // Store raw degrees for potential UI display
+    azimuthDegrees = juce::jlimit(-90.0f, 90.0f, azimuthDegreesInput);
+    elevationDegrees = juce::jlimit(-90.0f, 90.0f, elevationDegreesInput);
+
+    // Convert azimuth to pan angle θ: -90° (left) → 0, 0° (center) → π/2, +90° (right) → π
+    const float azimuthRadians = (azimuthDegrees + 90.0f) * juce::MathConstants<float>::pi / 180.0f;
+    const float panAngle = azimuthRadians;  // 0 to π
+
+    // Constant power panning law: L = cos(θ/2), R = sin(θ/2)
+    // This ensures L² + R² = 1, maintaining constant perceived loudness
+    const float leftGain = std::cos(panAngle * 0.5f);
+    const float rightGain = std::sin(panAngle * 0.5f);
+
+    // Elevation scaling: higher elevation = quieter (simulating distance/height)
+    // cos(0°) = 1.0 (horizontal plane), cos(±90°) = 0.0 (directly above/below)
+    const float elevationRadians = elevationDegrees * juce::MathConstants<float>::pi / 180.0f;
+    const float elevationScale = std::cos(elevationRadians);
+    const float elevationScaleClamped = juce::jmax(0.0f, elevationScale);  // Ensure non-negative
+
+    // Apply elevation scaling to both channels
+    const float finalLeftGain = leftGain * elevationScaleClamped;
+    const float finalRightGain = rightGain * elevationScaleClamped;
+
+    // Update smoothed gain targets (smoothers will interpolate per-sample in process())
+    leftGainSmoother.setTargetValue(finalLeftGain);
+    rightGainSmoother.setTargetValue(finalRightGain);
 }
 
 } // namespace dsp

@@ -322,6 +322,11 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
     envelopeTimeSeconds = 0.0f;
     envelopeValue = 1.0f;
     envelopeTriggerArmed = true;
+
+    // Initialize spatial processor (Phase 1: Three-System Plan)
+    if (!spatialProcessor)
+        spatialProcessor = std::make_unique<SpatialProcessor>();
+    spatialProcessor->prepare(sampleRateHz, maxBlockSize, kNumLines);
 }
 
 void Chambers::reset()
@@ -345,6 +350,10 @@ void Chambers::reset()
     envelopeValue = 1.0f;
     envelopeTriggerArmed = true;
     warpSmoothed = warpTarget;
+
+    // Reset spatial processor
+    if (spatialProcessor)
+        spatialProcessor->reset();
     computeWarpMatrix(warpSmoothed, warpMatrix);
     warpMatrixFrozen = warpMatrix;
     feedbackMatrix = warpMatrix;
@@ -356,6 +365,10 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
     juce::ScopedNoDenormals noDenormals;
     const auto numSamples = buffer.getNumSamples();
     const auto numChannels = buffer.getNumChannels();
+
+    // Update spatial attenuation coefficients (block-rate, Phase 1: Three-System Plan)
+    if (spatialProcessor)
+        spatialProcessor->process();
 
     const float outputScale = kOutputGain; // Normalizes constant-power output mix to unity.
 
@@ -611,7 +624,26 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
                 ? std::sin(driftPhase[i]) * driftDepth
                 : 0.0f;
             const float driftedDelay = juce::jmax(1.0f, delaySamples[i] + modOffset);
-            outLive[i] = readFractionalDelay(lineData[i], delayBufferLength, readPos, driftedDelay);
+
+            // Apply Doppler shift to delay time (Phase 3: Three-System Plan)
+            float finalDelay = driftedDelay;
+            if (spatialProcessor)
+            {
+                const float dopplerShift = spatialProcessor->getDopplerShift(static_cast<int>(i));
+                finalDelay += dopplerShift;
+                finalDelay = juce::jmax(1.0f, finalDelay); // Ensure positive delay
+            }
+
+            float delayedSample = readFractionalDelay(lineData[i], delayBufferLength, readPos, finalDelay);
+
+            // Apply spatial distance attenuation (Phase 1: Three-System Plan)
+            if (spatialProcessor)
+            {
+                const float spatialAttenuation = spatialProcessor->getAttenuationGain(static_cast<int>(i));
+                delayedSample *= spatialAttenuation;
+            }
+
+            outLive[i] = delayedSample;
             if (driftDepth == 0.0f)
             {
                 outFrozen[i] = outLive[i];
