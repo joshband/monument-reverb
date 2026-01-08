@@ -8,18 +8,18 @@
 
 ## System Architecture
 
-Monument is a memory-based reverb plugin built on JUCE 8.0, featuring physical modeling, chaotic modulation, and elastic acoustic spaces.
+Monument is a JUCE 8.0 reverb plugin built in C++17, featuring physical modeling, chaotic modulation, and elastic acoustic spaces. A standalone playground app is included for UI/particle experimentation and asset validation.
 
 ### Core DSP Chain
 
 ```
-Input → Chambers (FDN) → Weathering → Tube Ray Tracer → Output
-         ↑
-    Elastic Hallway (modulates chamber geometry)
-         ↑
-    Modulation Matrix → Chaos/Audio/Brownian/Envelope
-         ↑
-    Macro Controls (6 high-level parameters)
+Input → Foundation → Pillars → Chambers → Physical Modules → Weathering → Buttress → Facade → Mix → Output
+                        ↑
+                Elastic Hallway (modulates chamber geometry)
+                        ↑
+          Modulation Matrix → Chaos/Audio/Brownian/Envelope
+                        ↑
+                 Macro Controls (6 or 10 macro modes)
 ```
 
 ### Three Pillars of Innovation
@@ -73,13 +73,16 @@ monument-reverb/
 │   ├── LayeredKnob.h/cpp   # Photorealistic layered knobs
 │   ├── ModMatrixPanel.h/cpp # Modulation matrix visual editor (NEW)
 │   └── Monument*.h         # Parameter-specific knob wrappers
-├── dsp/                    # DSP algorithms (to be created)
+├── dsp/                    # DSP algorithms
 │   ├── MacroMapper.h/cpp
 │   ├── ModulationMatrix.h/cpp
 │   ├── ChaosAttractor.h/cpp
 │   ├── TubeRayTracer.h/cpp
 │   └── ElasticHallway.h/cpp
+├── playground/             # Standalone UI playground app
+├── Source/Particles/       # Particle system + presets (playground)
 ├── assets/ui/              # Knob layer PNGs
+├── assets/knob_*/          # PBR knob packs for playground
 ├── scripts/                # Blender knob generation
 ├── docs/                   # Documentation
 │   ├── ui/                 # UI design docs
@@ -120,15 +123,17 @@ cmake --build build --target Monument_AU --config Release -j8
 **Phase 1**: ✅ Foundation (JUCE setup, FDN reverb, base parameters)
 **Phase 2**: ✅ Macro system (6 high-level controls integrated)
 **Phase 3**: ✅ Modulation sources (4 sources, 16 destinations, living presets)
-**Phase 4**: 🚀 UI Enhancement (90% complete)
+**Phase 4**: ✅ UI Enhancement (Complete)
 
 - ✅ ModMatrix visual panel with interactive 4×15 grid
 - ✅ LayeredKnob rendering system
 - ✅ Blender knob generation pipeline
 - ⏳ Enhanced knob integration (final step)
 
-**Phase 5**: 📋 Polish & release (preset browser, export/import)
-**Phase 6**: 📋 Physical modules (Tubes, Elastic spaces)
+**Phase 5**: ✅ Physical Modeling (Complete)
+**Phase 6**: 📋 Polish & release (preset browser, export/import, packaging)
+
+**Playground Integration**: ✅ Phases 0-8 complete (particles + asset packs + smoke tests)
 
 **Note**: Memory Echoes was extracted to standalone repository with planned v1.6 reintegration.
 

@@ -4,6 +4,8 @@
 **Reviewer:** Claude (Automated Review)
 **Status:** Complete
 
+> **Superseded:** See [01072026-ArchitectureReview.md](../01072026-ArchitectureReview.md) for the latest doc alignment notes.
+
 ---
 
 ## Executive Summary

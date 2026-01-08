@@ -1,6 +1,8 @@
 # Monument-Reverb: Architecture Quick Reference
 ## Fast Navigation & Visual Summary
 
+**Status:** Updated 2026-01-07. Modules listed below are implemented in the current codebase.
+
 ---
 
 ## THREE PILLARS OF INNOVATION
@@ -23,7 +25,7 @@ Each macro drives multiple underlying parameters:
 MATERIAL 0.7 → {Time: 0.69, Mass: 0.69, Density: 0.79, ...}
 ```
 
-**Files to Create:**
+**Primary Files:**
 - `dsp/MacroMapper.h/cpp`
 
 **Integration Point:**
@@ -53,7 +55,7 @@ Audio Follower → Mass (depth 0.15)
 Brownian → Bloom (depth 0.2)
 ```
 
-**Files to Create:**
+**Primary Files:**
 - `dsp/ModulationMatrix.h/cpp`
 - `dsp/ChaosAttractor.h/cpp`
 - `dsp/AudioFollower.h/cpp`

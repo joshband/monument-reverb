@@ -35,6 +35,16 @@ Monument Reverb has a **comprehensive automated testing system** with zero manua
 
 ## Quick Start
 
+### 0. Build + CTest Smoke Tests
+
+```bash
+cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64
+cmake --build build --config Release
+ctest --test-dir build -C Release
+```
+
+`MONUMENT_ENABLE_TESTS` is ON by default and can be disabled at configure time.
+
 ### 1. Capture All Presets (Baseline)
 
 ```bash

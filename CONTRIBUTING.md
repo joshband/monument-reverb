@@ -28,7 +28,7 @@ Use Conventional Commits, for example:
 
 When adding or updating documentation:
 
-- **Root docs** (8 files only): AGENTS, ARCHITECTURE, CHANGELOG, CONTRIBUTING, MANIFEST, README, STANDARD_BUILD_WORKFLOW, ARCHITECTURE_QUICK_REFERENCE
+- **Root docs**: AGENTS, ARCHITECTURE, CHANGELOG, CONTRIBUTING, MANIFEST, README, STANDARD_BUILD_WORKFLOW, ARCHITECTURE_QUICK_REFERENCE, Roadmap, ImplementationPlan, and date-stamped reviews
 - **Categorized docs** go in `docs/` subdirectories:
   - `docs/ui/` - UI/UX design documents
   - `docs/development/` - Quick starts, guides, tutorials

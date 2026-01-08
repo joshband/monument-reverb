@@ -1,6 +1,8 @@
 # Monument Reverb: Strategic UI Design & Implementation Plan
 ## Photorealistic, Explorative, Thematic Interface Design
 
+> **Status:** Vision document. Current production UI uses LayeredKnob + ModMatrixPanel; the playground app is the active UI experimentation space.
+
 **Created:** 2026-01-03
 **Vision:** Elemental, explorative audio plugin UI with pseudo-3D photorealistic render assets
 **Aesthetic:** Knolling arrangement, baked lighting, PBR materials, skeuomorphic controls

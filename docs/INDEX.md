@@ -18,6 +18,16 @@
 
 ---
 
+## Reviews & Plans
+
+- [01072026-CodeReview.md](../01072026-CodeReview.md) - Comprehensive code review
+- [01072026-ArchitectureReview.md](../01072026-ArchitectureReview.md) - Architecture review
+- [01072026-Performance.md](../01072026-Performance.md) - Performance and resource review
+- [Roadmap.md](../Roadmap.md) - Current roadmap
+- [ImplementationPlan.md](../ImplementationPlan.md) - Implementation plan with Codex prompts
+
+---
+
 ## Architecture & Design
 
 ### System Architecture
@@ -28,6 +38,7 @@
 
 ### Technical Deep Dives
 - [architecture/DSP_CLICK_ANALYSIS_REPORT.md](architecture/DSP_CLICK_ANALYSIS_REPORT.md) - DSP debugging & click analysis
+- [DSP_SIGNAL_FLOW_BASICS.md](DSP_SIGNAL_FLOW_BASICS.md) - DSP signal flow basics
 
 ---
 
@@ -43,18 +54,28 @@
 
 ---
 
+## Playground & Particles
+
+- [Source/Particles/README_Particles.md](../Source/Particles/README_Particles.md) - Particle system architecture
+- [playground/](../playground/) - Standalone playground app sources
+
+---
+
 ## Development Guides
 
 ### Quick Starts
 - [development/QUICK_START_BLENDER_KNOBS.md](development/QUICK_START_BLENDER_KNOBS.md) - Generate photorealistic knobs (5 min)
 - [development/QUICK_START_MACRO_TESTING.md](development/QUICK_START_MACRO_TESTING.md) - Test macro control system
 - [STANDARD_BUILD_WORKFLOW.md](../STANDARD_BUILD_WORKFLOW.md) - Build system commands
+- [BUILD_PATTERNS.md](BUILD_PATTERNS.md) - JUCE + CMake build patterns
 
 ---
 
 ## Testing & Validation
 
 ### Testing Guides
+- [TESTING_GUIDE.md](TESTING_GUIDE.md) - End-to-end testing infrastructure
+- [testing/TESTING.md](testing/TESTING.md) - Pluginval and validation
 - [testing/MODULATION_TESTING_GUIDE.md](testing/MODULATION_TESTING_GUIDE.md) - Test modulation system
 - [testing/PHASE_2_VALIDATION_TEST.md](testing/PHASE_2_VALIDATION_TEST.md) - Phase 2 memory system validation
 - [testing/PHASE_3_COMPLETE_SUMMARY.md](testing/PHASE_3_COMPLETE_SUMMARY.md) - Phase 3 modulation complete
@@ -73,13 +94,22 @@ monument-reverb/
 ├── CHANGELOG.md                        # Version history
 ├── CONTRIBUTING.md                     # Contribution guide
 ├── MANIFEST.md                         # Project manifest
-└── AGENTS.md                           # AI agent docs
+├── AGENTS.md                           # AI agent docs
+├── Roadmap.md                          # Current roadmap
+├── ImplementationPlan.md               # Implementation plan with Codex prompts
+├── 01072026-CodeReview.md              # Date-stamped review
+├── 01072026-ArchitectureReview.md      # Date-stamped review
+└── 01072026-Performance.md             # Date-stamped review
 ```
 
 ### Documentation Tree
 ```
 docs/
 ├── INDEX.md (this file)                # Central navigation hub
+├── BUILD_PATTERNS.md                   # JUCE + CMake build patterns
+├── DSP_SIGNAL_FLOW_BASICS.md           # DSP signal flow basics
+├── TESTING_GUIDE.md                    # Test infrastructure overview
+├── UI_TESTING.md                       # UI testing guide
 ├── ui/                                 # UI design & strategy
 │   ├── LAYERED_KNOB_DESIGN.md
 │   ├── LAYERED_KNOB_WORKFLOW.md
@@ -91,10 +121,13 @@ docs/
 ├── architecture/                       # Technical architecture
 │   ├── ARCHITECTURE_REVIEW.md
 │   └── DSP_CLICK_ANALYSIS_REPORT.md
-└── testing/                            # Testing & validation
-    ├── MODULATION_TESTING_GUIDE.md
-    ├── PHASE_2_VALIDATION_TEST.md
-    └── PHASE_3_COMPLETE_SUMMARY.md
+├── testing/                            # Testing & validation
+│   ├── MODULATION_TESTING_GUIDE.md
+│   ├── PHASE_2_VALIDATION_TEST.md
+│   └── PHASE_3_COMPLETE_SUMMARY.md
+├── presets/                            # Preset formats and guides
+├── sessions/                           # Session handoffs
+└── archive/                            # Historical notes
 ```
 
 ---
@@ -132,12 +165,14 @@ docs/
 ## Document Status
 
 ### Up to Date ✅
-- Root docs (README, ARCHITECTURE, CHANGELOG, etc.)
+- Root docs (README, ARCHITECTURE, CHANGELOG, etc.) - Updated 2026-01-07
 - [development/QUICK_START_BLENDER_KNOBS.md](development/QUICK_START_BLENDER_KNOBS.md) - Updated 2026-01-03 with LayeredKnob fix
-- [STANDARD_BUILD_WORKFLOW.md](../STANDARD_BUILD_WORKFLOW.md) - Updated 2026-01-03
+- [STANDARD_BUILD_WORKFLOW.md](../STANDARD_BUILD_WORKFLOW.md) - Updated 2026-01-07
 
 ### Needs Review 🔍
 - [ui/MVP_UI_HANDOFF_2026_01_03.md](ui/MVP_UI_HANDOFF_2026_01_03.md) - Check if still relevant after recent fixes
+- [ui/MONUMENT_UI_STRATEGIC_DESIGN_PLAN.md](ui/MONUMENT_UI_STRATEGIC_DESIGN_PLAN.md) - Vision vs current UI state
+- [PHASE_4_COMPLETE_SUMMARY.md](PHASE_4_COMPLETE_SUMMARY.md) - Phase status predates playground work
 
 ### Historical 📦
 - [testing/PHASE_2_VALIDATION_TEST.md](testing/PHASE_2_VALIDATION_TEST.md) - Phase 2 complete
@@ -158,6 +193,11 @@ When adding new documentation:
    - AGENTS.md
    - STANDARD_BUILD_WORKFLOW.md
    - ARCHITECTURE_QUICK_REFERENCE.md (exception for visual reference)
+   - Roadmap.md
+   - ImplementationPlan.md
+   - 01072026-CodeReview.md
+   - 01072026-ArchitectureReview.md
+   - 01072026-Performance.md
 
 2. **Categorized docs** - Place in appropriate subdirectory:
    - `docs/ui/` - UI/UX design documents

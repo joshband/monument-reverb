@@ -6,6 +6,16 @@
 
 **Never create:** build-fetch, build-harness, build-ninja, build-ninja-debug, etc.
 
+## Canonical Commands
+
+```bash
+./scripts/build_macos.sh
+./scripts/open_xcode.sh
+cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64
+cmake --build build --config Release
+ctest --test-dir build -C Release
+```
+
 ## Initial Setup (First Time Only)
 
 ```bash
@@ -113,3 +123,9 @@ cmake --build build --target Monument_AU --config Release -j8
 - `Monument_VST3` - VST3 plugin
 - `Monument` - Shared code (auto-built as dependency)
 - `MonumentAssets` - Binary data (auto-built as dependency)
+
+## Tests
+
+```bash
+ctest --test-dir build -C Release
+```

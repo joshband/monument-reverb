@@ -20,6 +20,8 @@
     Composited Result
 ```
 
+**Current packs use 8-10 layers** (albedo, AO, roughness, specular/highlights, glow, indicator, contact shadow, and optional normal). The system supports arbitrary layer counts.
+
 ### Rotation System
 
 **Parameter Value (0.0 - 1.0) → Rotation Angle**

@@ -103,14 +103,17 @@ endif()
 
 **Use When:** Need to instantiate the full MonumentAudioProcessor
 
-**Status:** ⚠️ **Complex - Avoid if possible**
+**Status:** ⚠️ **Complex - Use sparingly**
 
-**Why Avoid:**
+**Why Use Sparingly:**
 1. Requires ALL plugin sources (20+ files)
 2. Needs `MonumentAssets` binary data target
 3. Requires plugin-specific defines (`JucePlugin_Name`, etc.)
 4. Slow compile times
 5. Breaks easily when plugin structure changes
+
+**Current Usage:**
+- `monument_smoke_test` in `CMakeLists.txt` follows this pattern and is now part of CTest.
 
 **Alternative Approach:**
 Use the **plugin analyzer tool** programmatically instead:

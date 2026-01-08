@@ -17,9 +17,16 @@ Core priorities:
 
 ## Project Status
 
-**Current Phase**: Phase 5 - Physical Modeling (✅ Complete) | **Next**: Phase 6 - Polish & Release 🚀
+**Current Phase**: Phase 6 - Polish & Release (in progress) | **Playground Integration**: Phases 0-8 complete ✅
 
 Monument features a memory-free reverb architecture. Memory Echoes lives in a standalone repository with planned v1.6 reintegration.
+
+**Recent Updates** (2026-01-07):
+
+- ✅ **MonumentPlayground**: Standalone UI playground with PBR knobs + particles
+- ✅ **Particles**: New particle system extracted under `Source/Particles/`
+- ✅ **Smoke Test**: CTest target now instantiates `MonumentAudioProcessor`
+- ✅ **Docs**: Added DSP signal flow basics guide
 
 **Recent Updates** (2026-01-04):
 
@@ -64,11 +71,19 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --target Monument_AU --config Release -j8
 ```
 
-**Legacy scripts** (still supported):
+### Canonical Build & Test Commands
+
 ```bash
 ./scripts/build_macos.sh
-./scripts/install_macos.sh
 ./scripts/open_xcode.sh
+cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64
+cmake --build build --config Release
+ctest --test-dir build -C Release
+```
+
+**Supplemental scripts** (still supported):
+```bash
+./scripts/install_macos.sh
 ```
 
 **Artifacts**: Auto-installed to `~/Library/Audio/Plug-Ins/{Components,VST3}/`
@@ -83,6 +98,13 @@ See [docs/development/QUICK_START_BLENDER_KNOBS.md](docs/development/QUICK_START
 
 # Preview composite before building
 python3 scripts/preview_knob_composite.py --rotation 45
+```
+
+### MonumentPlayground (Standalone UI Playground)
+
+```bash
+cmake --build build --target MonumentPlayground -j4
+open "build/MonumentPlayground_artefacts/Debug/Monument UI Playground.app"
 ```
 
 ---
@@ -107,6 +129,7 @@ python3 scripts/preview_knob_composite.py --rotation 45
 - [ARCHITECTURE_QUICK_REFERENCE.md](ARCHITECTURE_QUICK_REFERENCE.md) - Visual diagrams
 - [docs/architecture/DSP_ARCHITECTURE.md](docs/architecture/DSP_ARCHITECTURE.md) - Signal flow
 - [docs/architecture/PARAMETER_BEHAVIOR.md](docs/architecture/PARAMETER_BEHAVIOR.md) - Parameter contracts
+- [docs/DSP_SIGNAL_FLOW_BASICS.md](docs/DSP_SIGNAL_FLOW_BASICS.md) - DSP signal flow basics
 
 ### UI Design
 
@@ -117,6 +140,15 @@ python3 scripts/preview_knob_composite.py --rotation 45
 
 - [docs/testing/TESTING.md](docs/testing/TESTING.md) - General testing (pluginval)
 - [docs/testing/MODULATION_TESTING_GUIDE.md](docs/testing/MODULATION_TESTING_GUIDE.md) - Modulation tests
+- [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) - Full testing infrastructure
+
+### Plans & Reviews
+
+- [Roadmap.md](Roadmap.md) - Current roadmap
+- [ImplementationPlan.md](ImplementationPlan.md) - Implementation plan with Codex prompts
+- [01072026-CodeReview.md](01072026-CodeReview.md) - Comprehensive code review
+- [01072026-ArchitectureReview.md](01072026-ArchitectureReview.md) - Architecture review
+- [01072026-Performance.md](01072026-Performance.md) - Performance and resource review
 
 ---
 
@@ -278,6 +310,7 @@ See [docs/PRESET_GALLERY.md](docs/PRESET_GALLERY.md) for full descriptions.
 ## Testing and Validation
 
 - **Automated**: pluginval via `./scripts/run_pluginval.sh` (see [docs/testing/TESTING.md](docs/testing/TESTING.md))
+- **CTest**: `ctest --test-dir build -C Release` (smoke tests)
 - **Optional logging**: Enable `MONUMENT_TESTING` for peak and block timing
 - **Performance**: REAPER Performance Monitor with 50-100 instances
 - **Instrumentation**: Instruments, AddressSanitizer, or Valgrind for leak checks
@@ -289,9 +322,12 @@ See [docs/PRESET_GALLERY.md](docs/PRESET_GALLERY.md) for full descriptions.
 ```
 monument-reverb/
 ├── plugin/           # JUCE processor and editor
-├── dsp/              # DSP modules (to be created)
+├── dsp/              # DSP modules
 ├── ui/               # Custom UI components (LayeredKnob)
+├── playground/       # Standalone UI playground app
+├── Source/Particles/ # Particle simulation + presets (playground)
 ├── assets/ui/        # Knob layer PNGs
+├── assets/knob_*/     # PBR knob packs for playground
 ├── scripts/          # Build scripts, Blender knob generation
 ├── tests/            # CTest coverage
 ├── docs/             # Documentation (see docs/INDEX.md)

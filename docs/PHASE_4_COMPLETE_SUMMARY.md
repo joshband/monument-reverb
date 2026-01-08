@@ -4,6 +4,8 @@
 **Status:** ✅ Phase 4 Complete (100%)
 **Next Phase:** Phase 5 - Polish & Release
 
+> **Note:** This summary predates the 2026-01-07 playground/particle integration and is kept for historical context.
+
 ---
 
 ## Phase 4 Goals (Achieved)
