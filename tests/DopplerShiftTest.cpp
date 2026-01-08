@@ -24,7 +24,7 @@ namespace
     constexpr float kMaxExpectedShift = 2400.0f; // ±50ms @ 48kHz
 }
 
-void testDopplerShiftBounds()
+static void testDopplerShiftBounds()
 {
     std::cout << "Testing Doppler shift bounds...\n";
 
@@ -61,7 +61,7 @@ void testDopplerShiftBounds()
     std::cout << "  ✓ Shifts within bounds [±" << kMaxExpectedShift << "]\n";
 }
 
-void testDopplerShiftScaling()
+static void testDopplerShiftScaling()
 {
     std::cout << "\nTesting Doppler scale parameter...\n";
 
@@ -95,7 +95,7 @@ void testDopplerShiftScaling()
     std::cout << "  ✓ Scaling proportional\n";
 }
 
-void testDopplerShiftDisabled()
+static void testDopplerShiftDisabled()
 {
     std::cout << "\nTesting disabled spatial processor...\n";
 
@@ -115,7 +115,7 @@ void testDopplerShiftDisabled()
     std::cout << "  ✓ Zero shift confirmed\n";
 }
 
-void testDopplerShiftStability()
+static void testDopplerShiftStability()
 {
     std::cout << "\nTesting Doppler shift stability over time...\n";
 
@@ -153,7 +153,7 @@ void testDopplerShiftStability()
               << firstShift << " samples\n";
 }
 
-void testDopplerShiftPerLine()
+static void testDopplerShiftPerLine()
 {
     std::cout << "\nTesting independent Doppler per delay line...\n";
 
@@ -190,7 +190,7 @@ void testDopplerShiftPerLine()
     }
 }
 
-void testDopplerShiftClipping()
+static void testDopplerShiftClipping()
 {
     std::cout << "\nTesting Doppler shift clipping at extremes...\n";
 

@@ -39,7 +39,7 @@ struct TestResults
 // Test: ModulationQuantizer
 //==============================================================================
 
-void testModulationQuantizer(TestResults& results)
+static void testModulationQuantizer(TestResults& results)
 {
     std::cout << "\n[ModulationQuantizer Tests]" << std::endl;
 
@@ -95,7 +95,7 @@ void testModulationQuantizer(TestResults& results)
 // Test: ProbabilityGate
 //==============================================================================
 
-void testProbabilityGate(TestResults& results)
+static void testProbabilityGate(TestResults& results)
 {
     std::cout << "\n[ProbabilityGate Tests]" << std::endl;
 
@@ -174,7 +174,7 @@ void testProbabilityGate(TestResults& results)
 // Test: SpringMassModulator
 //==============================================================================
 
-void testSpringMassModulator(TestResults& results)
+static void testSpringMassModulator(TestResults& results)
 {
     std::cout << "\n[SpringMassModulator Tests]" << std::endl;
 
@@ -251,7 +251,7 @@ void testSpringMassModulator(TestResults& results)
 // Test: PresetMorpher
 //==============================================================================
 
-void testPresetMorpher(TestResults& results)
+static void testPresetMorpher(TestResults& results)
 {
     std::cout << "\n[PresetMorpher Tests]" << std::endl;
 
@@ -318,7 +318,7 @@ void testPresetMorpher(TestResults& results)
 // Test: GestureRecorder
 //==============================================================================
 
-void testGestureRecorder(TestResults& results)
+static void testGestureRecorder(TestResults& results)
 {
     std::cout << "\n[GestureRecorder Tests]" << std::endl;
 
@@ -387,7 +387,7 @@ void testGestureRecorder(TestResults& results)
 // Test: ChaosSeeder
 //==============================================================================
 
-void testChaosSeeder(TestResults& results)
+static void testChaosSeeder(TestResults& results)
 {
     std::cout << "\n[ChaosSeeder Tests]" << std::endl;
 
@@ -480,7 +480,7 @@ void testChaosSeeder(TestResults& results)
 // Main
 //==============================================================================
 
-int main(int argc, char* argv[])
+int main(int /*argc*/, char* /*argv*/[])
 {
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Monument Reverb - Experimental Modulation Tests" << std::endl;

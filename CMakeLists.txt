@@ -285,7 +285,7 @@ if(MONUMENT_ENABLE_TESTS)
       juce::juce_dsp
       MonumentAssets
   )
-  add_test(NAME monument_smoke_test COMMAND monument_smoke_test_artefacts/Debug/monument_smoke_test)
+  add_test(NAME monument_smoke_test COMMAND $<TARGET_FILE:monument_smoke_test>)
 
   juce_add_console_app(monument_memory_echoes_test
     PRODUCT_NAME "Monument Memory Echoes Test"
@@ -317,7 +317,7 @@ if(MONUMENT_ENABLE_TESTS)
       juce::juce_recommended_lto_flags
       juce::juce_recommended_warning_flags
   )
-  add_test(NAME monument_memory_echoes_test COMMAND monument_memory_echoes_test)
+  add_test(NAME monument_memory_echoes_test COMMAND $<TARGET_FILE:monument_memory_echoes_test>)
 
   juce_add_console_app(monument_expressive_macro_demo
     PRODUCT_NAME "Monument Expressive Macro Demo"
@@ -409,7 +409,7 @@ if(MONUMENT_ENABLE_TESTS)
       juce::juce_recommended_lto_flags
       juce::juce_recommended_warning_flags
   )
-  add_test(NAME monument_experimental_modulation_test COMMAND monument_experimental_modulation_test)
+  add_test(NAME monument_experimental_modulation_test COMMAND $<TARGET_FILE:monument_experimental_modulation_test>)
 
   juce_add_console_app(monument_constant_power_panning_test
     PRODUCT_NAME "Monument Constant Power Panning Test"
@@ -440,7 +440,7 @@ if(MONUMENT_ENABLE_TESTS)
       juce::juce_recommended_lto_flags
       juce::juce_recommended_warning_flags
   )
-  add_test(NAME monument_constant_power_panning_test COMMAND monument_constant_power_panning_test)
+  add_test(NAME monument_constant_power_panning_test COMMAND $<TARGET_FILE:monument_constant_power_panning_test>)
 endif()
 
 # Doppler Shift Test (Phase 3: Three-System Plan)
@@ -459,7 +459,7 @@ if(BUILD_TESTING)
       juce::juce_recommended_lto_flags
       juce::juce_recommended_warning_flags
   )
-  add_test(NAME monument_doppler_shift_test COMMAND monument_doppler_shift_test)
+  add_test(NAME monument_doppler_shift_test COMMAND $<TARGET_FILE:monument_doppler_shift_test>)
 endif()
 
 # SequenceScheduler Test (Phase 4: Three-System Plan)
@@ -479,7 +479,7 @@ if(BUILD_TESTING)
       juce::juce_recommended_lto_flags
       juce::juce_recommended_warning_flags
   )
-  add_test(NAME monument_sequence_scheduler_test COMMAND monument_sequence_scheduler_test)
+  add_test(NAME monument_sequence_scheduler_test COMMAND $<TARGET_FILE:monument_sequence_scheduler_test>)
 endif()
 
 # Plugin Analyzer Tool

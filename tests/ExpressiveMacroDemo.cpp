@@ -4,7 +4,7 @@
 
 using namespace monument::dsp;
 
-void printTargets(const char* presetName, const ExpressiveMacroMapper::ParameterTargets& targets)
+static void printTargets(const char* presetName, const ExpressiveMacroMapper::ParameterTargets& targets)
 {
     std::cout << "\n========================================\n";
     std::cout << "Preset: " << presetName << "\n";

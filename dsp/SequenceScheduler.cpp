@@ -137,6 +137,7 @@ juce::String SequenceScheduler::parameterIdToString(ParameterId param)
         case ParameterId::PositionY: return "PositionY";
         case ParameterId::PositionZ: return "PositionZ";
         case ParameterId::VelocityX: return "VelocityX";
+        case ParameterId::Count: return "Count";
         default: return "Unknown";
     }
 }
@@ -274,6 +275,9 @@ float SequenceScheduler::applyCurve(float t, InterpolationType type) const noexc
             // Instant jump at midpoint
             return t < 0.5f ? 0.0f : 1.0f;
 
+        case InterpolationType::Count:
+            return t;
+
         default:
             return t;
     }
@@ -390,6 +394,10 @@ void SequenceScheduler::advancePosition(double deltaSeconds, double tempoBeatsPe
                 currentPosition = -currentPosition;
                 playingForward = true;
             }
+            break;
+
+        case PlaybackMode::Count:
+            currentPosition = juce::jlimit(0.0, duration, currentPosition);
             break;
 
         default:

@@ -8,8 +8,9 @@ namespace dsp
 
 void SpatialProcessor::prepare(double sampleRate, int blockSize, int numLines) noexcept
 {
+    (void)blockSize;
     sampleRate_ = sampleRate;
-    numLines_ = std::min(numLines, kMaxLines);
+    numLines_ = juce::jlimit(0, kMaxLines, numLines);
 
     // Initialize all positions to centered (0, 0, 0.5)
     reset();
@@ -18,7 +19,7 @@ void SpatialProcessor::prepare(double sampleRate, int blockSize, int numLines) n
 void SpatialProcessor::reset() noexcept
 {
     // Reset all spatial positions to centered
-    for (int i = 0; i < kMaxLines; ++i)
+    for (size_t i = 0; i < positionsX_.size(); ++i)
     {
         positionsX_[i] = 0.0f;
         positionsY_[i] = 0.0f;
@@ -34,18 +35,17 @@ void SpatialProcessor::reset() noexcept
 
 void SpatialProcessor::process() noexcept
 {
+    const auto lineCount = static_cast<size_t>(numLines_);
     if (!enabled_)
     {
         // When disabled, set all gains to 1.0 (no attenuation)
-        for (int i = 0; i < numLines_; ++i)
-        {
+        for (size_t i = 0; i < lineCount; ++i)
             attenuationGains_[i] = 1.0f;
-        }
         return;
     }
 
     // Update distance and attenuation for each line (block-rate calculation)
-    for (int i = 0; i < numLines_; ++i)
+    for (size_t i = 0; i < lineCount; ++i)
     {
         // Compute distance from listener (origin) to source position
         distances_[i] = computeDistance(
@@ -64,7 +64,7 @@ float SpatialProcessor::getAttenuationGain(int lineIndex) const noexcept
     if (lineIndex < 0 || lineIndex >= numLines_)
         return 1.0f;
 
-    return attenuationGains_[lineIndex];
+    return attenuationGains_[static_cast<size_t>(lineIndex)];
 }
 
 float SpatialProcessor::getDopplerShift(int lineIndex) const noexcept
@@ -75,7 +75,7 @@ float SpatialProcessor::getDopplerShift(int lineIndex) const noexcept
     // Doppler shift based on velocity
     // Positive velocity = moving away = delay increases = pitch down
     // Negative velocity = moving closer = delay decreases = pitch up
-    float shift = velocitiesX_[lineIndex] * kMaxDopplerShiftSamples * dopplerScale_;
+    float shift = velocitiesX_[static_cast<size_t>(lineIndex)] * kMaxDopplerShiftSamples * dopplerScale_;
 
     // Clamp to prevent excessive pitch shifting
     return juce::jlimit(-kMaxDopplerShiftSamples, kMaxDopplerShiftSamples, shift);
@@ -86,10 +86,11 @@ void SpatialProcessor::setPosition(int lineIndex, float x, float y, float z) noe
     if (lineIndex < 0 || lineIndex >= numLines_)
         return;
 
+    const auto index = static_cast<size_t>(lineIndex);
     // Clamp positions to valid ranges
-    positionsX_[lineIndex] = juce::jlimit(-1.0f, 1.0f, x);
-    positionsY_[lineIndex] = juce::jlimit(-1.0f, 1.0f, y);
-    positionsZ_[lineIndex] = juce::jlimit(0.0f, 1.0f, z);
+    positionsX_[index] = juce::jlimit(-1.0f, 1.0f, x);
+    positionsY_[index] = juce::jlimit(-1.0f, 1.0f, y);
+    positionsZ_[index] = juce::jlimit(0.0f, 1.0f, z);
 }
 
 void SpatialProcessor::setVelocity(int lineIndex, float velocityX) noexcept
@@ -97,7 +98,7 @@ void SpatialProcessor::setVelocity(int lineIndex, float velocityX) noexcept
     if (lineIndex < 0 || lineIndex >= numLines_)
         return;
 
-    velocitiesX_[lineIndex] = juce::jlimit(-1.0f, 1.0f, velocityX);
+    velocitiesX_[static_cast<size_t>(lineIndex)] = juce::jlimit(-1.0f, 1.0f, velocityX);
 }
 
 void SpatialProcessor::setDistanceScale(float scale) noexcept

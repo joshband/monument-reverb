@@ -18,7 +18,7 @@ using namespace monument::dsp;
 // Test tolerance for floating point comparison
 constexpr float kTestTolerance = 0.001f;
 
-bool testConstantPowerLaw(float azimuthDegrees, float elevationDegrees = 0.0f)
+static bool testConstantPowerLaw(float azimuthDegrees, float elevationDegrees = 0.0f)
 {
     // Create and prepare Facade module
     Facade facade;
@@ -34,23 +34,16 @@ bool testConstantPowerLaw(float azimuthDegrees, float elevationDegrees = 0.0f)
 
     // Create test buffer filled with unit signal (1.0 in both channels)
     juce::AudioBuffer<float> buffer(2, 512);
-    buffer.clear();
-    for (int sample = 0; sample < 512; ++sample)
-    {
-        buffer.setSample(0, sample, 1.0f);
-        buffer.setSample(1, sample, 1.0f);
-    }
 
     // Process multiple blocks to ensure smoothers have settled
     for (int i = 0; i < 5; ++i)
     {
-        facade.process(buffer);
-        // Refill buffer for next iteration
         for (int sample = 0; sample < 512; ++sample)
         {
             buffer.setSample(0, sample, 1.0f);
             buffer.setSample(1, sample, 1.0f);
         }
+        facade.process(buffer);
     }
 
     // Extract gains from output (mono input 1.0 → panned output)
@@ -58,20 +51,24 @@ bool testConstantPowerLaw(float azimuthDegrees, float elevationDegrees = 0.0f)
     const float leftGain = buffer.getSample(0, 511);
     const float rightGain = buffer.getSample(1, 511);
 
-    // Verify constant power law: L² + R² ≈ 1.0
+    // Verify constant power law with elevation scaling applied
     const float totalPower = leftGain * leftGain + rightGain * rightGain;
-    const bool powerLawValid = std::abs(totalPower - 1.0f) < kTestTolerance;
+    const float elevationRadians = elevationDegrees * juce::MathConstants<float>::pi / 180.0f;
+    const float elevationScale = std::max(0.0f, std::cos(elevationRadians));
+    const float expectedPower = elevationScale * elevationScale;
+    const bool powerLawValid = std::abs(totalPower - expectedPower) < kTestTolerance;
 
     std::cout << "Azimuth: " << azimuthDegrees << "°, Elevation: " << elevationDegrees << "°\n";
     std::cout << "  Left gain:  " << leftGain << "\n";
     std::cout << "  Right gain: " << rightGain << "\n";
     std::cout << "  Total power (L² + R²): " << totalPower << "\n";
+    std::cout << "  Expected power: " << expectedPower << "\n";
     std::cout << "  Constant power law: " << (powerLawValid ? "PASS" : "FAIL") << "\n\n";
 
     return powerLawValid;
 }
 
-bool testExtremePositions()
+static bool testExtremePositions()
 {
     std::cout << "Testing extreme positions:\n\n";
 
@@ -86,19 +83,14 @@ bool testExtremePositions()
     facadeLeft.setSpatialPositions(-90.0f, 0.0f);
 
     juce::AudioBuffer<float> bufferLeft(2, 512);
-    for (int sample = 0; sample < 512; ++sample)
-    {
-        bufferLeft.setSample(0, sample, 1.0f);
-        bufferLeft.setSample(1, sample, 1.0f);
-    }
     for (int i = 0; i < 5; ++i)
     {
-        facadeLeft.process(bufferLeft);
         for (int sample = 0; sample < 512; ++sample)
         {
             bufferLeft.setSample(0, sample, 1.0f);
             bufferLeft.setSample(1, sample, 1.0f);
         }
+        facadeLeft.process(bufferLeft);
     }
 
     const float leftGainAtLeft = bufferLeft.getSample(0, 511);
@@ -118,19 +110,14 @@ bool testExtremePositions()
     facadeRight.setSpatialPositions(90.0f, 0.0f);
 
     juce::AudioBuffer<float> bufferRight(2, 512);
-    for (int sample = 0; sample < 512; ++sample)
-    {
-        bufferRight.setSample(0, sample, 1.0f);
-        bufferRight.setSample(1, sample, 1.0f);
-    }
     for (int i = 0; i < 5; ++i)
     {
-        facadeRight.process(bufferRight);
         for (int sample = 0; sample < 512; ++sample)
         {
             bufferRight.setSample(0, sample, 1.0f);
             bufferRight.setSample(1, sample, 1.0f);
         }
+        facadeRight.process(bufferRight);
     }
 
     const float leftGainAtRight = bufferRight.getSample(0, 511);
@@ -150,19 +137,14 @@ bool testExtremePositions()
     facadeCenter.setSpatialPositions(0.0f, 0.0f);
 
     juce::AudioBuffer<float> bufferCenter(2, 512);
-    for (int sample = 0; sample < 512; ++sample)
-    {
-        bufferCenter.setSample(0, sample, 1.0f);
-        bufferCenter.setSample(1, sample, 1.0f);
-    }
     for (int i = 0; i < 5; ++i)
     {
-        facadeCenter.process(bufferCenter);
         for (int sample = 0; sample < 512; ++sample)
         {
             bufferCenter.setSample(0, sample, 1.0f);
             bufferCenter.setSample(1, sample, 1.0f);
         }
+        facadeCenter.process(bufferCenter);
     }
 
     const float leftGainAtCenter = bufferCenter.getSample(0, 511);

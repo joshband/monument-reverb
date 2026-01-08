@@ -22,7 +22,7 @@ namespace
     constexpr float kEpsilon = 0.0001f;
 }
 
-void testBasicKeyframeInterpolation()
+static void testBasicKeyframeInterpolation()
 {
     std::cout << "Testing basic keyframe interpolation...\n";
 
@@ -65,7 +65,7 @@ void testBasicKeyframeInterpolation()
     std::cout << "  ✓ Position: " << scheduler.getCurrentPosition() << " seconds\n";
 }
 
-void testMultipleParameters()
+static void testMultipleParameters()
 {
     std::cout << "\nTesting multiple parameter automation...\n";
 
@@ -116,7 +116,7 @@ void testMultipleParameters()
     std::cout << "  ✓ Density: " << *density << " (expected 0.6)\n";
 }
 
-void testLoopMode()
+static void testLoopMode()
 {
     std::cout << "\nTesting loop playback mode...\n";
 
@@ -159,7 +159,7 @@ void testLoopMode()
     std::cout << "  ✓ Warp value: " << *warp << " (expected 0.5)\n";
 }
 
-void testInterpolationCurves()
+static void testInterpolationCurves()
 {
     std::cout << "\nTesting interpolation curve types...\n";
 
@@ -204,7 +204,7 @@ void testInterpolationCurves()
     std::cout << "  ✓ S-curve at 0.75: " << *val75 << " (> 0.75, ease-out)\n";
 }
 
-void testTempoSync()
+static void testTempoSync()
 {
     std::cout << "\nTesting tempo-synced beat timing...\n";
 
@@ -250,7 +250,7 @@ void testTempoSync()
     std::cout << "  ✓ Bloom value: " << *bloom << " (expected ~0.5)\n";
 }
 
-void testFactoryPresets()
+static void testFactoryPresets()
 {
     std::cout << "\nTesting factory presets...\n";
 
@@ -289,7 +289,7 @@ void testFactoryPresets()
     std::cout << "  ✓ Evolving Cathedral initial Time: " << *timeStart << "\n";
 }
 
-void testDisabledSequence()
+static void testDisabledSequence()
 {
     std::cout << "\nTesting disabled sequence (bypass)...\n";
 

@@ -262,7 +262,11 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 
     // Process sequence scheduler (Phase 4: Timeline automation)
     // This must happen BEFORE using paramCache values, so sequenced values can override them
-    sequenceScheduler.process(getPlayHead()->getPosition(), buffer.getNumSamples());
+    const auto* playHead = getPlayHead();
+    const auto positionInfo = playHead != nullptr
+        ? playHead->getPosition()
+        : juce::Optional<juce::AudioPlayHead::PositionInfo>{};
+    sequenceScheduler.process(positionInfo, buffer.getNumSamples());
 
     // Apply sequence scheduler overrides to paramCache (if any parameters are automated)
     using ParamId = monument::dsp::SequenceScheduler::ParameterId;
