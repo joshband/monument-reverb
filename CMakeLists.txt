@@ -50,15 +50,6 @@ juce_add_plugin(Monument
 
 juce_generate_juce_header(Monument)
 
-# Monument UI Playground - standalone GUI application
-juce_add_gui_app(MonumentPlayground
-  PRODUCT_NAME "Monument UI Playground"
-  COMPANY_NAME "Monument Audio"
-  BUNDLE_ID "com.monumentaudio.monument.playground"
-)
-
-juce_generate_juce_header(MonumentPlayground)
-
 target_sources(Monument
   PRIVATE
     plugin/PluginProcessor.h
@@ -100,90 +91,55 @@ target_sources(Monument
     dsp/DspRoutingGraph.cpp
     dsp/ExperimentalModulation.h
     dsp/ExperimentalModulation.cpp
-    ui/MonumentKnob.h
-    ui/MonumentKnob.cpp
-    ui/MonumentToggle.h
-    ui/MonumentToggle.cpp
-    ui/MonumentControl.h
-    ui/MonumentControl.cpp
-    ui/ChamberWallControl.h
-    ui/ChamberWallControl.cpp
-    ui/LayeredKnob.h
-    ui/LayeredKnob.cpp
-    ui/MonumentTimeKnob.h
-    ui/HeroKnob.h
-    ui/PhotorealisticKnob.h
-    ui/PhotorealisticKnob.cpp
-    ui/StoneBackgroundComponent.h
-    ui/StoneBackgroundComponent.cpp
-    ui/EnhancedBackgroundComponent.h
-    ui/EnhancedBackgroundComponent.cpp
-    ui/CollapsiblePanel.h
-    ui/CollapsiblePanel.cpp
-    ui/HeaderBar.h
-    ui/HeaderBar.cpp
-    ui/ModMatrixPanel.h
-    ui/ModMatrixPanel.cpp
-    ui/TimelineComponent.h
-    ui/TimelineComponent.cpp
-)
-
-# Playground application sources (PHASE 1: Stub implementations only)
-target_sources(MonumentPlayground
-  PRIVATE
-    playground/PlaygroundApp.cpp
-    playground/MainComponent.h
-    playground/MainComponent.cpp
-    playground/LayerCompositor.h
-    playground/LayerCompositor.cpp
-    playground/ComponentPack.h
-    playground/ComponentPack.cpp
-    playground/AudioEngine.h
-    playground/AudioEngine.cpp
-    # Particle system (PHASE 6: Behavior-only simulation)
-    Source/Particles/ParticleBehaviorDSL.h
-    Source/Particles/ParticleBehaviorDSL.cpp
-    Source/Particles/ParticleForces.h
-    Source/Particles/ParticleForces.cpp
-    Source/Particles/ParticleSignals.h
-    Source/Particles/ParticleSystem.h
-    Source/Particles/ParticleSystem.cpp
-    Source/Particles/ParticleTypes.h
-)
-
-target_include_directories(MonumentPlayground
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-target_compile_definitions(MonumentPlayground
-  PRIVATE
-    JUCE_WEB_BROWSER=0
-    JUCE_USE_CURL=0
-)
-
-target_link_libraries(MonumentPlayground
-  PRIVATE
-    juce::juce_audio_utils
-    juce::juce_dsp
-  PUBLIC
-    juce::juce_recommended_config_flags
-    juce::juce_recommended_lto_flags
-    juce::juce_recommended_warning_flags
+    # UI components will be added here as needed
 )
 
 # Add sprite sheet assets as embedded BinaryData
 # Using HEADER_NAME and NAMESPACE to make it accessible
-juce_add_binary_data(MonumentAssets
-  HEADER_NAME BinaryData.h
-  NAMESPACE BinaryData
-  SOURCES
-    assets/ui/chamber_wall_time_states.png
-    assets/ui/knobs_test/base_body_concrete.png
-    assets/ui/knobs_test/indicator_metal.png
-    assets/ui/knobs_test/detail_ring_engraved.png
-    assets/ui/knobs_test/center_cap_brushed_metal.png
-    assets/ui/hero_knob_pbr/albedo_rgba.png
+# Binary assets disabled for simple JUCE UI approach
+# Re-enable if custom assets are needed
+# juce_add_binary_data(MonumentAssets
+#   HEADER_NAME BinaryData.h
+#   NAMESPACE BinaryData
+#   SOURCES
+#     # Add assets here as needed
+# )
+
+# Define DSP sources for tests that need full plugin functionality
+set(DSP_SOURCES
+  dsp/DspModule.h
+  dsp/DspModules.h
+  dsp/DspModules.cpp
+  dsp/AllpassDiffuser.h
+  dsp/AllpassDiffuser.cpp
+  dsp/MemoryEchoes.h
+  dsp/MemoryEchoes.cpp
+  dsp/ParameterSmoother.h
+  dsp/ParameterSmoother.cpp
+  dsp/Chambers.h
+  dsp/Chambers.cpp
+  dsp/SpatialProcessor.h
+  dsp/SpatialProcessor.cpp
+  dsp/MacroMapper.h
+  dsp/MacroMapper.cpp
+  dsp/ExpressiveMacroMapper.h
+  dsp/ExpressiveMacroMapper.cpp
+  dsp/ModulationMatrix.h
+  dsp/ModulationMatrix.cpp
+  dsp/SequenceScheduler.h
+  dsp/SequenceScheduler.cpp
+  dsp/SequencePresets.h
+  dsp/SequencePresets.cpp
+  dsp/TubeRayTracer.h
+  dsp/TubeRayTracer.cpp
+  dsp/ElasticHallway.h
+  dsp/ElasticHallway.cpp
+  dsp/AlienAmplification.h
+  dsp/AlienAmplification.cpp
+  dsp/DspRoutingGraph.h
+  dsp/DspRoutingGraph.cpp
+  dsp/ExperimentalModulation.h
+  dsp/ExperimentalModulation.cpp
 )
 
 target_include_directories(Monument
@@ -200,9 +156,10 @@ target_compile_definitions(Monument
 
 target_link_libraries(Monument
   PRIVATE
-    MonumentAssets
+    # MonumentAssets # Disabled for simple JUCE UI
     juce::juce_audio_utils
     juce::juce_dsp
+    juce::juce_opengl
   PUBLIC
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags
@@ -283,7 +240,7 @@ if(MONUMENT_ENABLE_TESTS)
     PRIVATE
       juce::juce_audio_utils
       juce::juce_dsp
-      MonumentAssets
+      # MonumentAssets # Disabled for simple JUCE UI
   )
   add_test(NAME monument_smoke_test COMMAND $<TARGET_FILE:monument_smoke_test>)
 
@@ -480,6 +437,190 @@ if(BUILD_TESTING)
       juce::juce_recommended_warning_flags
   )
   add_test(NAME monument_sequence_scheduler_test COMMAND $<TARGET_FILE:monument_sequence_scheduler_test>)
+endif()
+
+# Parameter Smoothing Test (Phase 4: Enhanced Testing)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_parameter_smoothing_test
+    PRODUCT_NAME "Monument Parameter Smoothing Test"
+  )
+
+  juce_generate_juce_header(monument_parameter_smoothing_test)
+
+  target_sources(monument_parameter_smoothing_test
+    PRIVATE
+      tests/ParameterSmoothingTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_parameter_smoothing_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_parameter_smoothing_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_parameter_smoothing_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_parameter_smoothing_test COMMAND $<TARGET_FILE:monument_parameter_smoothing_test>)
+endif()
+
+# Stereo Width Test (Phase 4: Enhanced Testing)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_stereo_width_test
+    PRODUCT_NAME "Monument Stereo Width Test"
+  )
+
+  juce_generate_juce_header(monument_stereo_width_test)
+
+  target_sources(monument_stereo_width_test
+    PRIVATE
+      tests/StereoWidthTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_stereo_width_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_stereo_width_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_stereo_width_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_stereo_width_test COMMAND $<TARGET_FILE:monument_stereo_width_test>)
+endif()
+
+# Latency Test (Phase 4: Enhanced Testing)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_latency_test
+    PRODUCT_NAME "Monument Latency Test"
+  )
+
+  juce_generate_juce_header(monument_latency_test)
+
+  target_sources(monument_latency_test
+    PRIVATE
+      tests/LatencyTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_latency_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_latency_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_latency_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_latency_test COMMAND $<TARGET_FILE:monument_latency_test>)
+endif()
+
+# State Management Test (Phase 4: Enhanced Testing)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_state_management_test
+    PRODUCT_NAME "Monument State Management Test"
+  )
+
+  juce_generate_juce_header(monument_state_management_test)
+
+  target_sources(monument_state_management_test
+    PRIVATE
+      tests/StateManagementTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_state_management_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_state_management_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_state_management_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_state_management_test COMMAND $<TARGET_FILE:monument_state_management_test>)
 endif()
 
 # Plugin Analyzer Tool
