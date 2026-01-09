@@ -1,0 +1,47 @@
+--- a/dsp/SequencePresets.cpp
++++ b/dsp/SequencePresets.cpp
+@@ -181,30 +181,46 @@ SequenceScheduler::Sequence SequencePresets::createInfiniteAbyss()
+     // Keyframe 0 (0 beats): Deep pit begins
+     Keyframe kf0(0.0, Interpolation::SCurve);
+     kf0.setParameter(ParamId::Time, 1.0f);       // Maximum decay
+     kf0.setParameter(ParamId::Mass, 0.9f);       // Ultra-heavy
+     kf0.setParameter(ParamId::Density, 0.85f);   // Dense reflections
+     kf0.setParameter(ParamId::Bloom, 0.8f);      // High diffusion
+     kf0.setParameter(ParamId::Gravity, 0.3f);    // Light damping (eternal tail)
++    // Memory system for eternal feedback (fixes documentation mismatch)
++    kf0.setParameter(ParamId::Memory, 0.8f);      // High memory amount
++    kf0.setParameter(ParamId::MemoryDepth, 0.7f); // Strong feedback injection
++    kf0.setParameter(ParamId::MemoryDecay, 0.9f); // Very slow decay (near-infinite)
++    kf0.setParameter(ParamId::MemoryDrift, 0.3f); // Moderate drift for organic aging
+     sequence.addKeyframe(kf0);
+
+-    // Keyframe 1 (16 beats): Gravity destabilizes
++    // Keyframe 1 (16 beats): Gravity destabilizes, memory intensifies
+     Keyframe kf1(16.0, Interpolation::SCurve);
+     kf1.setParameter(ParamId::Gravity, 0.1f);    // Even lighter (chaos begins)
++    kf1.setParameter(ParamId::MemoryDepth, 0.85f); // Peak feedback injection
+     sequence.addKeyframe(kf1);
+
+-    // Keyframe 2 (32 beats): Gravity oscillates
++    // Keyframe 2 (32 beats): Gravity oscillates, memory stabilizes
+     Keyframe kf2(32.0, Interpolation::SCurve);
+     kf2.setParameter(ParamId::Gravity, 0.5f);    // Heavier
++    kf2.setParameter(ParamId::MemoryDepth, 0.65f); // Slightly reduced feedback
+     sequence.addKeyframe(kf2);
+
+-    // Keyframe 3 (48 beats): Return to light
++    // Keyframe 3 (48 beats): Return to light, memory drifts
+     Keyframe kf3(48.0, Interpolation::SCurve);
+     kf3.setParameter(ParamId::Gravity, 0.2f);
++    kf3.setParameter(ParamId::MemoryDrift, 0.5f);  // Increased drift for variation
+     sequence.addKeyframe(kf3);
+
+-    // Keyframe 4 (64 beats): Loop point
++    // Keyframe 4 (64 beats): Loop point, return to initial memory state
+     Keyframe kf4(64.0, Interpolation::SCurve);
+     kf4.setParameter(ParamId::Gravity, 0.3f);
++    kf4.setParameter(ParamId::MemoryDepth, 0.7f);  // Back to initial
++    kf4.setParameter(ParamId::MemoryDrift, 0.3f);  // Back to initial
+     sequence.addKeyframe(kf4);
+
+     return sequence;
