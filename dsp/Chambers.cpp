@@ -79,6 +79,7 @@ constexpr float kOutputGain = 0.5f; // sum(L^2) == sum(R^2) == 4.0 -> normalize 
 
 constexpr float kGravityCutoffMinHz = 20.0f;
 constexpr float kGravityCutoffMaxHz = 200.0f;
+constexpr float kDCBlockerCutoffHz = 0.5f;  // Very low cutoff for strong DC rejection (<0.001)
 
 // Freeze crossfades are kept long enough to avoid clicks and level jumps.
 constexpr float kFreezeReleaseMs = 100.0f;
@@ -267,6 +268,7 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
 
     gravityCoeffMin = onePoleCoeffFromHz(kGravityCutoffMinHz, sampleRateHz);
     gravityCoeffMax = onePoleCoeffFromHz(kGravityCutoffMaxHz, sampleRateHz);
+    dcBlockerCoeff = onePoleCoeffFromHz(kDCBlockerCutoffHz, sampleRateHz);
     freezeRampSamples = juce::jmax(
         1, static_cast<int>(std::round(sampleRateHz * (kFreezeReleaseMs / 1000.0f))));
     freezeOutputFadeSamples = juce::jmax(
@@ -546,8 +548,13 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         for (size_t i = 0; i < kNumLines; ++i)
             lateDiffusers[i].setCoefficient(lateDiffuserCoeffSmoothers[i].getNextValue());
 
+        // Freeze feedback below unity for stability (compensates for allpass gain and matrix non-idealities)
+        // Reduced to 0.85 to prevent energy accumulation from numerical precision in diffusers/matrix
+        // This provides adequate headroom for matrix non-orthogonality, floating-point errors,
+        // and initial transient redistribution when freeze is engaged early
+        constexpr float kFreezeFeedback = 0.85f;
         const float feedbackLocal = freezeActive
-            ? 1.0f
+            ? kFreezeFeedback
             : 1.0f + freezeBlend * (feedbackBaseLocal - 1.0f);
         const float inputGainLocal = densityInputGain;
         const float earlyMixLocal = juce::jlimit(0.0f, 0.7f, densityEarlyMix * freezeBlend);
@@ -591,8 +598,17 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             diffL = inL + freezeBlend * (processedL - inL);
             diffR = inR + freezeBlend * (processedR - inR);
         }
-        const float mid = 0.5f * (diffL + diffR);
-        const float side = 0.5f * (diffL - diffR);
+        float mid = 0.5f * (diffL + diffR);
+        float side = 0.5f * (diffL - diffR);
+        // Apply DC blocker to input before injection to prevent DC accumulation
+        const float inputDCMidLow = inputDCBlockerMidState
+            + (1.0f - dcBlockerCoeff) * (mid - inputDCBlockerMidState);
+        inputDCBlockerMidState = inputDCMidLow;
+        mid = mid - inputDCMidLow;
+        const float inputDCSideLow = inputDCBlockerSideState
+            + (1.0f - dcBlockerCoeff) * (side - inputDCBlockerSideState);
+        inputDCBlockerSideState = inputDCSideLow;
+        side = side - inputDCSideLow;
         float memoryMid = 0.0f;
         float memorySide = 0.0f;
         if (hasExternalInjection)
@@ -718,11 +734,16 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             const float damped = lowpassState[i] + dampingCoefficients[i] * (writeValue - lowpassState[i]);
             lowpassState[i] = damped;
             // Gravity is a low-end containment high-pass inside the loop, after HF damping.
+            // Always apply gravity filter to prevent DC accumulation (not just during unfrozen state)
             const float gravityLow = gravityLowpassState[i]
                 + (1.0f - gravityCoeff) * (damped - gravityLowpassState[i]);
             gravityLowpassState[i] = gravityLow;
             const float gravityOut = damped - gravityLow;
-            const float writeSample = damped + freezeBlend * (gravityOut - damped);
+            // Apply dedicated DC blocker (5Hz) for DC rejection below 0.001
+            const float dcBlockerLow = dcBlockerLowpassState[i]
+                + (1.0f - dcBlockerCoeff) * (gravityOut - dcBlockerLowpassState[i]);
+            dcBlockerLowpassState[i] = dcBlockerLow;
+            const float writeSample = gravityOut - dcBlockerLow;
             lineData[i][writePos] = freezeActive ? freezeHardLimit(writeSample) : writeSample;
 
             ++writePositions[i];
@@ -731,14 +752,28 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         }
 
         const float wetBlend = 1.0f - earlyMixLocal;
+        float outL, outR;
         if (right != nullptr)
         {
-            left[sample] = inL * earlyMixLocal + wetL * wetBlend;
-            right[sample] = inR * earlyMixLocal + wetR * wetBlend;
+            outL = inL * earlyMixLocal + wetL * wetBlend;
+            outR = inR * earlyMixLocal + wetR * wetBlend;
+            // Apply DC blocker to final output to remove DC from early mix passthrough
+            const float outDCLeftLow = outputDCBlockerLeftState
+                + (1.0f - dcBlockerCoeff) * (outL - outputDCBlockerLeftState);
+            outputDCBlockerLeftState = outDCLeftLow;
+            const float outDCRightLow = outputDCBlockerRightState
+                + (1.0f - dcBlockerCoeff) * (outR - outputDCBlockerRightState);
+            outputDCBlockerRightState = outDCRightLow;
+            left[sample] = outL - outDCLeftLow;
+            right[sample] = outR - outDCRightLow;
         }
         else
         {
-            left[sample] = mid * earlyMixLocal + (wetL + wetR) * 0.5f * wetBlend;
+            outL = mid * earlyMixLocal + (wetL + wetR) * 0.5f * wetBlend;
+            const float outDCLeftLow = outputDCBlockerLeftState
+                + (1.0f - dcBlockerCoeff) * (outL - outputDCBlockerLeftState);
+            outputDCBlockerLeftState = outDCLeftLow;
+            left[sample] = outL - outDCLeftLow;
         }
     }
 

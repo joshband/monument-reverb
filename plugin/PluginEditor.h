@@ -1,19 +1,12 @@
 #pragma once
 
 #include <JuceHeader.h>
-
 #include "PluginProcessor.h"
-#include "ui/MonumentKnob.h"
-#include "ui/MonumentToggle.h"
-#include "ui/MonumentTimeKnob.h"
-#include "ui/HeroKnob.h"
-#include "ui/PhotorealisticKnob.h"
-#include "ui/EnhancedBackgroundComponent.h"
-#include "ui/HeaderBar.h"
-#include "ui/CollapsiblePanel.h"
-#include "ui/ModMatrixPanel.h"
-#include "ui/TimelineComponent.h"
 
+/**
+ * Simple JUCE-based editor for Monument Reverb
+ * Uses basic Slider components for clean, functional UI
+ */
 class MonumentAudioProcessorEditor : public juce::AudioProcessorEditor
 {
 public:
@@ -26,55 +19,44 @@ public:
 private:
     MonumentAudioProcessor& processorRef;
 
-    // Background (bottom-most layer)
-    EnhancedBackgroundComponent enhancedBackground;
+    // Header label
+    juce::Label titleLabel;
 
-    // Header bar (top-most UI layer)
-    std::unique_ptr<HeaderBar> headerBar;
+    // Macro parameter sliders (10 controls)
+    juce::Slider materialSlider;
+    juce::Slider topologySlider;
+    juce::Slider viscositySlider;
+    juce::Slider evolutionSlider;
+    juce::Slider chaosSlider;
+    juce::Slider elasticitySlider;
+    juce::Slider patinaSlider;
+    juce::Slider abyssSlider;
+    juce::Slider coronaSlider;
+    juce::Slider breathSlider;
 
-    // Collapsible Panels
-    std::unique_ptr<CollapsiblePanel> macroControlPanel;
-    std::unique_ptr<CollapsiblePanel> foundationPanel;
-    std::unique_ptr<CollapsiblePanel> modulationNexusPanel;
+    // Labels for sliders
+    juce::Label materialLabel;
+    juce::Label topologyLabel;
+    juce::Label viscosityLabel;
+    juce::Label evolutionLabel;
+    juce::Label chaosLabel;
+    juce::Label elasticityLabel;
+    juce::Label patinaLabel;
+    juce::Label abyssLabel;
+    juce::Label coronaLabel;
+    juce::Label breathLabel;
 
-    // Macro Controls (Primary Interface) - All PhotorealisticKnob
-    PhotorealisticKnob materialKnob;
-    PhotorealisticKnob topologyKnob;
-    PhotorealisticKnob viscosityKnob;
-    PhotorealisticKnob evolutionKnob;
-    PhotorealisticKnob chaosKnob;
-    PhotorealisticKnob elasticityKnob;
-    PhotorealisticKnob patinaKnob;      // Ancient Monuments Phase 5
-    PhotorealisticKnob abyssKnob;       // Ancient Monuments Phase 5
-    PhotorealisticKnob coronaKnob;      // Ancient Monuments Phase 5
-    PhotorealisticKnob breathKnob;      // Ancient Monuments Phase 5
-
-    // Base Parameters - All PhotorealisticKnob with stone variants
-    PhotorealisticKnob mixKnob;
-    PhotorealisticKnob timeKnob;
-    PhotorealisticKnob sizeHeroKnob;
-    PhotorealisticKnob massKnob;
-    PhotorealisticKnob densityKnob;
-    PhotorealisticKnob bloomKnob;
-    PhotorealisticKnob airKnob;
-    PhotorealisticKnob widthKnob;
-    PhotorealisticKnob warpKnob;
-    PhotorealisticKnob driftKnob;
-    PhotorealisticKnob gravityKnob;
-    MonumentToggle freezeToggle;
-    juce::ComboBox presetBox;
-    juce::TextButton savePresetButton;
-
-    // Modulation Matrix Panel (separate from collapsible panels)
-    std::unique_ptr<monument::ui::ModMatrixPanel> modMatrixPanel;
-    juce::TextButton modMatrixToggleButton;
-    bool modMatrixVisible{false};
-
-    // User preset management
-    void refreshPresetList();
-    void scanUserPresets();
-    void showSavePresetDialog();
-    std::vector<juce::File> userPresetFiles;
+    // Slider attachments
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> materialAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> topologyAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> viscosityAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> evolutionAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> chaosAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> elasticityAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> patinaAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> abyssAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> coronaAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> breathAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MonumentAudioProcessorEditor)
 };

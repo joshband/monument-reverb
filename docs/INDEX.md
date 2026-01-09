@@ -26,6 +26,10 @@
 - [Roadmap.md](../Roadmap.md) - Current roadmap
 - [ImplementationPlan.md](../ImplementationPlan.md) - Implementation plan with Codex prompts
 
+## Status & Progress
+
+- [STATUS.md](STATUS.md) - DSP + UI status snapshot (macro-only direction)
+
 ---
 
 ## Architecture & Design

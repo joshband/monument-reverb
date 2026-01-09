@@ -43,7 +43,7 @@ pip3 install -r requirements.txt
 ### 4. Analyze RT60
 
 ```bash
-python3 tools/plugin-analyzer/python/rt60_analysis.py ./test-results/wet.wav
+python3 tools/plugin-analyzer/python/rt60_analysis_robust.py ./test-results/wet.wav
 ```
 
 ## Usage
@@ -101,7 +101,7 @@ monument_plugin_analyzer \
 ### RT60 Analysis (Python)
 
 ```bash
-python3 python/rt60_analysis.py <impulse_response.wav> [options]
+python3 python/rt60_analysis_robust.py <impulse_response.wav> [options]
 
 Options:
   --output <file>    Save metrics to JSON
@@ -109,10 +109,10 @@ Options:
 
 Examples:
   # Analyze with plot
-  python3 python/rt60_analysis.py wet.wav
+  python3 python/rt60_analysis_robust.py wet.wav
 
   # Save metrics to JSON
-  python3 python/rt60_analysis.py wet.wav --output metrics.json
+  python3 python/rt60_analysis_robust.py wet.wav --output metrics.json
 ```
 
 **Output:**
@@ -143,7 +143,8 @@ tools/plugin-analyzer/
 │   ├── TestSignalGenerator.{h,cpp} # Signal generation
 │   └── AudioCapture.{h,cpp}        # WAV export
 ├── python/
-│   ├── rt60_analysis.py            # RT60 calculation
+│   ├── rt60_analysis_robust.py     # RT60 calculation (with fallbacks)
+│   ├── frequency_response.py       # Frequency response analysis
 │   └── requirements.txt
 └── README.md
 ```
@@ -196,7 +197,7 @@ for preset in "${PRESETS[@]}"; do
     --preset "$preset" \
     --output "./results/$preset"
 
-  python3 python/rt60_analysis.py \
+  python3 python/rt60_analysis_robust.py \
     "./results/$preset/wet.wav" \
     --output "./results/$preset/metrics.json"
 done
@@ -209,7 +210,7 @@ done
 - name: Test Monument Plugin
   run: |
     ./build/monument_plugin_analyzer --plugin Monument.vst3
-    python3 python/rt60_analysis.py wet.wav --output metrics.json
+    python3 python/rt60_analysis_robust.py wet.wav --output metrics.json
 
 - name: Verify RT60
   run: |

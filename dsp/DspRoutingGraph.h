@@ -1,9 +1,11 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <array>
 #include <vector>
 #include <memory>
 #include <unordered_map>
+#include "dsp/ParameterBuffers.h"
 
 namespace monument
 {
@@ -197,6 +199,11 @@ public:
     const std::vector<RoutingConnection>& getRouting() const noexcept { return routingConnections; }
 
     /**
+     * @brief Get active preset index (lock-free, audio-thread safe)
+     */
+    size_t getActivePresetIndex() const noexcept { return activePresetIndex.load(std::memory_order_acquire); }
+
+    /**
      * @brief Set individual module bypass state
      */
     void setModuleBypass(ModuleType module, bool bypass);
@@ -213,11 +220,27 @@ public:
 
     /**
      * @brief Set module parameters (forwarded to individual modules)
+     *
+     * DESIGN NOTE: Critical parameters now accept ParameterBuffer references for
+     * per-sample interpolation, eliminating zipper noise and parameter smoothing artifacts.
+     *
+     * Per-sample parameters (ParameterBuffer):
+     * - time, mass, density, bloom, gravity (Chambers FDN - most audible)
+     * - pillarShape (Pillars tap layout - modulates early reflections)
+     * - warp, drift (Weathering modulation depth)
+     *
+     * Block-rate parameters (float):
+     * - air, width, mix (Facade - less critical, lower CPU overhead)
+     * - drive, tilt (Foundation/Buttress - input/output stages)
      */
     void setFoundationParams(float drive, float tilt);
-    void setPillarsParams(float density, float shape, float warp);
-    void setChambersParams(float time, float mass, float density, float bloom, float gravity);
-    void setWeatheringParams(float warp, float drift);
+    void setPillarsParams(float density, const ParameterBuffer& shape, float warp);
+    void setChambersParams(const ParameterBuffer& time,
+                           const ParameterBuffer& mass,
+                           const ParameterBuffer& density,
+                           const ParameterBuffer& bloom,
+                           const ParameterBuffer& gravity);
+    void setWeatheringParams(const ParameterBuffer& warp, const ParameterBuffer& drift);
     void setTubeRayTracerParams(float tubeCount, float radiusVariation,
                                  float metallicResonance, float couplingStrength);
     void setElasticHallwayParams(float elasticity, float recoveryTime,
@@ -247,7 +270,22 @@ private:
     // Module bypass states
     std::array<bool, static_cast<size_t>(ModuleType::Count)> moduleBypassed{};
 
-    // Current routing
+    // Routing preset cache (avoid allocations on preset swaps)
+    static constexpr size_t kMaxRoutingConnections = 16;
+    static constexpr size_t kRoutingPresetCount =
+        static_cast<size_t>(RoutingPresetType::Custom) + 1;
+
+    struct PresetRoutingData
+    {
+        std::array<RoutingConnection, kMaxRoutingConnections> connections{};
+        size_t connectionCount{0};
+        std::array<bool, static_cast<size_t>(ModuleType::Count)> bypass{};
+    };
+
+    std::array<PresetRoutingData, kRoutingPresetCount> presetData{};
+    std::atomic<size_t> activePresetIndex{0};  // Lock-free preset switching
+
+    // Current routing (kept for backward compatibility with setRouting/getRouting)
     std::vector<RoutingConnection> routingConnections;
     RoutingPresetType currentPreset{RoutingPresetType::TraditionalCathedral};
 
@@ -265,6 +303,22 @@ private:
     int maxBlockSizeInternal{2048};
     int numChannelsInternal{2};
 
+    // Parameter buffer storage (references to PluginProcessor's parameter pools)
+    // These are set via setXXXParams() and used during process()
+    // Chambers critical parameters (per-sample)
+    ParameterBuffer chambersTimeBuffer;
+    ParameterBuffer chambersMassBuffer;
+    ParameterBuffer chambersDensityBuffer;
+    ParameterBuffer chambersBloomBuffer;
+    ParameterBuffer chambersGravityBuffer;
+
+    // Pillars critical parameters (per-sample)
+    ParameterBuffer pillarsShapeBuffer;
+
+    // Weathering critical parameters (per-sample)
+    ParameterBuffer weatheringWarpBuffer;
+    ParameterBuffer weatheringDriftBuffer;
+
     // Helper: Get module processor by type
     void processModule(ModuleType module, juce::AudioBuffer<float>& buffer);
 
@@ -278,6 +332,10 @@ private:
 
     // Helper: Topological sort for processing order
     std::vector<ModuleType> computeProcessingOrder() const;
+
+    // Helper: Build/apply preset routing data
+    void buildPresetData();
+    void applyPresetData(RoutingPresetType preset);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DspRoutingGraph)
 };

@@ -4,6 +4,8 @@
 **Goal:** Rebuild UI from ground up using mockup designs
 **Status:** Core components complete, ready for PluginEditor integration
 
+**Update (2026-01-07):** This document is now historical. The plugin UI has moved to a macro-only surface with celestial asset layers and a reactive macro overlay.
+
 ---
 
 ## ✅ Completed Components (Session 1)

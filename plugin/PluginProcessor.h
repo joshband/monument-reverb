@@ -10,6 +10,7 @@
 #include "dsp/ExpressiveMacroMapper.h"
 #include "dsp/ModulationMatrix.h"
 #include "dsp/SequenceScheduler.h"
+#include "dsp/ParameterBuffers.h"
 #include "PresetManager.h"
 
 /**
@@ -76,6 +77,9 @@ public:
     // Processing mode management (Ancient Monuments routing)
     void setProcessingMode(ProcessingMode mode);
     ProcessingMode getProcessingMode() const noexcept;
+
+    float getInputLevel() const noexcept { return inputLevel.load(std::memory_order_relaxed); }
+    float getOutputLevel() const noexcept { return outputLevel.load(std::memory_order_relaxed); }
 
 private:
     enum class PresetTransitionState
@@ -152,6 +156,14 @@ private:
     juce::SmoothedValue<float> paradoxResonanceFreqSmoother;
     juce::SmoothedValue<float> paradoxGainSmoother;
 
+    // Smoother activity tracking bitmask (optimization: skip inactive smoothers)
+    // Each bit represents one smoother (0-21); bit=1 means smoother was active last frame
+    uint32_t activeSmoothers{0};
+
+    // Per-sample parameter buffers (Phase 4: Per-sample interpolation)
+    // Stack-allocated pool (64KB, cache-aligned) for critical parameters
+    ParameterBufferPool paramBufferPool;
+
     // Processing mode transition gain (prevents clicks on mode change)
     juce::SmoothedValue<float> modeTransitionGain;
 
@@ -169,6 +181,9 @@ private:
     void processBlockAncientWay(juce::AudioBuffer<float>& buffer);
     void processBlockResonantHalls(juce::AudioBuffer<float>& buffer);
     void processBlockBreathingStone(juce::AudioBuffer<float>& buffer);
+
+    std::atomic<float> inputLevel{0.0f};
+    std::atomic<float> outputLevel{0.0f};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MonumentAudioProcessor)
 };

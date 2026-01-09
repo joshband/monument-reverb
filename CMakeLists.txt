@@ -623,6 +623,478 @@ if(BUILD_TESTING)
   add_test(NAME monument_state_management_test COMMAND $<TARGET_FILE:monument_state_management_test>)
 endif()
 
+# DspRoutingGraph Test (Phase 1: Critical Infrastructure)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_dsp_routing_graph_test
+    PRODUCT_NAME "Monument DspRoutingGraph Test"
+  )
+
+  juce_generate_juce_header(monument_dsp_routing_graph_test)
+
+  target_sources(monument_dsp_routing_graph_test
+    PRIVATE
+      tests/DspRoutingGraphTest.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_dsp_routing_graph_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_dsp_routing_graph_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+
+  target_link_libraries(monument_dsp_routing_graph_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_dsp_routing_graph_test COMMAND $<TARGET_FILE:monument_dsp_routing_graph_test>)
+endif()
+
+# ModulationMatrix Test (Phase 1.2: Critical Infrastructure)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_modulation_matrix_test
+    PRODUCT_NAME "Monument ModulationMatrix Test"
+  )
+
+  juce_generate_juce_header(monument_modulation_matrix_test)
+
+  target_sources(monument_modulation_matrix_test
+    PRIVATE
+      tests/ModulationMatrixTest.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_modulation_matrix_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_modulation_matrix_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+
+  target_link_libraries(monument_modulation_matrix_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_modulation_matrix_test COMMAND $<TARGET_FILE:monument_modulation_matrix_test>)
+endif()
+
+# Novel Algorithms Test (Phase 2: Novel Algorithm Verification)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_novel_algorithms_test
+    PRODUCT_NAME "Monument Novel Algorithms Test"
+  )
+
+  juce_generate_juce_header(monument_novel_algorithms_test)
+
+  target_sources(monument_novel_algorithms_test
+    PRIVATE
+      tests/NovelAlgorithmsTest.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_novel_algorithms_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_novel_algorithms_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+
+  target_link_libraries(monument_novel_algorithms_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_novel_algorithms_test COMMAND $<TARGET_FILE:monument_novel_algorithms_test>)
+endif()
+
+# Foundation Module Test (Phase 3: Foundation Module Verification)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_foundation_test
+    PRODUCT_NAME "Monument Foundation Test"
+  )
+
+  juce_generate_juce_header(monument_foundation_test)
+
+  target_sources(monument_foundation_test
+    PRIVATE
+      tests/FoundationTest.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_foundation_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_foundation_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+
+  target_link_libraries(monument_foundation_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_foundation_test COMMAND $<TARGET_FILE:monument_foundation_test>)
+endif()
+
+# ParameterBuffer Test (Phase 4: Per-Sample Parameter Infrastructure)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_parameter_buffer_test
+    PRODUCT_NAME "Monument ParameterBuffer Test"
+  )
+
+  juce_generate_juce_header(monument_parameter_buffer_test)
+
+  target_sources(monument_parameter_buffer_test
+    PRIVATE
+      tests/ParameterBufferTest.cpp
+  )
+
+  target_include_directories(monument_parameter_buffer_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_parameter_buffer_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+
+  target_link_libraries(monument_parameter_buffer_test
+    PRIVATE
+      juce::juce_audio_processors
+      juce::juce_core
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_parameter_buffer_test COMMAND $<TARGET_FILE:monument_parameter_buffer_test>)
+endif()
+
+# Performance Benchmark Test (Stress Testing: CPU, Memory, SIMD)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_performance_benchmark
+    PRODUCT_NAME "Monument Performance Benchmark"
+  )
+
+  juce_generate_juce_header(monument_performance_benchmark)
+
+  target_sources(monument_performance_benchmark
+    PRIVATE
+      tests/PerformanceBenchmarkTest.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_performance_benchmark
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_performance_benchmark
+    PRIVATE
+      MONUMENT_TESTING=1
+      MONUMENT_BENCHMARK_MODE=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+
+  target_link_libraries(monument_performance_benchmark
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_performance_benchmark COMMAND $<TARGET_FILE:monument_performance_benchmark> --quick)
+endif()
+
+# Parameter Stress Test (Stress Testing: Parameter Extremes, Automation, Edge Cases)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_parameter_stress_test
+    PRODUCT_NAME "Monument Parameter Stress Test"
+  )
+
+  juce_generate_juce_header(monument_parameter_stress_test)
+
+  target_sources(monument_parameter_stress_test
+    PRIVATE
+      tests/ParameterStressTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_parameter_stress_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_parameter_stress_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      MONUMENT_STRESS_TEST_MODE=1
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e7520
+      JucePlugin_PluginCode=0x4d6e7220
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+
+  target_link_libraries(monument_parameter_stress_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_audio_processors
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_parameter_stress_test COMMAND $<TARGET_FILE:monument_parameter_stress_test> --quick)
+endif()
+
+# DSP Initialization Test (Phase A: DSP Verification)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_dsp_initialization_test
+    PRODUCT_NAME "Monument DSP Initialization Test"
+  )
+
+  juce_generate_juce_header(monument_dsp_initialization_test)
+
+  target_sources(monument_dsp_initialization_test
+    PRIVATE
+      tests/DspInitializationTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_dsp_initialization_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_dsp_initialization_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_dsp_initialization_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_dsp_initialization_test COMMAND $<TARGET_FILE:monument_dsp_initialization_test>)
+endif()
+
+# Reverb DSP Test (Phase C: DSP Verification)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_reverb_dsp_test
+    PRODUCT_NAME "Monument Reverb DSP Test"
+  )
+
+  juce_generate_juce_header(monument_reverb_dsp_test)
+
+  target_sources(monument_reverb_dsp_test
+    PRIVATE
+      tests/ReverbDspTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_reverb_dsp_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_reverb_dsp_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_reverb_dsp_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_reverb_dsp_test COMMAND $<TARGET_FILE:monument_reverb_dsp_test>)
+endif()
+
+# Delay DSP Test (Phase B: DSP Verification)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_delay_dsp_test
+    PRODUCT_NAME "Monument Delay DSP Test"
+  )
+
+  juce_generate_juce_header(monument_delay_dsp_test)
+
+  target_sources(monument_delay_dsp_test
+    PRIVATE
+      tests/DelayDspTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_delay_dsp_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_delay_dsp_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_delay_dsp_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_delay_dsp_test COMMAND $<TARGET_FILE:monument_delay_dsp_test>)
+endif()
+
+# Spatial DSP Test (Phase S: DSP Verification)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_spatial_dsp_test
+    PRODUCT_NAME "Monument Spatial DSP Test"
+  )
+
+  juce_generate_juce_header(monument_spatial_dsp_test)
+
+  target_sources(monument_spatial_dsp_test
+    PRIVATE
+      tests/SpatialDspTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_spatial_dsp_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_spatial_dsp_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_spatial_dsp_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_spatial_dsp_test COMMAND $<TARGET_FILE:monument_spatial_dsp_test>)
+endif()
+
 # Plugin Analyzer Tool
 option(MONUMENT_BUILD_ANALYZER "Build Monument plugin analyzer tool" ON)
 

@@ -3,6 +3,8 @@
 **Status:** Ready for Testing
 **Goal:** Pseudo-3D photorealistic UI with Blender-rendered layered knobs
 
+**Update (2026-01-07):** The plugin UI has shifted to a macro-only surface using `assets/ui/celestial` layers and a reactive macro overlay. The enhanced Blender pipeline remains optional for future packs.
+
 ---
 
 ## Overview

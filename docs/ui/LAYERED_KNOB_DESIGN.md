@@ -3,6 +3,8 @@
 **Date:** 2026-01-03
 **Goal:** Photorealistic round knobs with proper alpha channels and layered construction
 
+**Update (2026-01-07):** The macro UI now uses `CelestialKnob` with file-based RGBA layers in `assets/ui/celestial/`. The layered approach remains compatible with future PBR packs.
+
 ---
 
 ## Architecture Overview

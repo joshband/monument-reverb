@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include <array>
+#include <atomic>
 #include <vector>
 #include <memory>
 #include <random>
@@ -219,10 +220,16 @@ private:
     std::unique_ptr<EnvelopeTracker> envTracker;
 
     // Active modulation connections (fixed-size array to prevent real-time allocations)
+    // IMPORTANT: Only modify these from the message thread (JUCE guarantees single-threaded)
+    // The audio thread reads from connectionSnapshots instead (lock-free)
     static constexpr int kMaxConnections = 256;
     std::array<Connection, kMaxConnections> connections{};
     int connectionCount = 0;
-    mutable juce::SpinLock connectionsLock;  // Thread-safe access to connections array
+
+    // Lock-free snapshot for the audio thread (double-buffered)
+    std::array<std::array<Connection, kMaxConnections>, 2> connectionSnapshots{};
+    std::array<int, 2> snapshotCounts{};
+    std::atomic<int> activeSnapshotIndex{0};
 
     // Per-destination modulation accumulators (smoothed output values)
     std::array<float, static_cast<size_t>(DestinationType::Count)> modulationValues{};
@@ -236,6 +243,7 @@ private:
 
     // Helper: find existing connection index, or -1 if not found
     int findConnectionIndex(SourceType source, DestinationType destination, int axis) const noexcept;
+    void publishConnectionsSnapshot() noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulationMatrix)
 };

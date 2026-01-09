@@ -72,16 +72,18 @@ capture_preset() {
     # Create preset directory
     mkdir -p "$PRESET_DIR"
 
-    # Run analyzer
+    # Run analyzer with integrated analysis
     if "$ANALYZER_PATH" \
         --plugin "$PLUGIN_PATH" \
         --preset $i \
         --duration $DURATION \
-        --output "$PRESET_DIR" > "${PRESET_DIR}/capture.log" 2>&1; then
+        --output "$PRESET_DIR" \
+        --analyze > "${PRESET_DIR}/capture.log" 2>&1; then
 
-        # Verify output files exist
-        if [ -f "${PRESET_DIR}/wet.wav" ] && [ -f "${PRESET_DIR}/dry.wav" ]; then
-            echo "[Preset ${i}] ✓ Captured successfully"
+        # Verify output files exist (audio + analysis)
+        if [ -f "${PRESET_DIR}/wet.wav" ] && [ -f "${PRESET_DIR}/dry.wav" ] && \
+           [ -f "${PRESET_DIR}/rt60_metrics.json" ] && [ -f "${PRESET_DIR}/frequency_response.json" ]; then
+            echo "[Preset ${i}] ✓ Captured and analyzed successfully"
 
             # Save metadata
             cat > "${PRESET_DIR}/metadata.json" <<EOF
@@ -136,7 +138,8 @@ SUCCESS_COUNT=0
 FAIL_COUNT=0
 for i in $(seq 0 36); do
     PRESET_DIR="${OUTPUT_BASE}/preset_$(printf "%02d" $i)"
-    if [ -f "${PRESET_DIR}/wet.wav" ] && [ -f "${PRESET_DIR}/dry.wav" ]; then
+    if [ -f "${PRESET_DIR}/wet.wav" ] && [ -f "${PRESET_DIR}/dry.wav" ] && \
+       [ -f "${PRESET_DIR}/rt60_metrics.json" ] && [ -f "${PRESET_DIR}/frequency_response.json" ]; then
         SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
     else
         FAIL_COUNT=$((FAIL_COUNT + 1))
@@ -156,15 +159,21 @@ echo -e "Speedup: ${GREEN}$(($ESTIMATED_SERIAL / ($MINUTES + 1)))x faster than s
 echo ""
 
 if [ $SUCCESS_COUNT -eq $NUM_PRESETS ]; then
-    echo -e "${GREEN}✓ All presets captured successfully!${NC}"
+    echo -e "${GREEN}✓ All presets captured and analyzed successfully!${NC}"
+    echo ""
+    echo -e "Generated for each preset:"
+    echo -e "  • wet.wav, dry.wav (audio captures)"
+    echo -e "  • rt60_metrics.json (reverb time analysis)"
+    echo -e "  • frequency_response.json (spectral analysis)"
+    echo -e "  • metadata.json (capture info)"
     echo ""
     echo -e "Next steps:"
-    echo -e "  1. Run analysis: ${BLUE}./scripts/analyze_all_presets.sh${NC}"
+    echo -e "  1. Compare with baseline: ${BLUE}python3 tools/compare_baseline.py test-results/preset-baseline${NC}"
     echo -e "  2. Generate report: ${BLUE}python3 tools/generate_preset_report.py${NC}"
     echo ""
     exit 0
 else
-    echo -e "${YELLOW}⚠ Some presets failed to capture${NC}"
+    echo -e "${YELLOW}⚠ Some presets failed to capture or analyze${NC}"
     echo -e "Check individual logs in ${OUTPUT_BASE}/preset_*/capture.log"
     echo ""
     exit 1

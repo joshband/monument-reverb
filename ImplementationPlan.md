@@ -1,14 +1,14 @@
 # Implementation Plan
 
 Date: 2026-01-07
-Scope: Address review findings, update documentation, and implement an updated UI direction based on Playground learnings.
+Scope: Address review findings, update documentation, and implement a macro-only UI direction based on Playground learnings.
 
 ## Workstreams
 
 ### 1) Stability & Real-Time Safety
-- Guard `getPlayHead()` access in `plugin/PluginProcessor.cpp` and pass an empty optional if unavailable.
-- Make routing preset changes RT-safe by precomputing routing graphs and swapping without allocation.
-- Reduce audio-thread lock contention in `dsp/ModulationMatrix` by snapshotting connections off-thread.
+- ✅ Guard `getPlayHead()` access in `plugin/PluginProcessor.cpp` and pass an empty optional if unavailable.
+- ✅ Make routing preset changes RT-safe by precomputing routing graphs and swapping without allocation.
+- ✅ Reduce audio-thread lock contention in `dsp/ModulationMatrix` by snapshotting connections off-thread.
 
 ### 2) Test & Build Hygiene
 - Make `monument_smoke_test` CTest command config-aware.
@@ -32,8 +32,8 @@ Scope: Address review findings, update documentation, and implement an updated U
 - **Constraints**: JUCE UI, real-time audio thread safety, cross-platform plugin hosts, and performance limits under heavy DSP load.
 
 ### UX intent
-- **Primary action**: parameter adjustment via tactile layered knobs (macro + core controls).
-- **Secondary actions**: enable/disable audio-reactive visuals, switch knob packs, and toggle particle overlays.
+- **Primary action**: macro-only adjustment via tactile layered knobs (no base parameters shown).
+- **Secondary actions**: preset selection, architecture routing, modulation view, and audio-reactive visuals.
 - **Loading/empty/error states**: show fallback test pattern if assets fail, and a clear status banner when particles/audio are disabled.
 
 ### Interaction model
@@ -78,7 +78,8 @@ Scope: Address review findings, update documentation, and implement an updated U
   - `LayeredKnob` (variants: geode/metal/industrial; states: default/hover/dragging).
   - `ParticleField` (states: off/idle/reactive; variants: embers/smoke/sparks).
   - `StatusBar` (states: normal/warning; shows audio state and metrics).
-  - `MacroCluster` (6-10 macros; grouped layout with labels).
+  - `MacroCluster` (10 macros; macro-only layout with labels).
+  - `MacroVisualOverlay` (OpenGL rings + glyph hints from JSON profiles).
 
 ### Frontend implementation notes
 - **Component structure**: 

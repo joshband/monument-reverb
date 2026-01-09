@@ -60,7 +60,12 @@ private:
     std::array<int, kNumLines> writePositions{};
     std::array<float, kNumLines> lowpassState{};
     std::array<float, kNumLines> gravityLowpassState{};
+    std::array<float, kNumLines> dcBlockerLowpassState{};  // DC blocker state (<5Hz)
     std::array<float, kNumLines> dampingCoefficients{};
+    float inputDCBlockerMidState = 0.0f;     // Input DC blocker for mid signal
+    float inputDCBlockerSideState = 0.0f;    // Input DC blocker for side signal
+    float outputDCBlockerLeftState = 0.0f;   // Output DC blocker for left channel
+    float outputDCBlockerRightState = 0.0f;  // Output DC blocker for right channel
     int delayBufferLength = 0;
     float meanDelaySeconds = 0.0f;
 
@@ -90,6 +95,7 @@ private:
     float driftDepthMaxSamples = 1.0f;
     float gravityCoeffMin = 1.0f;
     float gravityCoeffMax = 1.0f;
+    float dcBlockerCoeff = 1.0f;  // DC blocker coefficient (5Hz cutoff)
     bool smoothersPrimed = false;
     bool isFrozen = false;
     bool wasFrozen = false;

@@ -7,6 +7,8 @@
 **Vision:** Elemental, explorative audio plugin UI with pseudo-3D photorealistic render assets
 **Aesthetic:** Knolling arrangement, baked lighting, PBR materials, skeuomorphic controls
 
+> **Update (2026-01-07):** The plugin UI has moved to a macro-only control surface. Base parameters are hidden, macros are mapped internally, and reactive visuals are driven by `assets/ui/macro_hints.json` + `assets/ui/visual_profiles.json`. OpenGL is acceptable for the overlay layer.
+
 ---
 
 ## PART 1: DESIGN PHILOSOPHY

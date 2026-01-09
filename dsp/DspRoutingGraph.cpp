@@ -3,6 +3,7 @@
 #include "dsp/TubeRayTracer.h"
 #include "dsp/ElasticHallway.h"
 #include "dsp/AlienAmplification.h"
+#include <initializer_list>
 
 namespace monument
 {
@@ -28,6 +29,10 @@ DspRoutingGraph::DspRoutingGraph()
 
     // Initialize bypass states (all enabled by default)
     moduleBypassed.fill(false);
+
+    routingConnections.reserve(kMaxRoutingConnections);
+    buildPresetData();
+    loadRoutingPreset(currentPreset);
 }
 
 DspRoutingGraph::~DspRoutingGraph() = default;
@@ -114,11 +119,17 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
     // Save dry signal for parallel modes (dedicated buffer for clarity)
     dryBuffer.makeCopyOf(buffer);
 
-    // Process each connection in order
-    for (const auto& conn : routingConnections)
+    // Lock-free preset read: Load current preset index atomically
+    const size_t presetIdx = activePresetIndex.load(std::memory_order_acquire);
+    const auto& currentPresetData = presetData[presetIdx];
+
+    // Process each connection in order (from pre-allocated preset data)
+    for (size_t i = 0; i < currentPresetData.connectionCount; ++i)
     {
-        // Skip disabled connections or bypassed modules
-        if (!conn.enabled || moduleBypassed[static_cast<size_t>(conn.source)])
+        const auto& conn = currentPresetData.connections[i];
+
+        // Skip disabled connections or bypassed modules (read from preset data for lock-free operation)
+        if (!conn.enabled || currentPresetData.bypass[static_cast<size_t>(conn.source)])
             continue;
 
         switch (conn.mode)
@@ -133,7 +144,7 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
             case RoutingMode::Parallel:
             {
                 // Skip if destination module is bypassed (early exit before buffer ops)
-                if (moduleBypassed[static_cast<size_t>(conn.destination)])
+                if (currentPresetData.bypass[static_cast<size_t>(conn.destination)])
                     break;
 
                 // Parallel: process in temp buffer, then blend with main
@@ -154,7 +165,7 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
             case RoutingMode::ParallelMix:
             {
                 // Skip if destination module is bypassed
-                if (moduleBypassed[static_cast<size_t>(conn.destination)])
+                if (currentPresetData.bypass[static_cast<size_t>(conn.destination)])
                     break;
 
                 // Parallel with dry mix: process module, blend with original dry
@@ -256,142 +267,147 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
 // Routing Configuration
 //==============================================================================
 
+void DspRoutingGraph::buildPresetData()
+{
+    auto fillPreset = [this](
+        RoutingPresetType preset,
+        std::initializer_list<RoutingConnection> connections,
+        std::initializer_list<ModuleType> bypassed = {})
+    {
+        auto& data = presetData[static_cast<size_t>(preset)];
+        data.connectionCount = 0;
+        data.bypass.fill(false);
+
+        for (const auto& connection : connections)
+        {
+            if (data.connectionCount >= kMaxRoutingConnections)
+            {
+                jassertfalse;
+                break;
+            }
+            data.connections[data.connectionCount++] = connection;
+        }
+
+        for (const auto module : bypassed)
+            data.bypass[static_cast<size_t>(module)] = true;
+    };
+
+    // Foundation → Pillars → Chambers → Weathering → Facade
+    fillPreset(RoutingPresetType::TraditionalCathedral, {
+        {ModuleType::Foundation, ModuleType::Pillars},
+        {ModuleType::Pillars, ModuleType::Chambers},
+        {ModuleType::Chambers, ModuleType::Weathering},
+        {ModuleType::Weathering, ModuleType::Facade}
+    });
+
+    // Foundation → Pillars → TubeRayTracer → Facade (bypass Chambers)
+    fillPreset(RoutingPresetType::MetallicGranular, {
+        {ModuleType::Foundation, ModuleType::Pillars},
+        {ModuleType::Pillars, ModuleType::TubeRayTracer},
+        {ModuleType::TubeRayTracer, ModuleType::Facade}
+    }, {ModuleType::Chambers});
+
+    // Foundation → Pillars → ElasticHallway → Chambers → AlienAmplification → Facade
+    RoutingConnection elasticFeedback{ModuleType::ElasticHallway, ModuleType::Pillars,
+                                      RoutingMode::Feedback};
+    elasticFeedback.feedbackGain = 0.3f;
+    fillPreset(RoutingPresetType::ElasticFeedbackDream, {
+        {ModuleType::Foundation, ModuleType::Pillars},
+        {ModuleType::Pillars, ModuleType::ElasticHallway},
+        {ModuleType::ElasticHallway, ModuleType::Chambers},
+        {ModuleType::Chambers, ModuleType::AlienAmplification},
+        {ModuleType::AlienAmplification, ModuleType::Facade},
+        elasticFeedback
+    });
+
+    // Foundation → Pillars → [Chambers + TubeRayTracer + ElasticHallway] parallel → Facade
+    RoutingConnection parallelChambers{ModuleType::Pillars, ModuleType::Chambers,
+                                       RoutingMode::Parallel};
+    parallelChambers.blendAmount = 0.33f;
+    RoutingConnection parallelTubes{ModuleType::Pillars, ModuleType::TubeRayTracer,
+                                    RoutingMode::Parallel};
+    parallelTubes.blendAmount = 0.33f;
+    RoutingConnection parallelElastic{ModuleType::Pillars, ModuleType::ElasticHallway,
+                                      RoutingMode::Parallel};
+    parallelElastic.blendAmount = 0.34f;
+    fillPreset(RoutingPresetType::ParallelWorlds, {
+        {ModuleType::Foundation, ModuleType::Pillars},
+        parallelChambers,
+        parallelTubes,
+        parallelElastic,
+        {ModuleType::Chambers, ModuleType::Facade}
+    });
+
+    // Foundation → Pillars → Chambers → AlienAmplification → Facade
+    RoutingConnection shimmerFeedback{ModuleType::AlienAmplification, ModuleType::Chambers,
+                                      RoutingMode::Feedback};
+    shimmerFeedback.feedbackGain = 0.4f;
+    fillPreset(RoutingPresetType::ShimmerInfinity, {
+        {ModuleType::Foundation, ModuleType::Pillars},
+        {ModuleType::Pillars, ModuleType::Chambers},
+        {ModuleType::Chambers, ModuleType::AlienAmplification},
+        {ModuleType::AlienAmplification, ModuleType::Facade},
+        shimmerFeedback
+    });
+
+    // Foundation → Pillars → AlienAmplification → TubeRayTracer → Chambers → Facade
+    fillPreset(RoutingPresetType::ImpossibleChaos, {
+        {ModuleType::Foundation, ModuleType::Pillars},
+        {ModuleType::Pillars, ModuleType::AlienAmplification},
+        {ModuleType::AlienAmplification, ModuleType::TubeRayTracer},
+        {ModuleType::TubeRayTracer, ModuleType::Chambers},
+        {ModuleType::Chambers, ModuleType::Facade}
+    });
+
+    // Foundation → Pillars → ElasticHallway → Weathering → Chambers → Facade
+    fillPreset(RoutingPresetType::OrganicBreathing, {
+        {ModuleType::Foundation, ModuleType::Pillars},
+        {ModuleType::Pillars, ModuleType::ElasticHallway},
+        {ModuleType::ElasticHallway, ModuleType::Weathering},
+        {ModuleType::Weathering, ModuleType::Chambers},
+        {ModuleType::Chambers, ModuleType::Facade}
+    });
+
+    // Foundation → Pillars → Facade (bypass reverb core)
+    fillPreset(RoutingPresetType::MinimalSparse, {
+        {ModuleType::Foundation, ModuleType::Pillars},
+        {ModuleType::Pillars, ModuleType::Facade}
+    }, {ModuleType::Chambers, ModuleType::Weathering});
+
+    // Custom routing (empty by default)
+    fillPreset(RoutingPresetType::Custom, {});
+}
+
+void DspRoutingGraph::applyPresetData(RoutingPresetType preset)
+{
+    const auto presetIndex = static_cast<size_t>(preset);
+    if (presetIndex >= presetData.size())
+        return;
+
+    const auto& data = presetData[presetIndex];
+    moduleBypassed = data.bypass;
+
+    // Update vector for backward compatibility (not used in audio thread)
+    routingConnections.assign(data.connections.begin(),
+                              data.connections.begin() + data.connectionCount);
+}
+
 void DspRoutingGraph::loadRoutingPreset(RoutingPresetType preset)
 {
     currentPreset = preset;
-    routingConnections.clear();
 
-    // Reset all bypass states
-    moduleBypassed.fill(false);
-
-    switch (preset)
+    // Lock-free preset switch: Just update the atomic index
+    // The audio thread will read from presetData[activePresetIndex] directly
+    const auto presetIndex = static_cast<size_t>(preset);
+    if (presetIndex < presetData.size())
     {
-        case RoutingPresetType::TraditionalCathedral:
-        {
-            // Foundation → Pillars → Chambers → Weathering → Facade
-            // This is the original Monument signal chain
-            routingConnections.push_back({ModuleType::Foundation, ModuleType::Pillars});
-            routingConnections.push_back({ModuleType::Pillars, ModuleType::Chambers});
-            routingConnections.push_back({ModuleType::Chambers, ModuleType::Weathering});
-            routingConnections.push_back({ModuleType::Weathering, ModuleType::Facade});
-            break;
-        }
+        activePresetIndex.store(presetIndex, std::memory_order_release);
 
-        case RoutingPresetType::MetallicGranular:
-        {
-            // Foundation → Pillars → TubeRayTracer → Facade (bypass Chambers)
-            // Creates bright, textured, metallic resonances without smooth tail
-            routingConnections.push_back({ModuleType::Foundation, ModuleType::Pillars});
-            routingConnections.push_back({ModuleType::Pillars, ModuleType::TubeRayTracer});
-            routingConnections.push_back({ModuleType::TubeRayTracer, ModuleType::Facade});
-
-            // Bypass Chambers to avoid smooth reverb tail
-            setModuleBypass(ModuleType::Chambers, true);
-            break;
-        }
-
-        case RoutingPresetType::ElasticFeedbackDream:
-        {
-            // Foundation → Pillars → ElasticHallway → Chambers → AlienAmplification → Facade
-            // ElasticHallway ⟲ Feedback to Pillars (creates organic, morphing, unstable sound)
-            routingConnections.push_back({ModuleType::Foundation, ModuleType::Pillars});
-            routingConnections.push_back({ModuleType::Pillars, ModuleType::ElasticHallway});
-            routingConnections.push_back({ModuleType::ElasticHallway, ModuleType::Chambers});
-            routingConnections.push_back({ModuleType::Chambers, ModuleType::AlienAmplification});
-            routingConnections.push_back({ModuleType::AlienAmplification, ModuleType::Facade});
-
-            // Add feedback connection (ElasticHallway output → Pillars input)
-            RoutingConnection feedback{ModuleType::ElasticHallway, ModuleType::Pillars,
-                                        RoutingMode::Feedback};
-            feedback.feedbackGain = 0.3f;  // CRITICAL: Must be < 1.0 for stability
-            routingConnections.push_back(feedback);
-            break;
-        }
-
-        case RoutingPresetType::ParallelWorlds:
-        {
-            // Foundation → Pillars → [Chambers + TubeRayTracer + ElasticHallway] parallel → Facade
-            // Three different character reverbs running in parallel
-            routingConnections.push_back({ModuleType::Foundation, ModuleType::Pillars});
-
-            // Three parallel paths (must sum to ~1.0 for unity gain)
-            RoutingConnection parallel1{ModuleType::Pillars, ModuleType::Chambers,
-                                         RoutingMode::Parallel};
-            parallel1.blendAmount = 0.33f;
-            routingConnections.push_back(parallel1);
-
-            RoutingConnection parallel2{ModuleType::Pillars, ModuleType::TubeRayTracer,
-                                         RoutingMode::Parallel};
-            parallel2.blendAmount = 0.33f;
-            routingConnections.push_back(parallel2);
-
-            RoutingConnection parallel3{ModuleType::Pillars, ModuleType::ElasticHallway,
-                                         RoutingMode::Parallel};
-            parallel3.blendAmount = 0.34f;
-            routingConnections.push_back(parallel3);
-
-            // Final output stage
-            routingConnections.push_back({ModuleType::Chambers, ModuleType::Facade});
-            break;
-        }
-
-        case RoutingPresetType::ShimmerInfinity:
-        {
-            // Foundation → Pillars → Chambers → AlienAmplification (pitch shift) → Facade
-            // AlienAmplification ⟲ Feedback creates infinite shimmer
-            routingConnections.push_back({ModuleType::Foundation, ModuleType::Pillars});
-            routingConnections.push_back({ModuleType::Pillars, ModuleType::Chambers});
-            routingConnections.push_back({ModuleType::Chambers, ModuleType::AlienAmplification});
-            routingConnections.push_back({ModuleType::AlienAmplification, ModuleType::Facade});
-
-            // Feedback for shimmer effect
-            RoutingConnection feedback{ModuleType::AlienAmplification, ModuleType::Chambers,
-                                        RoutingMode::Feedback};
-            feedback.feedbackGain = 0.4f;  // Higher feedback for shimmer
-            routingConnections.push_back(feedback);
-            break;
-        }
-
-        case RoutingPresetType::ImpossibleChaos:
-        {
-            // Foundation → AlienAmplification → TubeRayTracer → Chambers → Facade
-            // Alien first creates impossible spaces
-            routingConnections.push_back({ModuleType::Foundation, ModuleType::Pillars});
-            routingConnections.push_back({ModuleType::Pillars, ModuleType::AlienAmplification});
-            routingConnections.push_back({ModuleType::AlienAmplification, ModuleType::TubeRayTracer});
-            routingConnections.push_back({ModuleType::TubeRayTracer, ModuleType::Chambers});
-            routingConnections.push_back({ModuleType::Chambers, ModuleType::Facade});
-            break;
-        }
-
-        case RoutingPresetType::OrganicBreathing:
-        {
-            // Foundation → Pillars → ElasticHallway → Weathering → Chambers → Facade
-            // Elastic walls with weathering creates organic, breathing spaces
-            routingConnections.push_back({ModuleType::Foundation, ModuleType::Pillars});
-            routingConnections.push_back({ModuleType::Pillars, ModuleType::ElasticHallway});
-            routingConnections.push_back({ModuleType::ElasticHallway, ModuleType::Weathering});
-            routingConnections.push_back({ModuleType::Weathering, ModuleType::Chambers});
-            routingConnections.push_back({ModuleType::Chambers, ModuleType::Facade});
-            break;
-        }
-
-        case RoutingPresetType::MinimalSparse:
-        {
-            // Foundation → Pillars → Facade (bypass all reverb processing)
-            // Just early reflections, no reverb tail
-            routingConnections.push_back({ModuleType::Foundation, ModuleType::Pillars});
-            routingConnections.push_back({ModuleType::Pillars, ModuleType::Facade});
-
-            // Bypass reverb core
-            setModuleBypass(ModuleType::Chambers, true);
-            setModuleBypass(ModuleType::Weathering, true);
-            break;
-        }
-
-        case RoutingPresetType::Custom:
-            // User-defined routing (don't modify connections)
-            break;
+        // Also update bypass states and legacy vector (for non-audio thread access)
+        const auto& data = presetData[presetIndex];
+        moduleBypassed = data.bypass;
+        routingConnections.assign(data.connections.begin(),
+                                  data.connections.begin() + data.connectionCount);
     }
 }
 
@@ -431,34 +447,74 @@ void DspRoutingGraph::setFoundationParams(float drive, [[maybe_unused]] float ti
     // Note: 'tilt' parameter reserved for future tilt EQ implementation
 }
 
-void DspRoutingGraph::setPillarsParams(float density, float shape, float warp)
+void DspRoutingGraph::setPillarsParams(float density, const ParameterBuffer& shape, float warp)
 {
+    // Store per-sample shape buffer for use in process()
+    pillarsShapeBuffer = shape;
+
     if (pillars)
     {
         pillars->setDensity(density);
-        pillars->setShape(shape);
+        // TEMPORARY: Average shape buffer for backward compatibility until Step 6 refactor
+        float shapeAvg = 0.0f;
+        for (int i = 0; i < shape.numSamples; ++i)
+            shapeAvg += shape[i];
+        shapeAvg /= static_cast<float>(shape.numSamples);
+        pillars->setShape(shapeAvg);
         pillars->setWarp(warp);
     }
 }
 
-void DspRoutingGraph::setChambersParams(float time, float mass, float density, float bloom, float gravity)
+void DspRoutingGraph::setChambersParams(const ParameterBuffer& time,
+                                         const ParameterBuffer& mass,
+                                         const ParameterBuffer& density,
+                                         const ParameterBuffer& bloom,
+                                         const ParameterBuffer& gravity)
 {
+    // Store per-sample parameter buffers for use in process()
+    chambersTimeBuffer = time;
+    chambersMassBuffer = mass;
+    chambersDensityBuffer = density;
+    chambersBloomBuffer = bloom;
+    chambersGravityBuffer = gravity;
+
     if (chambers)
     {
-        chambers->setTime(time);
-        chambers->setMass(mass);
-        chambers->setDensity(density);
-        chambers->setBloom(bloom);
-        chambers->setGravity(gravity);
+        // TEMPORARY: Average buffers for backward compatibility until Step 5 refactor
+        // This preserves current behavior while we transition the Chambers module
+        auto averageBuffer = [](const ParameterBuffer& buf) -> float {
+            float sum = 0.0f;
+            for (int i = 0; i < buf.numSamples; ++i)
+                sum += buf[i];
+            return sum / static_cast<float>(buf.numSamples);
+        };
+
+        chambers->setTime(averageBuffer(time));
+        chambers->setMass(averageBuffer(mass));
+        chambers->setDensity(averageBuffer(density));
+        chambers->setBloom(averageBuffer(bloom));
+        chambers->setGravity(averageBuffer(gravity));
     }
 }
 
-void DspRoutingGraph::setWeatheringParams(float warp, float drift)
+void DspRoutingGraph::setWeatheringParams(const ParameterBuffer& warp, const ParameterBuffer& drift)
 {
+    // Store per-sample parameter buffers for use in process()
+    weatheringWarpBuffer = warp;
+    weatheringDriftBuffer = drift;
+
     if (weathering)
     {
-        weathering->setWarp(warp);
-        weathering->setDrift(drift);
+        // TEMPORARY: Average buffers for backward compatibility until Step 7 refactor
+        auto averageBuffer = [](const ParameterBuffer& buf) -> float {
+            float sum = 0.0f;
+            for (int i = 0; i < buf.numSamples; ++i)
+                sum += buf[i];
+            return sum / static_cast<float>(buf.numSamples);
+        };
+
+        weathering->setWarp(averageBuffer(warp));
+        weathering->setDrift(averageBuffer(drift));
     }
 }
 

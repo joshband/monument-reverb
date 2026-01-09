@@ -17,18 +17,24 @@ Core priorities:
 
 ## Project Status
 
-**Current Phase**: Phase 6 - Polish & Release (in progress) | **Playground Integration**: Phases 0-8 complete ✅
+**Current Phase**: Phase 6 - Polish & Release (in progress) | **UI Direction**: Macro-only + reactive overlay (2026-01-07)
 
 Monument features a memory-free reverb architecture. Memory Echoes lives in a standalone repository with planned v1.6 reintegration.
+
+**Direction Update** (2026-01-07):
+
+- ✅ **Macro-only UI**: 10 poetic macros are the only visible controls; base parameters hidden
+- ✅ **Celestial assets**: Layered RGBA pack in `assets/ui/celestial/`
+- ✅ **MacroVisualOverlay**: OpenGL audio + cursor reactive rings, glyphs, and particles
+- ✅ **JSON-driven visuals**: `assets/ui/macro_hints.json` + `assets/ui/visual_profiles.json`
 
 **Recent Updates** (2026-01-07):
 
 - ✅ **MonumentPlayground**: Standalone UI playground with PBR knobs + particles
 - ✅ **Particles**: New particle system extracted under `Source/Particles/`
 - ✅ **Smoke Test**: CTest target now instantiates `MonumentAudioProcessor`
+- ✅ **RT Safety**: Routing presets precomputed; modulation connections snapshot off-thread
 - ✅ **Docs**: Added DSP signal flow basics guide
-
-**Recent Updates** (2026-01-04):
 
 **Phase 5 Complete - Physical Modeling Integration** (2026-01-04):
 
@@ -39,14 +45,8 @@ Monument features a memory-free reverb architecture. Memory Echoes lives in a st
 - ✅ **9 Additional "Living" Presets**: Dynamic Response, Chaotic Motion, Organic Evolution, Experimental Combinations (Task 3)
 - ✅ **Total Factory Presets**: 37 curated spaces
 
-**Phase 4 Complete - UI Enhancement** (2026-01-04):
-
-- ✅ **Unified Knob Design**: All 18 knobs use consistent codex brushed aluminum texture
-- ✅ **Clean White UI**: White background with dark text for high contrast
-- ✅ **Smooth Rotation**: Vertical drag interaction across all parameters
-- ✅ **ModMatrixPanel**: Professional modulation matrix UI with 4×15 grid
-- ✅ **LayeredKnob System**: Multi-layer rendering with alpha compositing
-- ✅ **HIGH Priority Optimizations**: Parameter cache, smoothing, thread safety
+**Legacy UI Note**:
+- The earlier white-background + photorealistic knob phases are now treated as historical references.
 
 ---
 
@@ -175,10 +175,26 @@ flowchart LR
 ## Parameters
 
 All parameters are normalized to [0, 1] unless noted. Mix is [0, 100].
+UI-facing controls are the macro set below; base parameters remain internal and are driven by macros.
 
 ![Monument parameter compass](docs/assets/monument-parameter-compass.svg)
 
-### Primary Controls
+### Macro Controls (UI-facing)
+
+| Macro | Intent |
+| --- | --- |
+| Stone | Material hardness and density emphasis |
+| Labyrinth | Space topology and routing complexity |
+| Mist | Air density and decay viscosity |
+| Bloom | Evolution, swell, and pitch movement |
+| Tempest | Chaos, nonlinearity, and instability |
+| Echo | Elastic recovery and resonant memory |
+| Patina | Age, weathering, and softened diffusion |
+| Abyss | Depth, width, and perceived void |
+| Corona | Halo brightness and shimmer emphasis |
+| Breath | Motion and gravitational drift |
+
+### Primary Controls (Internal)
 
 | Control | Meaning | Behavior notes |
 | --- | --- | --- |

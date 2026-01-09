@@ -57,5 +57,22 @@ test-results/
 # Large filmstrip files (>50MB)
 assets/ui/knobs_photorealistic/*_filmstrip.png
 
+# Archive folder (UI system archives - not for version control)
+archive/
+
 # Build directories
 MonumentUI_Demo/build/
+
+# Skill package artifacts
+Skills/dist/
+
+# Skill assets (local-only)
+Skills/juce-audio-graphics-architect/assets/source/
+Skills/juce-audio-graphics-architect/references/juce-upstream/
+Skills/juce-audio-graphics-architect/references/web/ccrma/
+Skills/juce-audio-graphics-architect/references/web/dattorro/
+Skills/juce-audio-graphics-architect/references/web/spatial/
+
+# Local clones for reference harvesting
+tools/juce-upstream/
+tools/third-party/

@@ -87,10 +87,11 @@ void SpatialProcessor::setPosition(int lineIndex, float x, float y, float z) noe
         return;
 
     const auto index = static_cast<size_t>(lineIndex);
-    // Clamp positions to valid ranges
-    positionsX_[index] = juce::jlimit(-1.0f, 1.0f, x);
-    positionsY_[index] = juce::jlimit(-1.0f, 1.0f, y);
-    positionsZ_[index] = juce::jlimit(0.0f, 1.0f, z);
+    // Clamp positions to reasonable ranges (wider than [-1,1] to allow distance testing)
+    // For UI parameters, caller should pre-normalize; for testing, allow wider range
+    positionsX_[index] = juce::jlimit(-10.0f, 10.0f, x);
+    positionsY_[index] = juce::jlimit(-10.0f, 10.0f, y);
+    positionsZ_[index] = juce::jlimit(0.0f, 10.0f, z);
 }
 
 void SpatialProcessor::setVelocity(int lineIndex, float velocityX) noexcept

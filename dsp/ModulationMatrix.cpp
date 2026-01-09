@@ -384,6 +384,10 @@ ModulationMatrix::ModulationMatrix()
     // Initialize RNG for probability gating
     std::random_device rd;
     probabilityRng.seed(rd());
+
+    snapshotCounts.fill(0);
+    activeSnapshotIndex.store(0, std::memory_order_relaxed);
+    publishConnectionsSnapshot();
 }
 
 ModulationMatrix::~ModulationMatrix() = default;
@@ -429,6 +433,18 @@ void ModulationMatrix::reset()
     modulationValues.fill(0.0f);
 }
 
+void ModulationMatrix::publishConnectionsSnapshot() noexcept
+{
+    const int nextIndex =
+        1 - activeSnapshotIndex.load(std::memory_order_relaxed);
+
+    snapshotCounts[nextIndex] = connectionCount;
+    for (int i = 0; i < connectionCount; ++i)
+        connectionSnapshots[nextIndex][i] = connections[i];
+
+    activeSnapshotIndex.store(nextIndex, std::memory_order_release);
+}
+
 void ModulationMatrix::process(const juce::AudioBuffer<float>& audioBuffer, int numSamples)
 {
     // Phase 3: Full modulation implementation
@@ -452,65 +468,64 @@ void ModulationMatrix::process(const juce::AudioBuffer<float>& audioBuffer, int 
     // Initialize per-destination accumulators
     std::array<float, static_cast<size_t>(DestinationType::Count)> destinationSums{};
 
-    // Thread-safe: Lock while reading connections array
-    // Note: SpinLock is real-time safe (no blocking, just busy-wait)
+    const int snapshotIndex = activeSnapshotIndex.load(std::memory_order_acquire);
+    const int snapshotCount = snapshotCounts[snapshotIndex];
+
+    // Early exit optimization: no connections = no processing needed
+    if (snapshotCount == 0)
     {
-        const juce::SpinLock::ScopedLockType lock(connectionsLock);
+        for (size_t i = 0; i < smoothers.size(); ++i)
+            modulationValues[i] = smoothers[i].getNextValue();
+        return;
+    }
 
-        // Early exit optimization: no connections = no processing needed
-        if (connectionCount == 0)
+    const auto& snapshotConnections = connectionSnapshots[snapshotIndex];
+
+    // Accumulate modulation from all active connections
+    for (int connIdx = 0; connIdx < snapshotCount; ++connIdx)
+    {
+        const auto& conn = snapshotConnections[connIdx];
+        if (!conn.enabled)
+            continue;
+
+        // Probability gating: randomly skip modulation based on probability value
+        // 1.0 = always apply, 0.5 = apply 50% of the time, 0.0 = never apply
+        if (conn.probability < 1.0f)
         {
-            for (size_t i = 0; i < smoothers.size(); ++i)
-                modulationValues[i] = smoothers[i].getNextValue();
-            return;
+            // Generate random number [0, 1] and compare to probability
+            const float randomValue = probabilityDist(probabilityRng);
+            if (randomValue > conn.probability)
+                continue;  // Skip this connection for this block
         }
 
-        // Accumulate modulation from all active connections
-        for (int connIdx = 0; connIdx < connectionCount; ++connIdx)
+        // Get source value
+        float sourceValue = 0.0f;
+        switch (conn.source)
         {
-            const auto& conn = connections[connIdx];
-            if (!conn.enabled)
-                continue;
-
-            // Probability gating: randomly skip modulation based on probability value
-            // 1.0 = always apply, 0.5 = apply 50% of the time, 0.0 = never apply
-            if (conn.probability < 1.0f)
-            {
-                // Generate random number [0, 1] and compare to probability
-                const float randomValue = probabilityDist(probabilityRng);
-                if (randomValue > conn.probability)
-                    continue;  // Skip this connection for this block
-            }
-
-            // Get source value
-            float sourceValue = 0.0f;
-            switch (conn.source)
-            {
-                case SourceType::ChaosAttractor:
-                    sourceValue = chaosGen ? chaosGen->getValue(conn.sourceAxis) : 0.0f;
-                    break;
-                case SourceType::AudioFollower:
-                    sourceValue = audioFollower ? audioFollower->getValue() : 0.0f;
-                    break;
-                case SourceType::BrownianMotion:
-                    sourceValue = brownianGen ? brownianGen->getValue() : 0.0f;
-                    break;
-                case SourceType::EnvelopeTracker:
-                    sourceValue = envTracker ? envTracker->getValue() : 0.0f;
-                    break;
-                default:
-                    break;
-            }
-
-            // Scale by connection depth (bipolar: -1 to +1)
-            const float modulation = sourceValue * conn.depth;
-
-            // Accumulate to destination
-            const size_t destIdx = static_cast<size_t>(conn.destination);
-            if (destIdx < destinationSums.size())
-                destinationSums[destIdx] += modulation;
+            case SourceType::ChaosAttractor:
+                sourceValue = chaosGen ? chaosGen->getValue(conn.sourceAxis) : 0.0f;
+                break;
+            case SourceType::AudioFollower:
+                sourceValue = audioFollower ? audioFollower->getValue() : 0.0f;
+                break;
+            case SourceType::BrownianMotion:
+                sourceValue = brownianGen ? brownianGen->getValue() : 0.0f;
+                break;
+            case SourceType::EnvelopeTracker:
+                sourceValue = envTracker ? envTracker->getValue() : 0.0f;
+                break;
+            default:
+                break;
         }
-    }  // End SpinLock scope - connections vector is no longer accessed
+
+        // Scale by connection depth (bipolar: -1 to +1)
+        const float modulation = sourceValue * conn.depth;
+
+        // Accumulate to destination
+        const size_t destIdx = static_cast<size_t>(conn.destination);
+        if (destIdx < destinationSums.size())
+            destinationSums[destIdx] += modulation;
+    }
 
     // Apply smoothing and clamp to valid range
     for (size_t i = 0; i < smoothers.size(); ++i)
@@ -545,8 +560,8 @@ void ModulationMatrix::setConnection(
     smoothingMs = juce::jlimit(20.0f, 1000.0f, smoothingMs);
     probability = juce::jlimit(0.0f, 1.0f, probability);
 
-    // Thread-safe: Lock before modifying connections
-    const juce::SpinLock::ScopedLockType lock(connectionsLock);
+    // Thread-safe: Only called from message thread (JUCE serialization)
+    bool connectionChanged = false;
 
     // Find existing connection or create new one
     const int existingIdx = findConnectionIndex(source, destination, sourceAxis);
@@ -559,6 +574,7 @@ void ModulationMatrix::setConnection(
         conn.smoothingMs = smoothingMs;
         conn.probability = probability;
         conn.enabled = true;
+        connectionChanged = true;
     }
     else if (connectionCount < kMaxConnections)
     {
@@ -572,8 +588,12 @@ void ModulationMatrix::setConnection(
         conn.probability = probability;
         conn.enabled = true;
         ++connectionCount;
+        connectionChanged = true;
     }
     // else: connection limit reached, silently ignore
+
+    if (connectionChanged)
+        publishConnectionsSnapshot();
 
     // Update smoother time constant for this destination
     const size_t destIdx = static_cast<size_t>(destination);
@@ -586,9 +606,7 @@ void ModulationMatrix::removeConnection(
     DestinationType destination,
     int sourceAxis)
 {
-    // Thread-safe: Lock before modifying connections
-    const juce::SpinLock::ScopedLockType lock(connectionsLock);
-
+    // Thread-safe: Only called from message thread (JUCE serialization)
     const int idx = findConnectionIndex(source, destination, sourceAxis);
     if (idx >= 0 && idx < connectionCount)
     {
@@ -596,15 +614,15 @@ void ModulationMatrix::removeConnection(
         for (int i = idx; i < connectionCount - 1; ++i)
             connections[i] = connections[i + 1];
         --connectionCount;
+        publishConnectionsSnapshot();
     }
 }
 
 void ModulationMatrix::clearConnections()
 {
-    // Thread-safe: Lock before clearing connections
-    const juce::SpinLock::ScopedLockType lock(connectionsLock);
-
+    // Thread-safe: Only called from message thread (JUCE serialization)
     connectionCount = 0;  // No allocation, just reset counter
+    publishConnectionsSnapshot();
 
     // Reset all modulation values and smoothers
     for (size_t i = 0; i < modulationValues.size(); ++i)
@@ -616,13 +634,13 @@ void ModulationMatrix::clearConnections()
 
 void ModulationMatrix::setConnections(const std::vector<Connection>& newConnections)
 {
-    // Thread-safe: Lock before modifying connections array
-    const juce::SpinLock::ScopedLockType lock(connectionsLock);
-
+    // Thread-safe: Only called from message thread (JUCE serialization)
     // Copy connections from vector to fixed-size array, respecting the max size
     connectionCount = std::min(static_cast<int>(newConnections.size()), kMaxConnections);
     for (int i = 0; i < connectionCount; ++i)
         connections[i] = newConnections[i];
+
+    publishConnectionsSnapshot();
 
     // Update smoother time constants based on connections
     for (int i = 0; i < connectionCount; ++i)
@@ -639,14 +657,15 @@ void ModulationMatrix::setConnections(const std::vector<Connection>& newConnecti
 
 std::vector<ModulationMatrix::Connection> ModulationMatrix::getConnections() const noexcept
 {
-    // Thread-safe: Lock while reading connections array
-    const juce::SpinLock::ScopedLockType lock(connectionsLock);
+    // Lock-free: Read from active snapshot instead of master array
+    // This ensures consistent view without blocking the audio thread
+    const int snapshotIndex = activeSnapshotIndex.load(std::memory_order_acquire);
+    const int snapshotCount = snapshotCounts[snapshotIndex];
 
-    // Return a copy of active connections as vector (safe for non-real-time use)
     std::vector<Connection> result;
-    result.reserve(connectionCount);
-    for (int i = 0; i < connectionCount; ++i)
-        result.push_back(connections[i]);
+    result.reserve(snapshotCount);
+    for (int i = 0; i < snapshotCount; ++i)
+        result.push_back(connectionSnapshots[snapshotIndex][i]);
     return result;
 }
 

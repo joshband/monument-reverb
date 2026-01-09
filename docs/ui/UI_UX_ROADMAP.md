@@ -4,6 +4,8 @@
 **Status:** Planning Phase - Post-DSP Finalization
 **Purpose:** Comprehensive UI enhancement plan based on current design analysis
 
+**Direction Update (2026-01-07):** Macro-only UI is now canonical for the plugin. Base parameters are hidden in the UI, and reactive visuals are driven by JSON macro hints + visual profiles. Sections referencing the legacy white UI should be treated as historical context.
+
 ---
 
 ## Executive Summary

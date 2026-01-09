@@ -34,6 +34,7 @@ struct AnalyzerConfig
     int numChannels = 2;
     int blockSize = 512;
     int presetIndex = -1;  // -1 = don't change preset, use plugin default
+    bool runAnalysis = false;  // Run Python analysis scripts after capture
 };
 
 void printUsage()
@@ -49,11 +50,14 @@ void printUsage()
     std::cout << "  --test <type>           Test type: impulse|sweep|noise (default: impulse)\n";
     std::cout << "  --duration <seconds>    Test duration (default: 5.0)\n";
     std::cout << "  --samplerate <hz>       Sample rate (default: 48000)\n";
-    std::cout << "  --channels <num>        Number of channels (default: 2)\n\n";
+    std::cout << "  --channels <num>        Number of channels (default: 2)\n";
+    std::cout << "  --analyze               Run Python analysis (RT60 + frequency) after capture\n\n";
     std::cout << "Examples:\n";
     std::cout << "  # Capture impulse response from Monument\n";
     std::cout << "  monument_plugin_analyzer --plugin ./build/Monument_artefacts/VST3/Monument.vst3\n\n";
-    std::cout << "  # Capture preset 7 (Cathedral of Glass) with 10-second duration\n";
+    std::cout << "  # Capture preset 7 with analysis\n";
+    std::cout << "  monument_plugin_analyzer --plugin Monument.vst3 --preset 7 --analyze\n\n";
+    std::cout << "  # Capture with custom duration\n";
     std::cout << "  monument_plugin_analyzer --plugin Monument.vst3 --preset 7 --duration 10\n";
 }
 
@@ -96,36 +100,106 @@ bool parseArguments(const juce::ArgumentList& args, AnalyzerConfig& config)
     DBG("Parsed plugin path: " << config.pluginPath);
 
     // Optional arguments - parse manually
-    for (int i = 0; i < args.size() - 1; ++i)
+    for (int i = 0; i < args.size(); ++i)
     {
-        if (args[i].text == "--output")
-            config.outputDir = args[i + 1].text;
-        else if (args[i].text == "--test")
+        if (args[i].text == "--analyze")
         {
-            juce::String testStr = args[i + 1].text.toLowerCase();
-            if (testStr == "impulse")
-                config.testType = SignalType::Impulse;
-            else if (testStr == "sweep")
-                config.testType = SignalType::SineSweep;
-            else if (testStr == "noise" || testStr == "white")
-                config.testType = SignalType::WhiteNoise;
-            else if (testStr == "pink")
-                config.testType = SignalType::PinkNoise;
-            else
-            {
-                std::cerr << "Error: Unknown test type '" << testStr.toStdString() << "'\n";
-                return false;
-            }
+            config.runAnalysis = true;
         }
-        else if (args[i].text == "--duration")
-            config.duration = args[i + 1].text.getDoubleValue();
-        else if (args[i].text == "--samplerate")
-            config.sampleRate = args[i + 1].text.getDoubleValue();
-        else if (args[i].text == "--channels")
-            config.numChannels = args[i + 1].text.getIntValue();
-        else if (args[i].text == "--preset")
-            config.presetIndex = args[i + 1].text.getIntValue();
+        else if (i < args.size() - 1)  // Need next arg for value
+        {
+            if (args[i].text == "--output")
+                config.outputDir = args[i + 1].text;
+            else if (args[i].text == "--test")
+            {
+                juce::String testStr = args[i + 1].text.toLowerCase();
+                if (testStr == "impulse")
+                    config.testType = SignalType::Impulse;
+                else if (testStr == "sweep")
+                    config.testType = SignalType::SineSweep;
+                else if (testStr == "noise" || testStr == "white")
+                    config.testType = SignalType::WhiteNoise;
+                else if (testStr == "pink")
+                    config.testType = SignalType::PinkNoise;
+                else
+                {
+                    std::cerr << "Error: Unknown test type '" << testStr.toStdString() << "'\n";
+                    return false;
+                }
+            }
+            else if (args[i].text == "--duration")
+                config.duration = args[i + 1].text.getDoubleValue();
+            else if (args[i].text == "--samplerate")
+                config.sampleRate = args[i + 1].text.getDoubleValue();
+            else if (args[i].text == "--channels")
+                config.numChannels = args[i + 1].text.getIntValue();
+            else if (args[i].text == "--preset")
+                config.presetIndex = args[i + 1].text.getIntValue();
+        }
     }
+
+    return true;
+}
+
+bool runPythonAnalysis(const juce::File& wetFile, const juce::File& outputDir)
+{
+    std::cout << "\n▸ Running Python analysis...\n";
+
+    // Get project root (assuming we're running from build/ directory)
+    juce::File projectRoot = juce::File::getCurrentWorkingDirectory().getParentDirectory();
+
+    // RT60 Analysis
+    std::cout << "  • RT60 analysis...";
+    std::flush(std::cout);
+
+    juce::String rt60Script = projectRoot.getChildFile("tools/plugin-analyzer/python/rt60_analysis_robust.py").getFullPathName();
+    juce::String rt60Cmd = "python3 \"" + rt60Script + "\" "
+                         + "\"" + wetFile.getFullPathName() + "\" "
+                         + "--output \"" + outputDir.getFullPathName() + "\"";
+
+    int rt60Result = std::system(rt60Cmd.toRawUTF8());
+    if (rt60Result != 0)
+    {
+        std::cerr << " ✗ Failed (exit code " << rt60Result << ")\n";
+        return false;
+    }
+    std::cout << " ✓\n";
+
+    // Frequency Response Analysis
+    std::cout << "  • Frequency response...";
+    std::flush(std::cout);
+
+    juce::String freqScript = projectRoot.getChildFile("tools/plugin-analyzer/python/frequency_response.py").getFullPathName();
+    juce::String freqCmd = "python3 \"" + freqScript + "\" "
+                         + "\"" + wetFile.getFullPathName() + "\" "
+                         + "--output \"" + outputDir.getFullPathName() + "\"";
+
+    int freqResult = std::system(freqCmd.toRawUTF8());
+    if (freqResult != 0)
+    {
+        std::cerr << " ✗ Failed (exit code " << freqResult << ")\n";
+        return false;
+    }
+    std::cout << " ✓\n";
+
+    // Check that output files were created
+    juce::File rt60File = outputDir.getChildFile("rt60_metrics.json");
+    juce::File freqFile = outputDir.getChildFile("frequency_response.json");
+
+    if (!rt60File.existsAsFile())
+    {
+        std::cerr << "  ✗ RT60 metrics file not created\n";
+        return false;
+    }
+
+    if (!freqFile.existsAsFile())
+    {
+        std::cerr << "  ✗ Frequency response file not created\n";
+        return false;
+    }
+
+    std::cout << "  ✓ Generated: rt60_metrics.json\n";
+    std::cout << "  ✓ Generated: frequency_response.json\n";
 
     return true;
 }
@@ -288,16 +362,51 @@ int runAnalysis(const AnalyzerConfig& config)
     }
     std::cout << "  ✓ Wet: " << wetPath.toStdString() << "\n";
 
-    // 6. Summary
-    std::cout << "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-    std::cout << "✓ Analysis complete!\n";
-    std::cout << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-    std::cout << "Next steps:\n";
-    std::cout << "  • Listen to dry.wav and wet.wav to verify processing\n";
-    std::cout << "  • Run Python RT60 analysis: python3 python/rt60_analysis.py " << wetPath.toStdString() << "\n";
-    std::cout << "  • Load in DAW for visual inspection\n\n";
+    // 6. Run Python Analysis (if requested)
+    bool analysisSuccess = true;
+    if (config.runAnalysis)
+    {
+        juce::File wetFile(wetPath);
+        if (!runPythonAnalysis(wetFile, outputFolder))
+        {
+            std::cerr << "\n✗ Python analysis failed\n";
+            analysisSuccess = false;
+        }
+    }
 
-    return 0;
+    // 7. Summary
+    std::cout << "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+    if (config.runAnalysis && analysisSuccess)
+    {
+        std::cout << "✓ Capture and analysis complete!\n";
+    }
+    else if (config.runAnalysis && !analysisSuccess)
+    {
+        std::cout << "⚠ Capture complete, but analysis failed\n";
+    }
+    else
+    {
+        std::cout << "✓ Capture complete!\n";
+    }
+    std::cout << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+
+    if (config.runAnalysis && analysisSuccess)
+    {
+        std::cout << "Generated files:\n";
+        std::cout << "  • " << dryPath.toStdString() << "\n";
+        std::cout << "  • " << wetPath.toStdString() << "\n";
+        std::cout << "  • " << outputFolder.getChildFile("rt60_metrics.json").getFullPathName().toStdString() << "\n";
+        std::cout << "  • " << outputFolder.getChildFile("frequency_response.json").getFullPathName().toStdString() << "\n\n";
+    }
+    else if (!config.runAnalysis)
+    {
+        std::cout << "Next steps:\n";
+        std::cout << "  • Listen to dry.wav and wet.wav to verify processing\n";
+        std::cout << "  • Run with --analyze flag to generate RT60 and frequency metrics\n";
+        std::cout << "  • Or manually run: python3 tools/plugin-analyzer/python/rt60_analysis_robust.py " << wetPath.toStdString() << "\n\n";
+    }
+
+    return (config.runAnalysis && !analysisSuccess) ? 1 : 0;
 }
 
 int main(int argc, char* argv[])
