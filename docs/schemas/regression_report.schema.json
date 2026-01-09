@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://monument-reverb.org/schemas/regression_report.schema.json",
+  "title": "Regression Report",
+  "description": "Detect audio regressions by comparing current captures against baseline data",
+  "type": "object",
+  "required": ["version", "timestamp", "baseline_dir", "current_dir", "threshold", "overall_pass", "preset_results"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version (semver)",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "example": "1.0.0"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Report generation timestamp (ISO 8601)",
+      "example": "2026-01-08T14:35:00Z"
+    },
+    "baseline_dir": {
+      "type": "string",
+      "description": "Path to baseline data directory",
+      "example": "./test-results/baseline-v1.0.0"
+    },
+    "current_dir": {
+      "type": "string",
+      "description": "Path to current test results",
+      "example": "./test-results/preset-baseline"
+    },
+    "threshold": {
+      "type": "number",
+      "description": "Regression threshold (0.01 = 1%)",
+      "minimum": 0,
+      "maximum": 1,
+      "example": 0.01
+    },
+    "overall_pass": {
+      "type": "boolean",
+      "description": "True if all presets passed"
+    },
+    "preset_results": {
+      "type": "array",
+      "description": "Per-preset regression test results",
+      "items": {
+        "type": "object",
+        "required": ["preset_index", "preset_name", "pass", "rt60_deviation_percent", "freq_flatness_delta_db", "waveform_correlation"],
+        "properties": {
+          "preset_index": {
+            "type": "integer",
+            "description": "Preset index (0-based)",
+            "minimum": 0,
+            "example": 7
+          },
+          "preset_name": {
+            "type": "string",
+            "description": "Preset name",
+            "example": "Cathedral Hall"
+          },
+          "pass": {
+            "type": "boolean",
+            "description": "True if all regression checks passed"
+          },
+          "rt60_deviation_percent": {
+            "type": "number",
+            "description": "RT60 % change vs. baseline",
+            "example": 0.5
+          },
+          "freq_flatness_delta_db": {
+            "type": "number",
+            "description": "Flatness change (dB)",
+            "example": 0.2
+          },
+          "waveform_correlation": {
+            "type": "number",
+            "description": "Waveform correlation coefficient (>0.95 expected)",
+            "minimum": -1,
+            "maximum": 1,
+            "example": 0.998
+          },
+          "rms_difference_db": {
+            "type": "number",
+            "description": "RMS waveform difference (dB)",
+            "example": -42.5
+          },
+          "spectral_difference_db": {
+            "type": "number",
+            "description": "PSD difference (dB)",
+            "example": -38.2
+          },
+          "failures": {
+            "type": "array",
+            "description": "List of failed checks",
+            "items": {
+              "type": "string"
+            },
+            "example": ["RT60 deviation 5.2% exceeds threshold 1.0%"]
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "description": "Overall test summary statistics",
+      "properties": {
+        "total_presets": {
+          "type": "integer",
+          "description": "Total number of presets tested",
+          "minimum": 0,
+          "example": 37
+        },
+        "passed": {
+          "type": "integer",
+          "description": "Number of presets that passed",
+          "minimum": 0,
+          "example": 36
+        },
+        "failed": {
+          "type": "integer",
+          "description": "Number of presets that failed",
+          "minimum": 0,
+          "example": 1
+        },
+        "worst_rt60_deviation_percent": {
+          "type": "number",
+          "description": "Worst RT60 deviation across all presets",
+          "example": 5.2
+        },
+        "worst_correlation": {
+          "type": "number",
+          "description": "Worst waveform correlation across all presets",
+          "minimum": -1,
+          "maximum": 1,
+          "example": 0.932
+        }
+      }
+    }
+  }
+}

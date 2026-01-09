@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://monument-reverb.org/schemas/rt60_metrics.schema.json",
+  "title": "RT60 Metrics",
+  "description": "Reverb decay time (RT60) measurements per octave band using Schroeder integration method with fallback strategies",
+  "type": "object",
+  "required": ["version", "timestamp", "input_file", "sample_rate", "duration_seconds", "broadband", "octave_bands"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version (semver)",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "example": "1.0.0"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Analysis timestamp (ISO 8601)",
+      "example": "2026-01-08T14:30:45Z"
+    },
+    "input_file": {
+      "type": "string",
+      "description": "Path to analyzed WAV file",
+      "example": "./test-results/preset_07/wet.wav"
+    },
+    "sample_rate": {
+      "type": "integer",
+      "description": "Audio sample rate (Hz)",
+      "minimum": 44100,
+      "maximum": 192000,
+      "example": 48000
+    },
+    "duration_seconds": {
+      "type": "number",
+      "description": "Audio file duration (seconds)",
+      "minimum": 0,
+      "example": 30.0
+    },
+    "broadband": {
+      "type": "object",
+      "description": "Overall RT60 measurement across all frequencies",
+      "required": ["rt60_seconds", "confidence", "method"],
+      "properties": {
+        "rt60_seconds": {
+          "type": "number",
+          "description": "Overall RT60 decay time (seconds)",
+          "minimum": 0,
+          "example": 8.45
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "description": "Confidence level of measurement (high: SNR >40dB, medium: 20-40dB, low: <20dB)",
+          "example": "high"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["schroeder", "manual_slope", "envelope", "fallback"],
+          "description": "Method used for RT60 calculation",
+          "example": "schroeder"
+        }
+      }
+    },
+    "octave_bands": {
+      "type": "object",
+      "description": "RT60 per octave band (Hz: {rt60_seconds, confidence, method})",
+      "patternProperties": {
+        "^[0-9]+$": {
+          "type": "object",
+          "required": ["rt60_seconds", "confidence", "method"],
+          "properties": {
+            "rt60_seconds": {
+              "type": ["number", "null"],
+              "description": "RT60 for this band (null if unmeasurable)",
+              "minimum": 0
+            },
+            "confidence": {
+              "type": "string",
+              "enum": ["high", "medium", "low", "n/a"]
+            },
+            "method": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "example": {
+        "125": {"rt60_seconds": 7.2, "confidence": "high", "method": "schroeder"},
+        "250": {"rt60_seconds": 8.1, "confidence": "high", "method": "schroeder"},
+        "500": {"rt60_seconds": 8.5, "confidence": "high", "method": "schroeder"},
+        "1000": {"rt60_seconds": 8.7, "confidence": "high", "method": "schroeder"},
+        "2000": {"rt60_seconds": 8.3, "confidence": "medium", "method": "manual_slope"},
+        "4000": {"rt60_seconds": 7.8, "confidence": "medium", "method": "manual_slope"}
+      }
+    },
+    "analysis_notes": {
+      "type": "string",
+      "description": "Optional analysis warnings or notes",
+      "example": "High-frequency bands used fallback method due to low SNR"
+    }
+  }
+}

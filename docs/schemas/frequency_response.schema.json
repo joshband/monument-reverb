@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://monument-reverb.org/schemas/frequency_response.schema.json",
+  "title": "Frequency Response Metrics",
+  "description": "Spectral analysis via FFT, measuring magnitude response, flatness, and quality rating",
+  "type": "object",
+  "required": ["version", "timestamp", "input_file", "sample_rate", "broadband", "octave_bands", "quality_rating"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version (semver)",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "example": "1.0.0"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Analysis timestamp (ISO 8601)",
+      "example": "2026-01-08T14:31:20Z"
+    },
+    "input_file": {
+      "type": "string",
+      "description": "Path to analyzed WAV file",
+      "example": "./test-results/preset_07/wet.wav"
+    },
+    "sample_rate": {
+      "type": "integer",
+      "description": "Audio sample rate (Hz)",
+      "minimum": 44100,
+      "maximum": 192000,
+      "example": 48000
+    },
+    "broadband": {
+      "type": "object",
+      "description": "Overall frequency response characteristics",
+      "required": ["flatness_db", "mean_gain_db"],
+      "properties": {
+        "flatness_db": {
+          "type": "number",
+          "description": "Overall frequency flatness (±dB std dev)",
+          "example": 3.2
+        },
+        "mean_gain_db": {
+          "type": "number",
+          "description": "Average gain across all frequencies",
+          "example": -0.5
+        },
+        "peak_frequency_hz": {
+          "type": ["number", "null"],
+          "description": "Frequency of maximum gain",
+          "minimum": 0,
+          "example": 2450
+        },
+        "notch_frequency_hz": {
+          "type": ["number", "null"],
+          "description": "Frequency of maximum attenuation",
+          "minimum": 0,
+          "example": 8120
+        }
+      }
+    },
+    "octave_bands": {
+      "type": "object",
+      "description": "Gain per octave band (Hz: {gain_db, flatness_db})",
+      "patternProperties": {
+        "^[0-9]+$": {
+          "type": "object",
+          "required": ["gain_db", "flatness_db"],
+          "properties": {
+            "gain_db": {
+              "type": "number",
+              "description": "Average gain in this band (dB)",
+              "example": -1.2
+            },
+            "flatness_db": {
+              "type": "number",
+              "description": "Standard deviation within band (dB)",
+              "minimum": 0,
+              "example": 0.8
+            }
+          }
+        }
+      },
+      "example": {
+        "125": {"gain_db": -1.2, "flatness_db": 0.8},
+        "250": {"gain_db": -0.5, "flatness_db": 1.1},
+        "500": {"gain_db": 0.1, "flatness_db": 0.9}
+      }
+    },
+    "quality_rating": {
+      "type": "string",
+      "enum": ["Excellent", "Good", "Fair", "Colored"],
+      "description": "Overall frequency response quality (Excellent: ≤±3dB, Good: ±3-6dB, Fair: ±6-10dB, Colored: >±10dB)",
+      "example": "Excellent"
+    }
+  }
+}

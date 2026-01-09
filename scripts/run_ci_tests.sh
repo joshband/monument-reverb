@@ -107,6 +107,43 @@ else
 fi
 echo ""
 
+# Validate baseline data integrity
+echo "Validating baseline data integrity..."
+if [ -d "$CURRENT_DIR" ]; then
+    if python3 "$PROJECT_ROOT/tools/validate_baseline.py" "$CURRENT_DIR"; then
+        echo -e "${GREEN}✓ Baseline validation passed${NC}"
+    else
+        echo -e "${RED}✗ Baseline validation failed${NC}"
+        echo ""
+        echo "The baseline data has integrity issues."
+        echo "Please review the validation report above and fix the issues."
+        exit 1
+    fi
+else
+    echo -e "${YELLOW}WARNING: Current test results directory not found: $CURRENT_DIR${NC}"
+    echo "Skipping baseline validation."
+fi
+echo ""
+
+# Validate JSON schemas (schema v1.0.0 format)
+echo "Validating JSON schemas against formal specifications..."
+if [ -d "$CURRENT_DIR" ]; then
+    # Note: This validates against JSON Schema v1.0.0 format
+    # Legacy data without 'version' field will fail validation (expected)
+    if python3 "$PROJECT_ROOT/tools/validate_schemas.py" "$CURRENT_DIR" 2>&1 | tail -20; then
+        echo -e "${GREEN}✓ Schema validation passed${NC}"
+    else
+        echo -e "${YELLOW}⚠ Schema validation failed (non-blocking)${NC}"
+        echo "Note: Existing baseline uses legacy format without 'version' field."
+        echo "This will be enforced once data is migrated to schema v1.0.0 format."
+        echo "See docs/schemas/README.md for schema details."
+    fi
+else
+    echo -e "${YELLOW}WARNING: Current test results directory not found: $CURRENT_DIR${NC}"
+    echo "Skipping schema validation."
+fi
+echo ""
+
 # Check if baseline exists
 if [ ! -d "$BASELINE_DIR" ]; then
     echo -e "${YELLOW}No baseline found. Creating initial baseline...${NC}"

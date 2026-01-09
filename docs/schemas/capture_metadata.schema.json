@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://monument-reverb.org/schemas/capture_metadata.schema.json",
+  "title": "Capture Metadata",
+  "description": "Document audio capture parameters for reproducibility and debugging",
+  "type": "object",
+  "required": ["version", "timestamp", "plugin_path", "test_type", "duration_seconds", "sample_rate", "num_channels", "block_size"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version (semver)",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "example": "1.0.0"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Capture timestamp (ISO 8601)",
+      "example": "2026-01-08T14:25:00Z"
+    },
+    "plugin_path": {
+      "type": "string",
+      "description": "Path to VST3/AU plugin",
+      "example": "/Users/user/Library/Audio/Plug-Ins/VST3/Monument.vst3"
+    },
+    "preset_index": {
+      "type": ["integer", "null"],
+      "description": "Preset index (0-based), null if default",
+      "minimum": 0,
+      "example": 7
+    },
+    "preset_name": {
+      "type": ["string", "null"],
+      "description": "Preset name if available",
+      "example": "Cathedral Hall"
+    },
+    "test_type": {
+      "type": "string",
+      "enum": ["impulse", "sweep", "noise", "pink"],
+      "description": "Test signal type",
+      "example": "impulse"
+    },
+    "duration_seconds": {
+      "type": "number",
+      "description": "Audio capture duration (seconds)",
+      "minimum": 0,
+      "example": 30.0
+    },
+    "sample_rate": {
+      "type": "integer",
+      "description": "Audio sample rate (Hz)",
+      "enum": [44100, 48000, 88200, 96000, 176400, 192000],
+      "example": 48000
+    },
+    "num_channels": {
+      "type": "integer",
+      "description": "Number of audio channels",
+      "enum": [1, 2],
+      "example": 2
+    },
+    "block_size": {
+      "type": "integer",
+      "description": "Audio processing block size (samples)",
+      "enum": [64, 128, 256, 512, 1024, 2048],
+      "example": 512
+    },
+    "output_files": {
+      "type": "object",
+      "description": "Output audio file paths",
+      "properties": {
+        "dry": {
+          "type": "string",
+          "description": "Dry (unprocessed) signal file",
+          "example": "dry.wav"
+        },
+        "wet": {
+          "type": "string",
+          "description": "Wet (processed) signal file",
+          "example": "wet.wav"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://monument-reverb.org/schemas/cpu_profile.schema.json",
+  "title": "CPU Profile Summary",
+  "description": "Identify CPU bottlenecks from Xcode Instruments trace data",
+  "type": "object",
+  "required": ["version", "timestamp", "profile_duration_seconds", "top_functions", "module_breakdown", "estimated_cpu_load_percent"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version (semver)",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "example": "1.0.0"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Profile generation timestamp (ISO 8601)",
+      "example": "2026-01-08T15:00:00Z"
+    },
+    "profile_duration_seconds": {
+      "type": "number",
+      "description": "Total profiling duration",
+      "minimum": 0,
+      "example": 30.0
+    },
+    "top_functions": {
+      "type": "array",
+      "description": "Top CPU-consuming functions",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "required": ["function_name", "source_file", "time_ms", "percent_of_total"],
+        "properties": {
+          "function_name": {
+            "type": "string",
+            "description": "Function name",
+            "example": "processBlock"
+          },
+          "source_file": {
+            "type": "string",
+            "description": "Source file name",
+            "example": "TubeRayTracer.cpp"
+          },
+          "time_ms": {
+            "type": "number",
+            "description": "Total time spent in function (milliseconds)",
+            "minimum": 0,
+            "example": 1250.3
+          },
+          "percent_of_total": {
+            "type": "number",
+            "description": "Percentage of total CPU time",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 35.2
+          }
+        }
+      }
+    },
+    "module_breakdown": {
+      "type": "object",
+      "description": "CPU time per DSP module",
+      "patternProperties": {
+        "^[A-Za-z_]+$": {
+          "type": "object",
+          "required": ["time_ms", "percent_of_total"],
+          "properties": {
+            "time_ms": {
+              "type": "number",
+              "description": "Total time spent in module (milliseconds)",
+              "minimum": 0,
+              "example": 1250.3
+            },
+            "percent_of_total": {
+              "type": "number",
+              "description": "Percentage of total CPU time",
+              "minimum": 0,
+              "maximum": 100,
+              "example": 35.2
+            }
+          }
+        }
+      },
+      "example": {
+        "TubeRayTracer": {"time_ms": 1250.3, "percent_of_total": 35.2},
+        "Chambers": {"time_ms": 890.5, "percent_of_total": 25.1}
+      }
+    },
+    "estimated_cpu_load_percent": {
+      "type": "number",
+      "description": "Estimated % CPU at 512 samples/block, 48kHz",
+      "minimum": 0,
+      "maximum": 100,
+      "example": 8.5
+    },
+    "optimization_recommendations": {
+      "type": "array",
+      "description": "Suggested optimizations based on profiling data",
+      "items": {
+        "type": "string"
+      },
+      "example": [
+        "TubeRayTracer: Consider SIMD optimization (>1% CPU)",
+        "Chambers: High CPU usage, review allpass chain length"
+      ]
+    }
+  }
+}
