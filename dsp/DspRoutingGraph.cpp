@@ -480,20 +480,13 @@ void DspRoutingGraph::setChambersParams(const ParameterBuffer& time,
 
     if (chambers)
     {
-        // TEMPORARY: Average buffers for backward compatibility until Step 5 refactor
-        // This preserves current behavior while we transition the Chambers module
-        auto averageBuffer = [](const ParameterBuffer& buf) -> float {
-            float sum = 0.0f;
-            for (int i = 0; i < buf.numSamples; ++i)
-                sum += buf[i];
-            return sum / static_cast<float>(buf.numSamples);
-        };
-
-        chambers->setTime(averageBuffer(time));
-        chambers->setMass(averageBuffer(mass));
-        chambers->setDensity(averageBuffer(density));
-        chambers->setBloom(averageBuffer(bloom));
-        chambers->setGravity(averageBuffer(gravity));
+        // Phase 4 Step 5: Pass ParameterBuffer references directly (no averaging needed)
+        // Chambers now consumes per-sample buffers directly for zipper-free automation
+        chambers->setTime(time);
+        chambers->setMass(mass);
+        chambers->setDensity(density);
+        chambers->setBloom(bloom);
+        chambers->setGravity(gravity);
     }
 }
 

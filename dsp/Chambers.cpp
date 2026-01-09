@@ -279,27 +279,10 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
     freezeRampingDown = false;
     wasFrozen = isFrozen;
 
-    // Per-parameter smoothing times are tuned to feel responsive while preventing zipper noise.
-    timeSmoother.prepare(sampleRateHz);
-    timeSmoother.setSmoothingTimeMs(40.0f); // Time (feedback) needs smooth tail-safe motion.
-    timeSmoother.setTarget(timeTarget);
+    // Phase 4: Per-sample parameters now smoothed upstream in PluginProcessor
+    // No smoothers needed here - eliminate double smoothing for time, mass, density, bloom, gravity
 
-    massSmoother.prepare(sampleRateHz);
-    massSmoother.setSmoothingTimeMs(60.0f); // Mass (damping) is slower to avoid HF flutter.
-    massSmoother.setTarget(massTarget);
-
-    densitySmoother.prepare(sampleRateHz);
-    densitySmoother.setSmoothingTimeMs(30.0f); // Density can move faster without clicks.
-    densitySmoother.setTarget(densityTarget);
-
-    gravitySmoother.prepare(sampleRateHz);
-    gravitySmoother.setSmoothingTimeMs(80.0f); // Gravity is slow to avoid LF pumping.
-    gravitySmoother.setTarget(gravityTarget);
-
-    bloomSmoother.prepare(sampleRateHz);
-    bloomSmoother.setSmoothingTimeMs(kBloomSmoothingMs); // Bloom envelope changes should be smooth.
-    bloomSmoother.setTarget(bloomTarget);
-
+    // Block-rate smoothers (will be migrated later if needed)
     warpSmoother.prepare(sampleRateHz);
     warpSmoother.setSmoothingTimeMs(kWarpSmoothingMs); // Warp is intentionally slow to avoid motion artifacts.
     warpSmoother.setTarget(warpTarget);
@@ -389,16 +372,16 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
 
     if (!smoothersPrimed)
     {
-        timeSmoother.reset(timeTarget);
-        massSmoother.reset(massTarget);
-        densitySmoother.reset(densityTarget);
-        gravitySmoother.reset(gravityTarget);
-        bloomSmoother.reset(bloomTarget);
+        // Phase 4: Per-sample parameters no longer need priming (smoothed upstream)
+        // Only initialize block-rate smoothers and diffuser coefficients
+
         warpSmoother.reset(warpTarget);
         driftSmoother.reset(driftTarget);
 
-        // Initialize diffuser coefficient smoothers with current density values
-        const float initialDensityShaped = juce::jmap(densityTarget, 0.05f, 1.0f);
+        // Initialize diffuser coefficient smoothers with current density from first buffer sample
+        // Default to 0.5 if buffer is empty (will be set properly on first setDensity call)
+        const float initialDensityNorm = densityBuffer.numSamples > 0 ? densityBuffer[0] : 0.5f;
+        const float initialDensityShaped = juce::jmap(initialDensityNorm, 0.05f, 1.0f);
         const float initialInputCoeff = juce::jmap(initialDensityShaped, 0.12f, 0.6f);
         const float initialLateCoeffBase = juce::jmap(initialDensityShaped, 0.18f, 0.7f);
         for (auto& smoother : inputDiffuserCoeffSmoothers)
@@ -479,12 +462,13 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             lastMatrixBlend = matrixBlend;
         }
 
-        // Per-sample smoothing avoids block-stepped automation artifacts and tail glitches.
-        const float timeNorm = juce::jlimit(0.0f, 1.0f, timeSmoother.getNextValue());
-        const float massNorm = juce::jlimit(0.0f, 1.0f, massSmoother.getNextValue());
-        const float densityNorm = juce::jlimit(0.0f, 1.0f, densitySmoother.getNextValue());
-        const float gravityNorm = juce::jlimit(0.0f, 1.0f, gravitySmoother.getNextValue());
-        const float bloomNorm = juce::jlimit(0.0f, 1.0f, bloomSmoother.getNextValue());
+        // Phase 4: Direct per-sample buffer access (no smoothers, already smoothed upstream)
+        // Eliminates double smoothing and reduces CPU overhead
+        const float timeNorm = juce::jlimit(0.0f, 1.0f, timeBuffer[sample]);
+        const float massNorm = juce::jlimit(0.0f, 1.0f, massBuffer[sample]);
+        const float densityNorm = juce::jlimit(0.0f, 1.0f, densityBuffer[sample]);
+        const float gravityNorm = juce::jlimit(0.0f, 1.0f, gravityBuffer[sample]);
+        const float bloomNorm = juce::jlimit(0.0f, 1.0f, bloomBuffer[sample]);
         // Drift subtly modulates delay lengths; depth ramps with freezeBlend and phases pause on freeze/ramp.
         const float driftNorm = juce::jlimit(0.0f, 1.0f, driftSmoother.getNextValue());
         const float driftDepthBase = driftNorm * driftDepthMaxSamples;
@@ -786,39 +770,34 @@ void Chambers::setExternalInjection(const juce::AudioBuffer<float>* injectionBuf
     externalInjection = injectionBuffer;
 }
 
-void Chambers::setTime(float time)
+void Chambers::setTime(const ParameterBuffer& time)
 {
-    static bool warned = false;
-    timeTarget = sanitizeNormalizedParameter(time, timeTarget, "time", warned);
-    timeSmoother.setTarget(timeTarget);
+    // Phase 4: Store per-sample buffer reference (no validation needed - upstream already smoothed)
+    timeBuffer = time;
 }
 
-void Chambers::setMass(float mass)
+void Chambers::setMass(const ParameterBuffer& mass)
 {
-    static bool warned = false;
-    massTarget = sanitizeNormalizedParameter(mass, massTarget, "mass", warned);
-    massSmoother.setTarget(massTarget);
+    // Phase 4: Store per-sample buffer reference (no validation needed - upstream already smoothed)
+    massBuffer = mass;
 }
 
-void Chambers::setDensity(float density)
+void Chambers::setDensity(const ParameterBuffer& density)
 {
-    static bool warned = false;
-    densityTarget = sanitizeNormalizedParameter(density, densityTarget, "density", warned);
-    densitySmoother.setTarget(densityTarget);
+    // Phase 4: Store per-sample buffer reference (no validation needed - upstream already smoothed)
+    densityBuffer = density;
 }
 
-void Chambers::setBloom(float bloom)
+void Chambers::setBloom(const ParameterBuffer& bloom)
 {
-    static bool warned = false;
-    bloomTarget = sanitizeNormalizedParameter(bloom, bloomTarget, "bloom", warned);
-    bloomSmoother.setTarget(bloomTarget);
+    // Phase 4: Store per-sample buffer reference (no validation needed - upstream already smoothed)
+    bloomBuffer = bloom;
 }
 
-void Chambers::setGravity(float gravity)
+void Chambers::setGravity(const ParameterBuffer& gravity)
 {
-    static bool warned = false;
-    gravityTarget = sanitizeNormalizedParameter(gravity, gravityTarget, "gravity", warned);
-    gravitySmoother.setTarget(gravityTarget);
+    // Phase 4: Store per-sample buffer reference (no validation needed - upstream already smoothed)
+    gravityBuffer = gravity;
 }
 
 void Chambers::setWarp(float warp)

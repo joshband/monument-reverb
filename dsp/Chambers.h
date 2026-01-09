@@ -2,6 +2,7 @@
 
 #include "dsp/AllpassDiffuser.h"
 #include "dsp/DspModule.h"
+#include "dsp/ParameterBuffers.h"
 #include "dsp/ParameterSmoother.h"
 #include "dsp/SpatialProcessor.h"
 
@@ -18,11 +19,15 @@ public:
     void prepare(double sampleRate, int blockSize, int numChannels) override;
     void reset() override;
     void process(juce::AudioBuffer<float>& buffer) override;
-    void setTime(float time);
-    void setMass(float mass);
-    void setDensity(float density);
-    void setBloom(float bloom);
-    void setGravity(float gravity);
+
+    // Phase 4: Per-sample parameter setters (accept ParameterBuffer for zipper-free automation)
+    void setTime(const ParameterBuffer& time);
+    void setMass(const ParameterBuffer& mass);
+    void setDensity(const ParameterBuffer& density);
+    void setBloom(const ParameterBuffer& bloom);
+    void setGravity(const ParameterBuffer& gravity);
+
+    // Block-rate parameters (will be migrated later if needed)
     void setWarp(float warp);
     void setDrift(float drift);
     void setFreeze(bool shouldFreeze);
@@ -69,11 +74,15 @@ private:
     int delayBufferLength = 0;
     float meanDelaySeconds = 0.0f;
 
-    ParameterSmoother timeSmoother;
-    ParameterSmoother massSmoother;
-    ParameterSmoother densitySmoother;
-    ParameterSmoother gravitySmoother;
-    ParameterSmoother bloomSmoother;
+    // Phase 4: Per-sample parameter buffers (eliminate double smoothing)
+    // These are lightweight 16-byte views set via setXXX() and consumed in process()
+    ParameterBuffer timeBuffer;
+    ParameterBuffer massBuffer;
+    ParameterBuffer densityBuffer;
+    ParameterBuffer bloomBuffer;
+    ParameterBuffer gravityBuffer;
+
+    // Block-rate smoothers (will be migrated later if needed)
     ParameterSmoother warpSmoother;
     ParameterSmoother driftSmoother;
 
@@ -83,11 +92,8 @@ private:
     float lastInputCoeffTarget = 0.0f;
     float lastLateCoeffBase = 0.0f;
 
-    float timeTarget = 0.55f;
-    float massTarget = 0.5f;
-    float densityTarget = 0.5f;
-    float gravityTarget = 0.5f;
-    float bloomTarget = 0.5f;
+    // Target values are no longer needed for per-sample parameters (stored in ParameterBuffer)
+    // Kept for block-rate parameters only
     float warpTarget = 0.0f;
     float driftTarget = 0.0f;
     float warpSmoothed = 0.0f;
