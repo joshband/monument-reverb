@@ -957,7 +957,7 @@ Monument features an **interactive 4×15 grid panel** for visual modulation edit
 
 **Testing & Validation:**
 - [MODULATION_TESTING_GUIDE.md](testing/MODULATION_TESTING_GUIDE.md) - Test modulation system
-- [PHASE_3_COMPLETE_SUMMARY.md](testing/PHASE_3_COMPLETE_SUMMARY.md) - Phase 3 results
+- [PHASE_3_COMPLETE_SUMMARY.md](archive/phases/PHASE_3_COMPLETE_SUMMARY.md) - Phase 3 results
 
 **Preset Gallery:**
 - [PRESET_GALLERY.md](PRESET_GALLERY.md) - All 28+ presets with descriptions

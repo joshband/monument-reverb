@@ -1,6 +1,6 @@
 # Monument Reverb - Architecture Overview
 
-> **Quick Reference**: See [ARCHITECTURE_QUICK_REFERENCE.md](ARCHITECTURE_QUICK_REFERENCE.md) for visual diagrams and fast navigation.
+> **Quick Reference**: See [docs/architecture/ARCHITECTURE_QUICK_REFERENCE.md](docs/architecture/ARCHITECTURE_QUICK_REFERENCE.md) for visual diagrams and fast navigation.
 >
 > **Detailed Review**: See [docs/architecture/ARCHITECTURE_REVIEW.md](docs/architecture/ARCHITECTURE_REVIEW.md) for comprehensive architectural analysis.
 

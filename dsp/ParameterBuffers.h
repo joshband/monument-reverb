@@ -77,13 +77,14 @@ struct ParameterBuffer
     }
 
     /**
-     * @brief Default constructor (invalid buffer).
+     * @brief Default constructor (safe default - points to constant storage).
      */
     ParameterBuffer() noexcept
-        : data(nullptr)
+        : data(&constantStorage)
         , numSamples(0)
         , isPerSample(false)
     {
+        constantStorage = 0.5f;  // Neutral default
     }
 
 private:

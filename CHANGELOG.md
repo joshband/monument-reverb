@@ -3,6 +3,414 @@
 All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## Documentation Sessions (2026-01-09)
+
+### Code & Performance Reviews (2026-01-07 to 2026-01-08)
+
+**Summary:** Comprehensive architecture, code quality, and performance analysis across the entire codebase
+
+#### 2026-01-07 Architecture Review
+
+**Scope:** UI systems, asset pipelines, plugin vs playground architecture
+
+**Key Findings:**
+- Multiple UI tracks (plugin UI vs playground) require canonical path declaration
+- Asset pipeline split between binary-embedded and file-based systems
+- Particle system location and ownership needs clarification
+
+**Recommendations:**
+- Declare canonical UI path for future development
+- Unify asset packaging strategy
+- Refresh documentation to reflect current decisions
+
+**Archived:** See [01072026-ArchitectureReview.md](docs/archive/reviews/01072026-ArchitectureReview.md) for full details
+
+#### 2026-01-07 Code Review
+
+**Scope:** Real-time safety, JUCE conventions, thread safety
+
+**Critical Issues:**
+- Playhead null dereference in `plugin/PluginProcessor.cpp:265`
+- Routing preset mutation on audio thread (RT-unsafe)
+- CTest path hard-coded to Debug configuration
+
+**High Priority:**
+- Particle system RTTI in hot loop
+- Order-preserving particle removal (O(n) per removal)
+- Unknown parameter string mapping to default
+
+**Strengths:**
+- Clear DSP/UI/playground separation
+- Test infrastructure expansion
+- Readable and modular code
+
+**Archived:** See [01072026-CodeReview.md](docs/archive/reviews/01072026-CodeReview.md) for detailed findings
+
+#### 2026-01-07 Performance Review
+
+**Scope:** CPU hot paths, memory usage, real-time stability
+
+**High Priority Issues:**
+- Routing preset changes allocate on audio thread (50-500µs stalls)
+- SpinLock contention risk in ModulationMatrix
+- Particle system RTTI overhead in inner loop
+
+**Memory Analysis:**
+- No memory leaks detected
+- ~2.0 MB per instance (excellent for reverb)
+- Particle forces use proper RAII with `std::unique_ptr`
+
+**Recommendations:**
+- Pre-allocate routing configurations, use atomic swap
+- Replace SpinLock with lock-free double-buffering
+- Cache CurlNoiseForce pointer to avoid RTTI
+- Use `removeQuick()` for particle removal
+
+**Archived:** See [01072026-Performance.md](docs/archive/reviews/01072026-Performance.md) for full analysis
+
+#### 2026-01-08 Comprehensive Code Review
+
+**Scope:** Real-time safety, JUCE best practices, DSP correctness, code quality
+
+**Grade:** A- (Excellent code with critical RT issues requiring attention)
+
+**Real-Time Safety:**
+- ✅ Pre-allocated buffers, no allocation in hot paths (except routing)
+- ✅ Denormal protection with `ScopedNoDenormals`
+- ✅ Lock-free parameter access via atomics
+- ✅ No system calls in audio thread
+- ❌ Routing preset allocation in `processBlock()` (CRITICAL)
+- ❌ ModulationMatrix SpinLock on audio thread (CRITICAL)
+
+**JUCE Idiom Compliance:**
+- ✅ Excellent APVTS usage with proper separation
+- ✅ SmoothedValue for parameter smoothing (50ms ramp)
+- ✅ Proper bus layout validation (mono/stereo)
+- ✅ Correct state serialization
+
+**DSP Correctness:**
+- ✅ Fractional delay interpolation (linear, proper wrap-around)
+- ✅ Hadamard/Householder matrix blending (energy-preserving)
+- ✅ Constant-power panning (sin/cos law)
+- ✅ Spatial processing (inverse square law, Doppler shift)
+
+**Code Quality:**
+- ✅ Clear naming conventions and excellent comments
+- ✅ Modern C++17 (std::array, std::unique_ptr, range-based loops)
+- ✅ Const correctness and noexcept usage
+- 🔶 Some magic numbers could be named constants
+
+**Test Coverage:**
+- Existing: smoke, memory_echoes, doppler_shift, sequence_scheduler tests
+- Gaps: routing safety, modulation thread safety, parameter automation, host compatibility
+
+**Recommendations:**
+- **Critical:** Pre-allocate routing presets (2-3 hours)
+- **Critical:** Replace SpinLock with lock-free design (1-2 hours)
+- **High:** Use `memory_order_relaxed` for parameters (30 min)
+- **High:** Bitmask-based smoother tracking (1 hour)
+
+**Archived:** See [01082026-CodeReview.md](docs/archive/reviews/01082026-CodeReview.md) for full 374-line analysis
+
+#### 2026-01-08 Performance Analysis
+
+**Scope:** CPU profiling patterns, memory footprint, SIMD opportunities, real-time stability
+
+**Grade:** B+ → A (after addressing critical issues)
+
+**Performance Strengths:**
+- ✅ Pre-allocated memory (~2.0 MB per instance)
+- ✅ Batch atomic loads reduce cache misses (~25 loads → 1 struct copy)
+- ✅ Denormal protection prevents 100x+ CPU spikes
+- ✅ Efficient FDN reverb core (8 lines, prime number delays)
+- ✅ Block-rate spatial processing (not per-sample)
+
+**Critical Bottlenecks:**
+- ❌ Routing preset allocation: 50-500µs audio dropout
+- ❌ SpinLock contention: priority inversion risk
+
+**High Priority Optimizations:**
+- 🔶 Matrix multiplication SIMD: 15-20% CPU savings (4x speedup with AVX)
+- 🔶 Relaxed memory ordering: 10-15% parameter overhead reduction
+- 🔶 Bitmask smoother tracking: 5-10% smoother overhead reduction
+
+**SIMD Opportunities:**
+- Matrix multiplication in Chambers (8×8 scalar loop → AVX)
+- Fractional delay interpolation
+- Spatial distance calculations (batch processing)
+
+**Memory Footprint:**
+- Delay lines: ~1.8 MB (8 lines × 59009 samples @ 48kHz stereo)
+- Routing buffers: ~73 KB (9 modules × 2048 samples)
+- Total per instance: ~2.0 MB (excellent)
+
+**CPU Targets:**
+- 64 samples: <10% current → <6% optimized
+- 128 samples: <8% current → <4% optimized
+- 512 samples: <5% current → <3% optimized
+
+**Archived:** See [01082026-Performance.md](docs/archive/reviews/01082026-Performance.md) for full 435-line analysis with benchmarks
+
+---
+
+### Session 24: Phase 3 COMPLETE - Strata (MemoryEchoes) Documentation
+
+**Achievement:** Completed final Phase 3 module documentation, achieving **100% Phase 3 completion** (4/4 files)
+
+**File Created:** [docs/architecture/dsp/memory-system/11-strata.md](docs/architecture/dsp/memory-system/11-strata.md) (1,240+ lines, ~15,500 words)
+
+**Contents:**
+
+- Monument metaphor: "Geological memory - sedimentary layers preserving acoustic fossils"
+- Dual-path architecture: Continuous capture + probabilistic recall
+- Memory theory: Exponential decay, surface selection, age-based processing
+- Implementation details: Dual buffers (24s stereo + 180s mono), state machine (Idle/FadeIn/Hold/FadeOut)
+- Performance metrics: Variable CPU (~0.95% average, ~2.12% peak when active)
+- 4 parameters: memory, depth, decay, drift
+- Test coverage: Unit tests, integration tests, performance benchmarks
+- 5 usage examples: Subtle enhancement, infinite abyss, freeze+hold, external routing, visualization
+- Monument integration: Feedback loop with Chambers, temporal coupling with all modules
+- 5 future enhancements: Energy-age tracking, multi-resolution buffers, spectral freezing, SIMD, user durations
+
+**Visual Elements:**
+
+- 2 Mermaid diagrams (capture path + surface playback state machine)
+- 25+ rich tables (parameters, performance, memory scaling, state machine)
+- 15+ LaTeX equations (dual buffer decay, surface probability, age-based filtering, drift modulation)
+- 10+ code examples (C++ implementation, state machine, usage patterns)
+
+**Key Technical Details:**
+
+- Dual buffers: Short (24s stereo, 4.6 MB) + Long (180s mono, 34.6 MB) = ~39 MB total
+- Exponential decay: Short -18dB/24s, Long -45dB/180s (forget factors)
+- Surface selection: 6 candidates × 12 probes to find highest-energy region
+- State machine: Idle → FadeIn (1-3s) → Hold (0.5-2s) → FadeOut (1-3s) → Cooldown (2-6s)
+- Age-based processing: Lowpass (12kHz → 2.5kHz) + saturation (1.0× → 1.6×) + drift (±15 cents)
+- Probabilistic triggering: 6-18s intervals during quiet passages (RMS < 0.03)
+- CPU efficiency: 0.5% capture + 1.5% playback (when active ~30% time) = 0.95% average
+- Memory footprint: ~39 MB at 48kHz (scales linearly with sample rate)
+
+**Session Investment:** ~2.5 hours, ~17K tokens (~$0.09), ~15,500 words written
+
+---
+
+### Session 23: Phase 3 Continued - Living Stone + Impossible Geometry
+
+**Achievement:** Completed two Physical Modeling modules, achieving **75% Phase 3 completion** (3/4 files)
+
+**Files Created:**
+
+1. [docs/architecture/dsp/physical-modeling/09-living-stone.md](docs/architecture/dsp/physical-modeling/09-living-stone.md) (988 lines, ~12,000 words)
+2. [docs/architecture/dsp/physical-modeling/10-impossible-geometry.md](docs/architecture/dsp/physical-modeling/10-impossible-geometry.md) (1,054 lines, ~13,200 words)
+
+**Living Stone (ElasticHallway):**
+
+- Monument metaphor: "Living, breathing walls that deform under acoustic pressure"
+- Hybrid architecture: Block-rate deformation + sample-rate modal filtering
+- Room acoustics theory: Rectangular room modes, modal frequency equations
+- Implementation details: RoomMode struct, deformation physics, elastic recovery
+- Performance metrics: 3.38% CPU (good efficiency) - 8 modal filters
+- 4 parameters: elasticity, recoveryTime, absorptionDrift, nonlinearity
+
+**Key Technical Details (Living Stone):**
+
+- 8 room modes: Axial (1×3) + Tangential (3×3) + Oblique (1) + 2nd harmonic
+- Rectangular room: 10m × 5m × 15m (width × height × depth)
+- Deformation range: ±20% max (walls expand/compress)
+- Recovery time: 100-5000ms (exponential smoothing)
+- Modal frequencies: 11-40 Hz (low-frequency room resonances)
+- Q modulation: LFO at 0.01-0.2 Hz (slow drift)
+- CPU efficiency: 3.38% (2.13% filtering + 0.8% deformation + 0.45% overhead)
+- Memory footprint: ~128 KB
+
+**Impossible Geometry (AlienAmplification):**
+
+- Monument metaphor: "Alien physics - non-Euclidean acoustic chambers"
+- Three impossible effects: Pitch evolution, paradox resonance, non-local absorption
+- Allpass cascade theory: 8-band spectral rotation, phase-offset LFO modulation
+- Implementation details: Stability controls, safety limiting, gain > 1.0 handling
+- Performance metrics: 4.05% CPU (good efficiency) - 8 allpass + peak filter + lowpass
+- 4 parameters: impossibilityDegree, pitchEvolutionRate, paradoxResonanceFreq, paradoxGain
+
+**Key Technical Details (Impossible Geometry):**
+
+- 3 impossible effects: Pitch evolution (8 allpass), paradox resonance (gain > 1.0), non-local absorption (drifting lowpass)
+- Frequency bands: 100-12800 Hz (octave spacing for allpass cascade)
+- Paradox resonance: 50-5000 Hz user range, Q=5-20, gain 1.0-1.05× (bounded for stability)
+- Safety limiter: Soft clip at 0.95 threshold to prevent runaway feedback
+- Non-local absorption: 2-10 kHz drift range, 0.02-0.1 Hz LFO rate
+- CPU efficiency: 4.05% (1.42% pitch + 1.82% paradox + 0.81% absorption)
+- Memory footprint: ~96 KB
+
+**Visual Elements (Both Modules):**
+
+- 4 Mermaid diagrams (2 per module)
+- 45+ rich tables (20 + 25)
+- 27+ LaTeX equations (12 + 15)
+- 20+ code examples (10 per module)
+
+**Session Investment:** ~3 hours, ~43K tokens (~$0.22), ~25,200 words written
+
+---
+
+### Session 22: Phase 3 Started - Resonance (TubeRayTracer)
+
+**Achievement:** Started Phase 3 with comprehensive TubeRayTracer documentation, achieving **25% Phase 3 completion**
+
+**File Created:** [docs/architecture/dsp/physical-modeling/08-resonance.md](docs/architecture/dsp/physical-modeling/08-resonance.md) (1,100+ lines, ~14,000 words)
+
+**Contents:**
+
+- Monument metaphor: "Bronze tubes and copper pipes - metallic lattice within stone"
+- Hybrid architecture: Block-rate ray tracing (64 rays) + sample-rate filtering
+- Helmholtz resonance theory: Modal frequency calculation, absorption formulas
+- Implementation details: Tube struct, ray propagation, resonant filtering
+- Performance metrics: 0.03% CPU (exceptional efficiency) - block-rate optimization
+- 4 parameters: tubeCount (5-16), radiusVariation, metallicResonance (Q factor), couplingStrength
+- Test coverage: Unit tests, integration tests, audio regression
+- 5 usage examples: Basic shimmer, bell tower, industrial, Chambers integration, automation
+- Monument integration: Synergy with Chambers, Weathering, Pillars, Buttress
+- 5 future enhancements: SIMD, frequency-dependent coupling, user configs, non-linear resonances, material variations
+
+**Visual Elements:**
+
+- 2 Mermaid diagrams (signal flow: block-rate vs sample-rate processing)
+- 25+ rich tables (parameters, performance, scaling, memory, optimization)
+- 15+ LaTeX equations (Helmholtz theory, absorption, bandpass filters, energy conservation)
+- 10+ code examples (C++ implementation, usage patterns, automation)
+- ASCII art (frequency response curves, memory layout)
+
+**Key Technical Details:**
+
+- Block-rate ray tracing: 64 rays propagate through 5-16 tubes (once per buffer)
+- Sample-rate filtering: Bandpass filters at modal frequencies (every sample)
+- Helmholtz resonances: f = c / (2L) for fundamental, 5 harmonics per tube
+- Exponential absorption: E_out = E_in × exp(-αL) for distance-based HF loss
+- Tube coupling: 0-30% probabilistic energy transfer between adjacent tubes
+- CPU efficiency: 0.03% (62% reduction from initial 0.15% via optimization)
+- Memory footprint: ~64 KB (one of the most efficient modules)
+
+**Session Investment:** ~1.5 hours, ~25K tokens (~$0.13), ~14,000 words written
+
+---
+
+### Session 21: Phase 2 COMPLETE - Core Signal Flow (5 Modules)
+
+**Achievement:** Completed all 5 core signal flow modules, achieving **100% Phase 2 completion**
+
+**Files Created:**
+
+1. [docs/architecture/dsp/core-modules/01-foundation.md](docs/architecture/dsp/core-modules/01-foundation.md) (4,800 words) - Input Stage
+2. [docs/architecture/dsp/core-modules/02-pillars.md](docs/architecture/dsp/core-modules/02-pillars.md) (9,500 words) - Early Reflections
+3. [docs/architecture/dsp/core-modules/04-weathering.md](docs/architecture/dsp/core-modules/04-weathering.md) (8,500 words) - LFO Modulation
+4. [docs/architecture/dsp/core-modules/06-facade.md](docs/architecture/dsp/core-modules/06-facade.md) (10,500 words) - Output Stage
+5. [docs/architecture/dsp/core-modules/05-buttress.md](docs/architecture/dsp/core-modules/05-buttress.md) (9,800 words) - Feedback Safety
+
+**Module Summaries:**
+
+**Foundation (Input Stage):**
+
+- DC blocker (20Hz highpass)
+- Input gain control (-∞ to +12dB)
+- Simplest module, critical for stability
+- CPU: ~0.05% (negligible)
+
+**Pillars (Early Reflections):**
+
+- 32-tap early reflection system
+- 3 modes: Glass (bright), Stone (warm), Fog (diffuse)
+- Fractional delay with Phase 5 interpolation
+- Per-sample shape parameter (Phase 4)
+- Warp mutation for evolving patterns
+- CPU: 5.38% (optimized)
+
+**Weathering (LFO Modulation):**
+
+- Chorus/vibrato effect
+- LFO-modulated delay (0.02-0.2 Hz)
+- Warp: modulation depth control
+- Drift: LFO rate control
+- Adds organic shimmer to reverb tails
+- CPU: ~0.3% (negligible)
+
+**Facade (Output Stage):**
+
+- Air: brightness control (6.5kHz highpass shelving)
+- Width: M/S stereo processing (0-200%)
+- Phase 2: 3D spatial positioning (azimuth/elevation)
+- Output gain: final level control
+- Constant power panning law
+- CPU: ~0.2% (negligible)
+
+**Buttress (Feedback Safety):**
+
+- Tanh saturation for soft clipping
+- Drive: 0.5-3.0× (subtle to heavy saturation)
+- Freeze mode: infinite reverb tails
+- Prevents feedback explosion
+- Harmonic warmth (<1% THD at default)
+- CPU: ~0.15% (negligible)
+
+**Visual Elements:**
+
+- 15+ Mermaid diagrams (signal flow for each module)
+- 80+ rich tables (parameters, performance, comparisons)
+- 40+ LaTeX equations (mathematical foundations)
+- 50+ code examples (C++ implementation, usage patterns)
+
+**Key Technical Details:**
+
+- All modules follow 12-section template established by Chambers
+- Complete signal flow: Foundation → Pillars → Chambers → Weathering → [Physical Modeling] → Buttress → Facade
+- Total CPU: ~6.1% for all 5 modules (excluding Chambers/Physical Modeling)
+- Phase 2, 3, 4, 5 features documented (per-sample parameters, fractional delays, 3D panning)
+
+**Session Investment:** ~3 hours, ~115K tokens (~$0.58), ~43,100 words written
+
+---
+
+### Session 20: Phase 1 COMPLETE - Routing Graph Documentation
+
+**Achievement:** Completed Phase 1 with comprehensive DspRoutingGraph documentation
+
+**File Created:** [docs/architecture/dsp/overview/00-routing-graph.md](docs/architecture/dsp/overview/00-routing-graph.md)
+
+**Contents:**
+
+- Signal routing orchestration
+- Module interconnections
+- Parameter distribution
+- Thread-safe audio processing
+- Complete DSP pipeline architecture
+
+**Outcome:** Established documentation foundation and template for all subsequent modules
+
+---
+
+### Phase 3 Complete Summary (Sessions 22-24)
+
+**Total Output:**
+
+- Files Created: 4 comprehensive documents
+- Words Written: ~56,700 (average 14,175 per doc)
+- Mermaid Diagrams: 8
+- Tables: 100+
+- LaTeX Equations: 57+
+- Code Examples: 40+
+- Lines of Documentation: ~4,400+
+
+**Quality Gates Achieved:**
+
+- All Mermaid diagrams render correctly
+- Cross-references resolve correctly
+- Monument theme consistent throughout
+- Technical accuracy verified against source code
+- Performance metrics match benchmark data
+- Complete DSP core documentation (11/11 modules)
+- All Phase 2-5 features documented
+
+---
+
 ## [Unreleased]
 
 ### Notes

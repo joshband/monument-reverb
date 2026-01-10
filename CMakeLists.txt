@@ -911,6 +911,54 @@ if(BUILD_TESTING)
   add_test(NAME monument_parameter_stress_test COMMAND $<TARGET_FILE:monument_parameter_stress_test> --quick)
 endif()
 
+# Pillars Zipper Test (Phase 5: Fractional Delay Verification)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_pillars_zipper_test
+    PRODUCT_NAME "Monument Pillars Zipper Test"
+  )
+
+  juce_generate_juce_header(monument_pillars_zipper_test)
+
+  target_sources(monument_pillars_zipper_test
+    PRIVATE
+      tests/PillarsZipperTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_pillars_zipper_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_pillars_zipper_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      MONUMENT_ZIPPER_TEST_MODE=1
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e7520
+      JucePlugin_PluginCode=0x4d6e7220
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+
+  target_link_libraries(monument_pillars_zipper_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_audio_processors
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_pillars_zipper_test COMMAND $<TARGET_FILE:monument_pillars_zipper_test> --quick)
+endif()
+
 # DSP Initialization Test (Phase A: DSP Verification)
 if(BUILD_TESTING)
   juce_add_console_app(monument_dsp_initialization_test

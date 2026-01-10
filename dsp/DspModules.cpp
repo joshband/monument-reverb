@@ -82,13 +82,17 @@ void Pillars::prepare(double sampleRate, int blockSize, int numChannels)
     updateModeTuning();
     updateTapLayout();
 
-    // Initialize tap coefficient/gain smoothers (15ms = responsive but click-free)
+    // Initialize tap coefficient/gain/position smoothers
+    // Gains/coeffs: 15ms = responsive but click-free
+    // Positions: 500ms = zipper-free tap layout changes (Phase 5)
     for (size_t i = 0; i < kMaxTaps; ++i)
     {
         tapGainSmoothers[i].reset(sampleRateHz, 0.015);
         tapCoeffSmoothers[i].reset(sampleRateHz, 0.015);
+        tapPositionSmoothers[i].reset(sampleRateHz, 0.5);  // Phase 5: 500ms for smooth position changes
         tapGainSmoothers[i].setCurrentAndTargetValue(tapGains[i]);
         tapCoeffSmoothers[i].setCurrentAndTargetValue(tapAllpassCoeff[i]);
+        tapPositionSmoothers[i].setCurrentAndTargetValue(tapSamples[i]);
     }
 }
 
@@ -153,12 +157,13 @@ void Pillars::process(juce::AudioBuffer<float>& buffer)
     if (tapsDirty && inputPeakMagnitude < kTapUpdateThreshold)
     {
         updateTapLayout();
-        // Update smoother targets after tap layout recalculation
+        // Update smoother targets after tap layout recalculation (Phase 5: includes positions)
         for (int tap = 0; tap < tapCount; ++tap)
         {
             const auto tapIndex = static_cast<size_t>(tap);
             tapGainSmoothers[tapIndex].setTargetValue(tapGains[tapIndex]);
             tapCoeffSmoothers[tapIndex].setTargetValue(tapAllpassCoeff[tapIndex]);
+            tapPositionSmoothers[tapIndex].setTargetValue(tapSamples[tapIndex]);  // Phase 5: Smooth positions
         }
         tapsDirty = false;
     }
@@ -166,13 +171,16 @@ void Pillars::process(juce::AudioBuffer<float>& buffer)
     for (int sample = 0; sample < numSamples; ++sample)
     {
         // Advance smoothers once per sample (not per channel) to avoid fast ramps
+        // Phase 5: Now includes position smoothing for zipper-free tap changes
         std::array<float, kMaxTaps> smoothedCoeffs;
         std::array<float, kMaxTaps> smoothedGains;
+        std::array<float, kMaxTaps> smoothedPositions;
         for (int tap = 0; tap < tapCount; ++tap)
         {
             const auto tapIndex = static_cast<size_t>(tap);
             smoothedCoeffs[tapIndex] = tapCoeffSmoothers[tapIndex].getNextValue();
             smoothedGains[tapIndex] = tapGainSmoothers[tapIndex].getNextValue();
+            smoothedPositions[tapIndex] = tapPositionSmoothers[tapIndex].getNextValue();
         }
 
         for (int channel = 0; channel < numChannels; ++channel)
@@ -188,11 +196,9 @@ void Pillars::process(juce::AudioBuffer<float>& buffer)
             for (int tap = 0; tap < tapCount; ++tap)
             {
                 const auto tapIndex = static_cast<size_t>(tap);
-                int readPos = writePosition - tapSamples[tapIndex];
-                if (readPos < 0)
-                    readPos += delayBufferLength;
-
-                const float tapIn = delayData[readPos];
+                // Phase 5: Use interpolated read with smoothed fractional position
+                const float tapIn = readDelayInterpolated(delayData, delayBufferLength,
+                                                         writePosition, smoothedPositions[tapIndex]);
                 // Use pre-computed smoothed values from outer loop
                 const float tapOut = applyAllpass(tapIn, smoothedCoeffs[tapIndex], apState[tap]);
                 acc += tapOut * smoothedGains[tapIndex] * densityScale;
@@ -240,16 +246,11 @@ void Pillars::setDensity(float density)
     }
 }
 
-void Pillars::setShape(float shape)
+void Pillars::setShape(const ParameterBuffer& shape)
 {
-    if (!std::isfinite(shape))
-        return;
-    const float clamped = juce::jlimit(0.0f, 1.0f, shape);
-    if (std::abs(clamped - pillarShape) > 1.0e-3f)
-    {
-        pillarShape = clamped;
-        tapsDirty = true;
-    }
+    pillarShapeBuffer = shape;
+    // Mark taps dirty on buffer update - updateTapLayout() will sample from buffer when needed
+    tapsDirty = true;
 }
 
 void Pillars::setMode(int modeIndex)
@@ -364,9 +365,9 @@ void Pillars::updateTapLayout()
 
         const float shaped = shapePosition(position01);
         const float delayMs = juce::jmap(shaped, minDelayMs, maxDelayMs);
-        // Keep tap delays integer-sample for stability during geometry bending.
-        const int samples = static_cast<int>(std::round(sampleRateHz * (delayMs / 1000.0f)));
-        tapSamples[tapIndex] = juce::jlimit(1, delayBufferLength - 1, samples);
+        // Phase 5: Use fractional delays for smooth, zipper-free tap position changes
+        const float exactDelay = sampleRateHz * (delayMs / 1000.0f);
+        tapSamples[tapIndex] = juce::jlimit(2.0f, static_cast<float>(delayBufferLength - 3), exactDelay);
 
         const float gainBase = juce::jmap(random.nextFloat(), 0.08f, 0.42f);
         tapGains[tapIndex] = gainBase * modeTapGain;
@@ -451,8 +452,14 @@ void Pillars::updateModeTuning()
 
 float Pillars::shapePosition(float position01) const
 {
+    // Phase 4: Sample from parameter buffer (eliminates double smoothing)
+    // Handle uninitialized buffer with sensible default (0.5 = neutral)
+    const float pillarShapeValue = pillarShapeBuffer.numSamples > 0
+        ? juce::jlimit(0.0f, 1.0f, pillarShapeBuffer[0])
+        : 0.5f;
+
     // Shape interpolates between compressed (short intervals) and expanded (long intervals).
-    const float shape = juce::jmap(pillarShape, -1.0f, 1.0f);
+    const float shape = juce::jmap(pillarShapeValue, -1.0f, 1.0f);
     const float exponent = shape < 0.0f
         ? (1.0f + (-shape) * 2.0f)
         : (1.0f / (1.0f + shape * 1.5f));
@@ -464,6 +471,34 @@ float Pillars::applyAllpass(float input, float coeff, float& state) const
     const float output = -coeff * input + state;
     state = input + coeff * output;
     return output;
+}
+
+float Pillars::readDelayInterpolated(const float* buffer, int bufferLength,
+                                     int writePos, float delaySamples) const
+{
+    // Phase 5: Linear interpolation for fractional delay
+    // Optimized: branchless wrapping, minimal operations
+
+    // Calculate read position with fractional part
+    float readPosFloat = static_cast<float>(writePos) - delaySamples;
+    if (readPosFloat < 0.0f)
+        readPosFloat += static_cast<float>(bufferLength);
+
+    // Integer and fractional parts
+    const int readPos0 = static_cast<int>(readPosFloat);
+    const float frac = readPosFloat - static_cast<float>(readPos0);
+
+    // Get 2 samples with branchless wrapping (avoid modulo)
+    const int idx_0 = readPos0;
+    int idx_1 = readPos0 + 1;
+    if (idx_1 >= bufferLength)
+        idx_1 = 0;
+
+    const float y_0 = buffer[idx_0];
+    const float y_1 = buffer[idx_1];
+
+    // Linear interpolation: y = y0 + frac * (y1 - y0)
+    return y_0 + frac * (y_1 - y_0);
 }
 
 void Weathering::prepare(double sampleRate, int blockSize, int numChannels)

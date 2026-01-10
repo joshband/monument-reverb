@@ -15,6 +15,7 @@
 
 #include <JuceHeader.h>
 #include "dsp/Chambers.h"
+#include "dsp/ParameterBuffers.h"
 #include <iostream>
 #include <iomanip>
 #include <cmath>
@@ -199,8 +200,8 @@ TestResult testImpulseResponseDecay()
     {
         Chambers reverb;
         reverb.prepare(kSampleRate, kBlockSize, kNumChannels);
-        reverb.setTime(0.7f); // Medium decay time
-        reverb.setDensity(1.0f); // Maximum density = 100% wet (no dry mix for accurate RT60)
+        reverb.setTime(ParameterBuffer(0.7f, kBlockSize)); // Medium decay time
+        reverb.setDensity(ParameterBuffer(1.0f, kBlockSize)); // Maximum density = 100% wet (no dry mix for accurate RT60)
 
         // Create impulse response buffer (40 seconds to capture long tails)
         const int irLength = static_cast<int>(kSampleRate * 40.0);
@@ -274,7 +275,7 @@ TestResult testLateTailStability()
     {
         Chambers reverb;
         reverb.prepare(kSampleRate, kBlockSize, kNumChannels);
-        reverb.setTime(0.5f);
+        reverb.setTime(ParameterBuffer(0.5f, kBlockSize));
 
         // Send impulse and process 60 seconds
         juce::AudioBuffer<float> buffer(kNumChannels, kBlockSize);
@@ -342,8 +343,8 @@ TestResult testDCOffsetDetection()
     {
         Chambers reverb;
         reverb.prepare(kSampleRate, kBlockSize, kNumChannels);
-        reverb.setDensity(1.0f); // Full wet to isolate reverb algorithm (no dry pass-through)
-        reverb.setGravity(0.0f); // Minimum cutoff (20Hz) for best DC rejection
+        reverb.setDensity(ParameterBuffer(1.0f, kBlockSize)); // Full wet to isolate reverb algorithm (no dry pass-through)
+        reverb.setGravity(ParameterBuffer(0.0f, kBlockSize)); // Minimum cutoff (20Hz) for best DC rejection
 
         // Send DC signal (constant 1.0)
         juce::AudioBuffer<float> buffer(kNumChannels, kBlockSize);
@@ -397,8 +398,8 @@ TestResult testStereoDecorrelation()
     {
         Chambers reverb;
         reverb.prepare(kSampleRate, kBlockSize, kNumChannels);
-        reverb.setTime(0.6f);
-        reverb.setDensity(0.8f); // High diffusion (not max - that correlates more)
+        reverb.setTime(ParameterBuffer(0.6f, kBlockSize));
+        reverb.setDensity(ParameterBuffer(0.8f, kBlockSize)); // High diffusion (not max - that correlates more)
 
         // Send stereo impulse
         juce::AudioBuffer<float> buffer(kNumChannels, kBlockSize);
@@ -537,7 +538,7 @@ TestResult testParameterJumpStress()
     {
         Chambers reverb;
         reverb.prepare(kSampleRate, kBlockSize, kNumChannels);
-        reverb.setTime(0.5f);
+        reverb.setTime(ParameterBuffer(0.5f, kBlockSize));
 
         // Process audio for 1 second
         juce::AudioBuffer<float> buffer(kNumChannels, kBlockSize);
@@ -550,7 +551,7 @@ TestResult testParameterJumpStress()
         }
 
         // Sudden parameter jump
-        reverb.setTime(1.0f);
+        reverb.setTime(ParameterBuffer(1.0f, kBlockSize));
 
         // Process one block and check for clicks
         buffer.clear();

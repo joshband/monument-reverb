@@ -294,7 +294,7 @@ If your DAW supports custom plugin folders, add the `Monument_artefacts/Release/
 
 1. Document the failure (which test, what happened)
 2. Check troubleshooting section above
-3. Review [PHASE_2_VALIDATION_TEST.md](PHASE_2_VALIDATION_TEST.md) for detailed debugging
+3. Review [PHASE_2_VALIDATION_TEST.md](../archive/phases/PHASE_2_VALIDATION_TEST.md) for detailed debugging
 
 ---
 
@@ -345,7 +345,7 @@ OS Version: ________
 ## Reference Documents
 
 - [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md) - Full roadmap and implementation details
-- [PHASE_2_VALIDATION_TEST.md](PHASE_2_VALIDATION_TEST.md) - Comprehensive testing guide
+- [PHASE_2_VALIDATION_TEST.md](../archive/phases/PHASE_2_VALIDATION_TEST.md) - Comprehensive testing guide
 - [docs/DSP_ARCHITECTURE.md](docs/DSP_ARCHITECTURE.md) - Macro system architecture
 - [CHANGELOG.md](CHANGELOG.md) - Phase 1 & 2 completion notes
 

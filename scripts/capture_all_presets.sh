@@ -10,7 +10,7 @@ PLUGIN_PATH="${HOME}/Library/Audio/Plug-Ins/VST3/Monument.vst3"
 ANALYZER_PATH="./build/monument_plugin_analyzer_artefacts/Debug/monument_plugin_analyzer"
 OUTPUT_BASE="./test-results/preset-baseline"
 DURATION=30  # 30 seconds ensures complete reverb tail capture with margin (1.5x longest RT60)
-NUM_PRESETS=37
+NUM_PRESETS=8
 
 # Parallel execution (default: use all CPU cores)
 # Set PARALLEL_JOBS=1 to disable parallel processing
@@ -49,7 +49,7 @@ echo -e "${BLUE}  Monument Reverb - Batch Preset Capture${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "Plugin:    ${GREEN}${PLUGIN_PATH}${NC}"
-echo -e "Presets:   ${GREEN}0-36 (${NUM_PRESETS} total)${NC}"
+echo -e "Presets:   ${GREEN}0-7 (${NUM_PRESETS} total)${NC}"
 echo -e "Duration:  ${GREEN}${DURATION} seconds${NC}"
 echo -e "Output:    ${GREEN}${OUTPUT_BASE}${NC}"
 echo -e "Parallel:  ${GREEN}${PARALLEL_JOBS} workers${NC}"
@@ -119,7 +119,7 @@ echo "Starting parallel capture with ${PARALLEL_JOBS} workers..."
 echo ""
 
 # Use xargs for parallel execution (-P controls parallel jobs)
-if seq 0 36 | xargs -P "$PARALLEL_JOBS" -I {} bash -c 'capture_preset "$@"' _ {}; then
+if seq 0 7 | xargs -P "$PARALLEL_JOBS" -I {} bash -c 'capture_preset "$@"' _ {}; then
     echo ""
     echo "All capture jobs completed"
 else
@@ -136,7 +136,7 @@ SECONDS=$((ELAPSED % 60))
 # Count successes and failures
 SUCCESS_COUNT=0
 FAIL_COUNT=0
-for i in $(seq 0 36); do
+for i in $(seq 0 7); do
     PRESET_DIR="${OUTPUT_BASE}/preset_$(printf "%02d" $i)"
     if [ -f "${PRESET_DIR}/wet.wav" ] && [ -f "${PRESET_DIR}/dry.wav" ] && \
        [ -f "${PRESET_DIR}/rt60_metrics.json" ] && [ -f "${PRESET_DIR}/frequency_response.json" ]; then

@@ -76,3 +76,6 @@ Skills/juce-audio-graphics-architect/references/web/spatial/
 # Local clones for reference harvesting
 tools/juce-upstream/
 tools/third-party/
+
+# Build artifacts and bundles
+/artifacts/

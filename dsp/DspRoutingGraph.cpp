@@ -455,12 +455,7 @@ void DspRoutingGraph::setPillarsParams(float density, const ParameterBuffer& sha
     if (pillars)
     {
         pillars->setDensity(density);
-        // TEMPORARY: Average shape buffer for backward compatibility until Step 6 refactor
-        float shapeAvg = 0.0f;
-        for (int i = 0; i < shape.numSamples; ++i)
-            shapeAvg += shape[i];
-        shapeAvg /= static_cast<float>(shape.numSamples);
-        pillars->setShape(shapeAvg);
+        pillars->setShape(shape);  // Phase 4 Step 6: Pass ParameterBuffer directly
         pillars->setWarp(warp);
     }
 }

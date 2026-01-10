@@ -429,7 +429,7 @@ All quality gates are integrated into [`scripts/run_ci_tests.sh`](../scripts/run
 
 **Documentation:**
 
-- Full quality gate details: [`docs/PHASE_3_STEP_2_QUALITY_GATES_COMPLETE.md`](PHASE_3_STEP_2_QUALITY_GATES_COMPLETE.md)
+- Full quality gate details: [`docs/archive/phases/PHASE_3_STEP_2_QUALITY_GATES_COMPLETE.md`](../archive/phases/PHASE_3_STEP_2_QUALITY_GATES_COMPLETE.md)
 - Tool documentation: [`scripts/README.md#quality-gate-scripts`](../scripts/README.md#quality-gate-scripts)
 
 ---

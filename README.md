@@ -1,12 +1,10 @@
-# Monument
+# Monument Reverb
 
-Monument is an abstract, architectural reverb for impossible-scale space.
-It is a compositional tool for massive, slow, dense, evolving ambience.
+**An abstract, architectural reverb for impossible-scale space**
 
-Monument is not a room simulator, plate, spring, or convolution reverb.
-It is a structure sound enters, not a space that reflects sound.
+Monument is a compositional tool for massive, slow, dense, evolving ambience. It is not a room simulator, plate, or spring reverb—it is a structure sound enters, not a space that reflects sound.
 
-Core priorities:
+**Core Priorities:**
 - Scale over realism
 - Density over echo
 - Slow tectonic motion
@@ -17,36 +15,17 @@ Core priorities:
 
 ## Project Status
 
-**Current Phase**: Phase 6 - Polish & Release (in progress) | **UI Direction**: Macro-only + reactive overlay (2026-01-07)
+**Current Phase:** Phase 4 Complete - Supporting Systems Documentation (2026-01-09)
 
-Monument features a memory-free reverb architecture. Memory Echoes lives in a standalone repository with planned v1.6 reintegration.
+**Build Status:** ✅ VST3/AU compiling and installing successfully
 
-**Direction Update** (2026-01-07):
+**Test Status:** 17/21 tests passing (81%)
 
-- ✅ **Macro-only UI**: 10 poetic macros are the only visible controls; base parameters hidden
-- ✅ **Celestial assets**: Layered RGBA pack in `assets/ui/celestial/`
-- ✅ **MacroVisualOverlay**: OpenGL audio + cursor reactive rings, glyphs, and particles
-- ✅ **JSON-driven visuals**: `assets/ui/macro_hints.json` + `assets/ui/visual_profiles.json`
+**Preset Count:** 8 presets (3 original + 5 experimental)
 
-**Recent Updates** (2026-01-07):
+**Documentation:** 15/17 DSP architecture modules documented (~184,500 words)
 
-- ✅ **MonumentPlayground**: Standalone UI playground with PBR knobs + particles
-- ✅ **Particles**: New particle system extracted under `Source/Particles/`
-- ✅ **Smoke Test**: CTest target now instantiates `MonumentAudioProcessor`
-- ✅ **RT Safety**: Routing presets precomputed; modulation connections snapshot off-thread
-- ✅ **Docs**: Added DSP signal flow basics guide
-
-**Phase 5 Complete - Physical Modeling Integration** (2026-01-04):
-
-- ✅ **3 New DSP Modules**: TubeRayTracer, ElasticHallway, AlienAmplification
-- ✅ **12 New Parameters**: Tube network, elastic walls, non-Euclidean physics
-- ✅ **Macro Integration**: Physical parameters driven by Material, Topology, Viscosity, Evolution, Chaos, and Elasticity
-- ✅ **5 New Presets**: Metallic Corridor, Elastic Cathedral, Impossible Chamber, Breathing Tubes, Quantum Hall
-- ✅ **9 Additional "Living" Presets**: Dynamic Response, Chaotic Motion, Organic Evolution, Experimental Combinations (Task 3)
-- ✅ **Total Factory Presets**: 37 curated spaces
-
-**Legacy UI Note**:
-- The earlier white-background + photorealistic knob phases are now treated as historical references.
+**For detailed status, see [docs/STATUS.md](docs/STATUS.md)**
 
 ---
 
@@ -61,275 +40,138 @@ Monument features a memory-free reverb architecture. Memory Echoes lives in a st
 
 ### Build and Install
 
-**Recommended**: Use standardized incremental builds (see [STANDARD_BUILD_WORKFLOW.md](STANDARD_BUILD_WORKFLOW.md))
-
 ```bash
 # Initial setup (first time only)
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 
-# Incremental build (6 seconds, auto-installs)
-cmake --build build --target Monument_AU --config Release -j8
-```
+# Build and auto-install (VST3 + AU)
+cmake --build build --config Release -j8
 
-### Canonical Build & Test Commands
-
-```bash
-./scripts/build_macos.sh
-./scripts/open_xcode.sh
-cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64
-cmake --build build --config Release
+# Run tests
 ctest --test-dir build -C Release
 ```
 
-**Supplemental scripts** (still supported):
-```bash
-./scripts/install_macos.sh
-```
+**Artifacts auto-install to:**
+- `~/Library/Audio/Plug-Ins/Components/Monument.component` (AU)
+- `~/Library/Audio/Plug-Ins/VST3/Monument.vst3` (VST3)
 
-**Artifacts**: Auto-installed to `~/Library/Audio/Plug-Ins/{Components,VST3}/`
-
-### Generate UI Knobs
-
-See [docs/development/QUICK_START_BLENDER_KNOBS.md](docs/development/QUICK_START_BLENDER_KNOBS.md) for photorealistic knob generation.
-
-```bash
-# Generate knob layers with Blender
-./scripts/run_blender_knobs.sh
-
-# Preview composite before building
-python3 scripts/preview_knob_composite.py --rotation 45
-```
-
-### MonumentPlayground (Standalone UI Playground)
-
-```bash
-cmake --build build --target MonumentPlayground -j4
-open "build/MonumentPlayground_artefacts/Debug/Monument UI Playground.app"
-```
+**For detailed build workflows, see [STANDARD_BUILD_WORKFLOW.md](STANDARD_BUILD_WORKFLOW.md)**
 
 ---
 
 ## Documentation
 
-**Central Hub**: [docs/INDEX.md](docs/INDEX.md)
-
-### Essential Reading
+**Essential Documents:**
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture overview
-- [STANDARD_BUILD_WORKFLOW.md](STANDARD_BUILD_WORKFLOW.md) - Build commands
-- [MANIFEST.md](MANIFEST.md) - Project vision & roadmap
+- [ROADMAP.md](ROADMAP.md) - Long-term vision and future enhancements
+- [MANIFEST.md](MANIFEST.md) - Project manifesto and design philosophy
+- [STANDARD_BUILD_WORKFLOW.md](STANDARD_BUILD_WORKFLOW.md) - Build commands and workflows
+- [docs/STATUS.md](docs/STATUS.md) - Current implementation status
+- [CHANGELOG.md](CHANGELOG.md) - Detailed session history
 
-### Quick Starts
+**Detailed Documentation:**
 
-- [docs/development/QUICK_START_BLENDER_KNOBS.md](docs/development/QUICK_START_BLENDER_KNOBS.md) - Generate knobs
-- [docs/development/QUICK_START_MACRO_TESTING.md](docs/development/QUICK_START_MACRO_TESTING.md) - Test macros
+- [docs/architecture/](docs/architecture/) - DSP architecture (15/17 modules documented)
+- [docs/development/](docs/development/) - Development guides and optimization strategies
+- [docs/testing/](docs/testing/) - Testing infrastructure and guides
+- [docs/ui/](docs/ui/) - UI design and asset workflows
 
-### Architecture & DSP
+**Architecture Reviews:**
 
-- [ARCHITECTURE_QUICK_REFERENCE.md](ARCHITECTURE_QUICK_REFERENCE.md) - Visual diagrams
-- [docs/architecture/DSP_ARCHITECTURE.md](docs/architecture/DSP_ARCHITECTURE.md) - Signal flow
-- [docs/architecture/PARAMETER_BEHAVIOR.md](docs/architecture/PARAMETER_BEHAVIOR.md) - Parameter contracts
-- [docs/DSP_SIGNAL_FLOW_BASICS.md](docs/DSP_SIGNAL_FLOW_BASICS.md) - DSP signal flow basics
-
-### UI Design
-
-- [docs/ui/LAYERED_KNOB_DESIGN.md](docs/ui/LAYERED_KNOB_DESIGN.md) - Design system
-- [docs/ui/LAYERED_KNOB_WORKFLOW.md](docs/ui/LAYERED_KNOB_WORKFLOW.md) - Asset pipeline
-
-### Testing
-
-- [docs/testing/TESTING.md](docs/testing/TESTING.md) - General testing (pluginval)
-- [docs/testing/MODULATION_TESTING_GUIDE.md](docs/testing/MODULATION_TESTING_GUIDE.md) - Modulation tests
-- [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) - Full testing infrastructure
-
-### Plans & Reviews
-
-- [Roadmap.md](Roadmap.md) - Current roadmap
-- [ImplementationPlan.md](ImplementationPlan.md) - Implementation plan with Codex prompts
-- [01072026-CodeReview.md](01072026-CodeReview.md) - Comprehensive code review
-- [01072026-ArchitectureReview.md](01072026-ArchitectureReview.md) - Architecture review
-- [01072026-Performance.md](01072026-Performance.md) - Performance and resource review
+- [docs/archive/reviews/](docs/archive/reviews/) - Code, performance, and architecture reviews (2026-01-07/08)
 
 ---
 
-## Signal Flow
+## Architecture Overview
 
-```mermaid
-flowchart LR
-  Input --> Foundation --> Pillars --> Chambers --> Weathering --> Buttress --> Facade --> Mix --> Output
-  Input -. Dry tap .-> Mix
+**Core Signal Flow:**
+
+```
+Input → Foundation → Pillars → Chambers → Physical Modules → Weathering → Buttress → Facade → Output
+          ↓                                                                                    ↑
+          └────────────────────────────── Dry Signal ───────────────────────────────────────┘
 ```
 
-![Monument signal flow](docs/assets/monument-signal-flow.svg)
+**DSP Modules:**
 
-**Modules at a glance**:
-- **Foundation**: Input conditioning and headroom
-- **Pillars**: Early reflection clusters
-- **Chambers**: FDN reverb core
-- **Weathering**: Slow motion (warp, drift)
-- **Buttress**: Feedback safety and limiting
-- **Facade**: Stereo imaging, air, width, and mix
+1. **Foundation** - Input conditioning (pre-delay, filtering)
+2. **Pillars** - Early reflections (8-tap allpass diffuser)
+3. **Chambers** - FDN reverb core (8×8 feedback matrix)
+4. **Physical Modules** - TubeRayTracer, ElasticHallway, AlienAmplification, MemoryEchoes
+5. **Weathering** - LFO modulation (4 sources × 27 destinations)
+6. **Buttress** - Feedback safety (soft clipping, limiter)
+7. **Facade** - Output stage (dry/wet mix, stereo width)
+
+**Supporting Systems:**
+- ParameterBuffers - Zipper noise elimination
+- SpatialProcessor - 3D positioning with Doppler shift
+- AllpassDiffuser - Schroeder topology diffusion
+- ModulationMatrix - 4 sources × 27 destinations
+
+**For detailed architecture, see [ARCHITECTURE.md](ARCHITECTURE.md)**
 
 ---
 
 ## Parameters
 
-All parameters are normalized to [0, 1] unless noted. Mix is [0, 100].
-UI-facing controls are the macro set below; base parameters remain internal and are driven by macros.
+**Macro System** (3 high-level controls):
 
-![Monument parameter compass](docs/assets/monument-parameter-compass.svg)
-
-### Macro Controls (UI-facing)
-
-| Macro | Intent |
-| --- | --- |
-| Stone | Material hardness and density emphasis |
-| Labyrinth | Space topology and routing complexity |
-| Mist | Air density and decay viscosity |
-| Bloom | Evolution, swell, and pitch movement |
-| Tempest | Chaos, nonlinearity, and instability |
-| Echo | Elastic recovery and resonant memory |
-| Patina | Age, weathering, and softened diffusion |
-| Abyss | Depth, width, and perceived void |
-| Corona | Halo brightness and shimmer emphasis |
-| Breath | Motion and gravitational drift |
-
-### Primary Controls (Internal)
-
-| Control | Meaning | Behavior notes |
+| Macro | Meaning | Controls |
 | --- | --- | --- |
-| Time | Tail duration | Maps to feedback gain for long T60 values |
-| Mass | Weight and darkness | Increases damping and low-end persistence |
-| Density | Reflection complexity | Higher values increase diffusion and continuity |
-| Bloom | Late swell | Shapes a slow envelope on late field injection |
-| Air | Upper-band lift | Adds openness without harshness |
-| Width | Stereo spread | Applies to wet only, keeps mono-safe center |
-| Mix (0-100) | Wet/dry blend | Constant-power crossfade |
+| Scale | Overall size and time | Time, decay, pre-delay |
+| Character | Tonal quality | Damping, diffusion, modulation |
+| Breath | Movement and life | LFO rates, drift, evolution |
 
-### Advanced Controls
+**Core Parameters** (25+ internal parameters driven by macros):
 
-| Control | Meaning | Behavior notes |
-| --- | --- | --- |
-| Warp | Space topology bend | Morphs orthogonal FDN matrices at sub-Hz rates |
-| Drift | Micro motion | Per-line slow LFO delay offsets, ultra subtle |
-| Gravity | Spectral tilt | Frequency-dependent decay and high-pass gravity |
-| Freeze | Infinite hold | Locks FDN state, mutes input, smooth crossfade |
-| Pillar Shape | Early reflection spacing | Compresses or expands tap intervals |
-| Pillar Mode | Early reflection palette | Glass, Stone, Fog tap profiles |
+- **Time** - Reverb tail duration
+- **Mass** - Weight and darkness
+- **Density** - Reflection complexity
+- **Bloom** - Late energy swell
+- **Air** - High-frequency lift
+- **Width** - Stereo spread
+- **Mix** - Dry/wet balance
 
-### Physical Modeling Controls (Phase 5 Complete ✅)
+**Advanced Parameters** - Warp, Drift, Gravity, Freeze, and more
 
-Monument includes three physics-based modeling modules that create impossible acoustic spaces:
-
-**TubeRayTracer Parameters:**
-
-| Control | Meaning | Behavior notes |
-| --- | --- | --- |
-| Tube Count | Network complexity | Number of interconnected metal tubes (1-8) |
-| Tube Radius Variation | Size diversity | Spread of tube diameters for varied resonance |
-| Metallic Resonance | Surface reflectivity | Brightness of metal ringing and harmonic content |
-| Tube Coupling Strength | Connection intensity | How strongly tubes influence each other |
-
-**ElasticHallway Parameters:**
-
-| Control | Meaning | Behavior notes |
-| --- | --- | --- |
-| Wall Elasticity | Deformation amount | How much walls bend under acoustic pressure |
-| Recovery Time | Return speed | Time for walls to return to rest position |
-| Absorption Drift | Material morphing | Slow evolution of wall absorption properties |
-| Elastic Nonlinearity | Deformation curve | Linear vs exponential wall response |
-
-**AlienAmplification Parameters:**
-
-| Control | Meaning | Behavior notes |
-| --- | --- | --- |
-| Impossibility Degree | Physics violation | Amount of non-Euclidean acoustic behavior |
-| Pitch Evolution | Frequency drift | Slow harmonic shifts in impossible space |
-| Paradox Frequency | Quantum effect | Rate of acoustic topology folding |
-| Paradox Gain | Amplification intensity | Energy gain from impossible reflections |
-
-### Macro Controls & Modulation (Phase 2-4 Complete ✅)
-
-Monument includes a high-level macro system and visual modulation matrix for deep sound design.
-
-**Macro Controls:**
-
-| Macro | Meaning | Influences |
-| --- | --- | --- |
-| Material | Surface character (soft → hard) | Time, Mass, Density |
-| Topology | Spatial geometry (regular → non-Euclidean) | Warp, Drift |
-| Viscosity | Medium resistance (airy → thick) | Time, Air, Mass |
-| Evolution | Temporal change (static → evolving) | Bloom, Drift |
-| Chaos | Unpredictable motion (stable → chaotic) | Warp, Drift |
-| Elasticity | Deformation speed (instant → slow) | Reserved for future |
-
-**Modulation Matrix** (Phase 3-4 Complete ✅):
-
-- 4 source types: Chaos Attractor, Audio Follower, Brownian Motion, Envelope Tracker
-- 16 parameter destinations with 64+ simultaneous connections
-- **Visual UI Panel**: Interactive 4×15 grid for creating/editing connections
-- Per-connection depth (-1 to +1) and smoothing (20-1000ms) controls
-- Color-coded sources with hover effects and selection states
-- Thread-safe real-time updates via SpinLock
-- See [docs/testing/MODULATION_TESTING_GUIDE.md](docs/testing/MODULATION_TESTING_GUIDE.md)
+**For complete parameter reference, see [docs/architecture/](docs/architecture/)**
 
 ---
 
 ## Presets
 
-Monument ships with **37 curated presets** that explore extremes, hybrids, physical modeling spaces, and living modulation.
+Monument includes **8 factory presets:**
 
-**Core Spaces:**
+**Original Presets:**
+1. Cathedral Space - Large reverb with 8.5s decay
+2. Spring Chamber - Vintage spring simulation
+3. Infinite Abyss - 20s decay with memory system
 
-- Init Patch: neutral starting point for new spaces
-- Cathedral of Glass: long, bright, high density shimmer
-- Event Horizon: dark, swelling tail with bent geometry
-- Folded Atrium: medium time, strong warp, controlled bloom
-- Monumental Void: massive, sparse, and hollow
-- Zero-G Garden: short, blooming, weightless room
-- Hall of Mirrors: warped reflections, medium density
-- Tesseract Chamber: long, low density, high drift
-- Stone Circles: tight, dry, and grounded
-- Frozen Monument (Engage Freeze): tuned for Freeze captures
-
-**Living Spaces (with modulation):**
-
-- Breathing Stone: AudioFollower → Bloom
-- Drifting Cathedral: BrownianMotion → Drift + Gravity
-- Chaos Hall: ChaosAttractor → Warp + Density
-- Living Pillars: EnvelopeTracker → PillarShape
-- Event Horizon Evolved: ChaosAttractor → Mass + BrownianMotion → Drift
-- Pulsing Cathedral: AudioFollower → Bloom (dynamic reverb swells)
-- Dynamic Shimmer: AudioFollower → Air (brightness responds to level)
-- Quantum Shimmer: ChaosAttractor → ImpossibilityDegree (physics violations)
-- Morphing Cathedral: ChaosAttractor → TubeCount + BrownianMotion → Drift
-- Fractal Space: ChaosAttractor → Warp (topology morphing)
-- Elastic Drift: BrownianMotion → Elasticity + RecoveryTime (breathing walls)
-- Spectral Wander: BrownianMotion → MetallicResonance (drifting brightness)
-- Impossible Hall: AudioFollower → ParadoxGain (triggered energy gain)
-- Breathing Chaos: ChaosAttractor → Elasticity (intermittent deformation)
-
-**Physical Modeling Spaces (Phase 5):**
-
-- Metallic Corridor: Resonant metal tube network
-- Elastic Cathedral: Breathing walls that deform with sound
-- Impossible Chamber: Physics-breaking alien acoustics
-- Breathing Tubes: Organic metal pipes with modulation
-- Quantum Hall: Non-Euclidean tube folding with chaos
+**Experimental Presets:**
+4. Elastic Hall - Living Stone algorithm
+5. Alien Amplification - Impossible Geometry algorithm
+6. Memory Lane - Memory system focus
+7. Parallel Universe - Parallel routing configuration
+8. Feedback Loop - Series routing with high feedback
 
 User presets can be saved as JSON in `~/Documents/MonumentPresets/`.
 
-See [docs/PRESET_GALLERY.md](docs/PRESET_GALLERY.md) for full descriptions.
-
 ---
 
-## Testing and Validation
+## Testing
 
-- **Automated**: pluginval via `./scripts/run_pluginval.sh` (see [docs/testing/TESTING.md](docs/testing/TESTING.md))
-- **CTest**: `ctest --test-dir build -C Release` (smoke tests)
-- **Optional logging**: Enable `MONUMENT_TESTING` for peak and block timing
-- **Performance**: REAPER Performance Monitor with 50-100 instances
-- **Instrumentation**: Instruments, AddressSanitizer, or Valgrind for leak checks
+```bash
+# Run all tests
+ctest --test-dir build -C Release
+
+# Or use comprehensive test script
+./scripts/run_ci_tests.sh
+```
+
+**Test Status:** 17/21 tests passing (81%)
+
+**For detailed testing guide, see [docs/testing/TESTING_GUIDE.md](docs/testing/TESTING_GUIDE.md)**
 
 ---
 
@@ -352,26 +194,23 @@ monument-reverb/
 
 ---
 
-## Development Phases
+## Development Roadmap
 
-- **Phase 1**: ✅ Foundation (JUCE setup, FDN reverb, base parameters)
-- **Phase 2**: ✅ Macro system (6 high-level controls integrated)
-- **Phase 3**: ✅ Modulation sources (4 sources, 16 destinations, living presets)
-- **Phase 4**: ✅ UI Enhancement (Complete)
-  - ✅ ModMatrix visual panel with interactive grid
-  - ✅ LayeredKnob rendering system
-  - ✅ Blender knob generation pipeline
-  - ✅ Unified codex knob integration
-- **Phase 5**: ✅ Physical Modeling (Complete)
-  - ✅ TubeRayTracer: Metal tube networks with ray-traced propagation
-  - ✅ ElasticHallway: Deformable walls responding to acoustic pressure
-  - ✅ AlienAmplification: Non-Euclidean physics with impossible amplification
-  - ✅ 12 new parameters with macro mapping integration
-  - ✅ 5 new presets exploring physical spaces
-  - ✅ 9 additional "Living" presets (Task 3 - Total: 37 presets)
-- **Phase 6**: 📋 Polish & release (preset browser, export/import, final optimization)
+**Current Status:** Phase 4 Complete - Supporting Systems Documentation
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed roadmap.
+**Completed Phases:**
+- ✅ Phase 1: Foundation (JUCE setup, FDN reverb core)
+- ✅ Phase 2: Core Signal Flow (6 modules documented)
+- ✅ Phase 3: Physical Modeling + Memory (4 modules)
+- ✅ Phase 4: Supporting Systems (4 modules)
+
+**Next Steps:**
+- Complete remaining 2 DSP documentation modules
+- Address critical RT-safety issues (routing allocation, SpinLock)
+- Performance optimization (SIMD, memory ordering)
+- UI enhancement planning
+
+**For long-term vision, see [ROADMAP.md](ROADMAP.md)**
 
 ---
 

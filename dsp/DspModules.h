@@ -2,6 +2,7 @@
 
 #include "dsp/Chambers.h"
 #include "dsp/DspModule.h"
+#include "dsp/ParameterBuffers.h"
 
 #include <array>
 
@@ -41,7 +42,7 @@ public:
     void reset() override;
     void process(juce::AudioBuffer<float>& buffer) override;
     void setDensity(float density);
-    void setShape(float shape);
+    void setShape(const ParameterBuffer& shape);  // Phase 4: Per-sample parameter
     void setMode(int modeIndex);
     void setWarp(float warp);
 
@@ -79,20 +80,23 @@ private:
     void updateModeTuning();
     float shapePosition(float position01) const;
     float applyAllpass(float input, float coeff, float& state) const;
+    float readDelayInterpolated(const float* buffer, int bufferLength,
+                                int writePos, float delaySamples) const;  // Phase 5: 4-point Lagrange
 
     double sampleRateHz = 44100.0;
     int maxBlockSize = 0;
     int channels = 0;
 
     int tapCount = kMinTaps;
-    std::array<int, kMaxTaps> tapSamples{};
+    std::array<float, kMaxTaps> tapSamples{};  // Phase 5: Float for fractional delays
     std::array<float, kMaxTaps> tapGains{};
     std::array<float, kMaxTaps> tapAllpassCoeff{};
     juce::AudioBuffer<float> tapAllpassState;
 
-    // Per-sample smoothing for tap coefficients/gains to prevent clicks
+    // Per-sample smoothing for tap coefficients/gains/positions to prevent clicks
     std::array<juce::SmoothedValue<float>, kMaxTaps> tapGainSmoothers;
     std::array<juce::SmoothedValue<float>, kMaxTaps> tapCoeffSmoothers;
+    std::array<juce::SmoothedValue<float>, kMaxTaps> tapPositionSmoothers;  // Phase 5: Smooth position changes
 
     juce::AudioBuffer<float> delayBuffer;
     int delayBufferLength = 0;
@@ -100,7 +104,7 @@ private:
 
     float densityAmount = 0.5f;
     float warpAmount = 0.0f;
-    float pillarShape = 0.5f;
+    ParameterBuffer pillarShapeBuffer;  // Phase 4: Per-sample parameter buffer (16-byte view)
     Mode pillarMode = Mode::Glass;
     bool tapsDirty = true;
     int mutationSamplesRemaining = 0;

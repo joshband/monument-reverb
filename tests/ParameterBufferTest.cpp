@@ -199,12 +199,13 @@ bool testDefaultConstructor()
 
     ParameterBuffer buffer;
 
-    // Verify default state
-    ASSERT_TRUE(buffer.data == nullptr, "data should be nullptr");
+    // Verify default state (safe default - points to constantStorage)
+    ASSERT_TRUE(buffer.data != nullptr, "data should point to constantStorage (safe default)");
     ASSERT_TRUE(buffer.numSamples == 0, "numSamples should be 0");
     ASSERT_TRUE(!buffer.isPerSample, "isPerSample should be false");
+    ASSERT_TRUE(buffer[0] == 0.5f, "default value should be 0.5f (neutral)");
 
-    std::cout << ANSI_GREEN << "  ✓ Default constructor creates invalid buffer" << ANSI_RESET << "\n";
+    std::cout << ANSI_GREEN << "  ✓ Default constructor creates safe default buffer" << ANSI_RESET << "\n";
 
     return true;
 }
