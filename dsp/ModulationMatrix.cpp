@@ -215,10 +215,10 @@ public:
 
         // Step size calibrated for smooth motion at typical block rates (512 samples @ 48kHz = ~10ms updates)
         // Smaller steps = slower drift, larger steps = more erratic motion
-        constexpr float baseStepSize = 0.02f;  // ~2% change per block
+        constexpr float baseStepSize = 0.03f;  // ~3% change per block
 
         // Apply inertia: smooth the random walk with velocity smoothing
-        constexpr float inertia = 0.7f;  // Higher = smoother motion
+        constexpr float inertia = 0.65f;  // Higher = smoother motion
         velocity = velocity * inertia + randomStep * (1.0f - inertia);
 
         // Update position with velocity-smoothed step

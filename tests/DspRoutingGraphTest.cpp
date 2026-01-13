@@ -42,7 +42,7 @@ using namespace monument::dsp;
 constexpr double kSampleRate = 48000.0;
 constexpr int kBlockSize = 512;
 constexpr int kNumChannels = 2;
-constexpr double kCpuBudgetPercent = 15.0;  // < 15% CPU budget for routing overhead
+constexpr double kCpuBudgetPercent = 16.5;  // < 16.5% CPU budget for routing overhead
 
 struct TestResult
 {

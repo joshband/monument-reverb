@@ -450,6 +450,36 @@ bool testLargeBufferSizes()
 }
 
 //==============================================================================
+// Test 11: Constant Buffer Copy Safety
+//==============================================================================
+bool testConstantCopySafety()
+{
+    printTestHeader("Test 11: Constant Buffer Copy Safety");
+
+    constexpr int kBufferSize = 128;
+    constexpr float kConstantValue = 0.25f;
+
+    ParameterBuffer copiedBuffer;
+    {
+        ParameterBuffer temp(kConstantValue, kBufferSize);
+        copiedBuffer = temp;
+    }
+
+    ASSERT_TRUE(!copiedBuffer.isPerSample, "Copied buffer should remain constant mode");
+    ASSERT_TRUE(copiedBuffer.numSamples == kBufferSize, "Copied buffer should keep numSamples");
+    ASSERT_FLOAT_EQ(copiedBuffer[0], kConstantValue, 0.0001f, "Copied constant value should persist");
+    ASSERT_FLOAT_EQ(copiedBuffer[kBufferSize - 1], kConstantValue, 0.0001f,
+                    "Copied constant should remain valid after source lifetime");
+
+    ParameterBuffer directCopy(ParameterBuffer(0.75f, kBufferSize));
+    ASSERT_FLOAT_EQ(directCopy[0], 0.75f, 0.0001f, "Copy-constructed constant should be stable");
+
+    std::cout << ANSI_GREEN << "  ✓ Constant buffers remain valid after copy/move" << ANSI_RESET << "\n";
+
+    return true;
+}
+
+//==============================================================================
 // Main Test Runner
 //==============================================================================
 int main()
@@ -474,6 +504,7 @@ int main()
     printTestResult("Test 8: Multiple fillBuffer() Calls", testMultipleFillBuffer());
     printTestResult("Test 9: Zero-Length Buffer", testZeroLengthBuffer());
     printTestResult("Test 10: Large Buffer Sizes", testLargeBufferSizes());
+    printTestResult("Test 11: Constant Copy Safety", testConstantCopySafety());
 
     // Print summary
     std::cout << "\n" << ANSI_BOLD << ANSI_CYAN << "═══════════════════════════════════════════════════════════" << ANSI_RESET << "\n";

@@ -1,0 +1,16 @@
+{
+  "source": "/Users/noisebox/Desktop/Line 6 Delay/knobs/image.png",
+  "crop_box": [
+    332,
+    59,
+    1262,
+    954
+  ],
+  "bg_color": [
+    253.0,
+    250.0,
+    249.0
+  ],
+  "knob_radius": 300.0,
+  "output_size": 512
+}

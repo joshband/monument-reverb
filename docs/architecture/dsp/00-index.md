@@ -358,7 +358,7 @@ Monument's **Strata** (memory system) will be fully integrated into the routing 
 - `docs/DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md` - Existing architecture analysis
 - `docs/MEMORY_ECHOES_INTEGRATION.md` - Strata integration proposal
 - `docs/PERFORMANCE_BASELINE.md` - Performance metrics and benchmarks
-- `docs/TESTING_GUIDE.md` - Test suite documentation
+- `TESTING.md` - Testing hub
 - `docs/BUILD_PATTERNS.md` - Build system and CMake patterns
 
 ### Source Code Reference

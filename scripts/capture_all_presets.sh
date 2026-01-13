@@ -6,15 +6,44 @@
 set -e  # Exit on error
 
 # Configuration
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ -z "${BUILD_DIR:-}" ]; then
+    if [ -d "$PROJECT_ROOT/build" ]; then
+        BUILD_DIR="$PROJECT_ROOT/build"
+    elif [ -d "$PROJECT_ROOT/build-ninja" ]; then
+        BUILD_DIR="$PROJECT_ROOT/build-ninja"
+    else
+        BUILD_DIR="$PROJECT_ROOT/build"
+    fi
+elif [[ "$BUILD_DIR" != /* ]]; then
+    BUILD_DIR="$PROJECT_ROOT/$BUILD_DIR"
+fi
 PLUGIN_PATH="${HOME}/Library/Audio/Plug-Ins/VST3/Monument.vst3"
-ANALYZER_PATH="./build/monument_plugin_analyzer_artefacts/Debug/monument_plugin_analyzer"
-OUTPUT_BASE="./test-results/preset-baseline"
+ANALYZER_PATH="${ANALYZER_PATH:-$BUILD_DIR/monument_plugin_analyzer_artefacts/Debug/monument_plugin_analyzer}"
+OUTPUT_BASE="${OUTPUT_BASE:-$PROJECT_ROOT/test-results/preset-baseline}"
+TEST_CONFIG="${TEST_CONFIG:-Debug}"
 DURATION=30  # 30 seconds ensures complete reverb tail capture with margin (1.5x longest RT60)
 NUM_PRESETS=8
+SAMPLE_RATE="${SAMPLE_RATE:-48000}"
+BLOCK_SIZE="${BLOCK_SIZE:-512}"
+SCHEMA_VERSION="${SCHEMA_VERSION:-1.0.0}"
 
 # Parallel execution (default: use all CPU cores)
 # Set PARALLEL_JOBS=1 to disable parallel processing
-PARALLEL_JOBS=${PARALLEL_JOBS:-$(sysctl -n hw.ncpu)}
+detect_parallel_jobs() {
+    if command -v sysctl >/dev/null 2>&1; then
+        sysctl -n hw.ncpu 2>/dev/null && return 0
+    fi
+    if command -v getconf >/dev/null 2>&1; then
+        getconf _NPROCESSORS_ONLN 2>/dev/null && return 0
+    fi
+    if command -v nproc >/dev/null 2>&1; then
+        nproc 2>/dev/null && return 0
+    fi
+    echo 1
+}
+
+PARALLEL_JOBS=${PARALLEL_JOBS:-$(detect_parallel_jobs)}
 MAX_PARALLEL=8  # Cap at 8 to avoid overwhelming the system
 PARALLEL_JOBS=$((PARALLEL_JOBS > MAX_PARALLEL ? MAX_PARALLEL : PARALLEL_JOBS))
 
@@ -26,6 +55,23 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Check if analyzer exists
+if [ ! -f "$ANALYZER_PATH" ]; then
+    ANALYZER_CANDIDATES=(
+        "$BUILD_DIR/monument_plugin_analyzer_artefacts/$TEST_CONFIG/monument_plugin_analyzer"
+        "$BUILD_DIR/monument_plugin_analyzer_artefacts/Debug/monument_plugin_analyzer"
+        "$BUILD_DIR/monument_plugin_analyzer_artefacts/Release/monument_plugin_analyzer"
+        "$BUILD_DIR/monument_plugin_analyzer_artefacts/RelWithDebInfo/monument_plugin_analyzer"
+        "$BUILD_DIR/monument_plugin_analyzer_artefacts/monument_plugin_analyzer"
+    )
+
+    for candidate in "${ANALYZER_CANDIDATES[@]}"; do
+        if [ -f "$candidate" ]; then
+            ANALYZER_PATH="$candidate"
+            break
+        fi
+    done
+fi
+
 if [ ! -f "$ANALYZER_PATH" ]; then
     echo -e "${RED}Error: Plugin analyzer not found at $ANALYZER_PATH${NC}"
     echo "Run: ./scripts/rebuild_and_install.sh monument_plugin_analyzer"
@@ -52,6 +98,7 @@ echo -e "Plugin:    ${GREEN}${PLUGIN_PATH}${NC}"
 echo -e "Presets:   ${GREEN}0-7 (${NUM_PRESETS} total)${NC}"
 echo -e "Duration:  ${GREEN}${DURATION} seconds${NC}"
 echo -e "Output:    ${GREEN}${OUTPUT_BASE}${NC}"
+echo -e "Build Dir: ${GREEN}${BUILD_DIR}${NC}"
 echo -e "Parallel:  ${GREEN}${PARALLEL_JOBS} workers${NC}"
 echo ""
 
@@ -59,8 +106,13 @@ ESTIMATED_SERIAL=$(($DURATION * $NUM_PRESETS / 60))
 ESTIMATED_PARALLEL=$(($DURATION * $NUM_PRESETS / $PARALLEL_JOBS / 60))
 echo -e "${YELLOW}Estimated time: ~${ESTIMATED_PARALLEL} minutes (vs ${ESTIMATED_SERIAL}m sequential)${NC}"
 echo ""
-read -p "Press Enter to continue or Ctrl+C to cancel..."
-echo ""
+if [ -z "${NON_INTERACTIVE:-}" ] && [ -z "${CI:-}" ]; then
+    read -p "Press Enter to continue or Ctrl+C to cancel..."
+    echo ""
+else
+    echo "Non-interactive mode: skipping prompt."
+    echo ""
+fi
 
 # Function to capture a single preset (will be called in parallel)
 capture_preset() {
@@ -72,28 +124,35 @@ capture_preset() {
     # Create preset directory
     mkdir -p "$PRESET_DIR"
 
-    # Run analyzer with integrated analysis
-    if "$ANALYZER_PATH" \
+    # Run analyzer (audio capture only)
+    if (cd "$BUILD_DIR" && "$ANALYZER_PATH" \
         --plugin "$PLUGIN_PATH" \
         --preset $i \
         --duration $DURATION \
         --output "$PRESET_DIR" \
-        --analyze > "${PRESET_DIR}/capture.log" 2>&1; then
+        > "${PRESET_DIR}/capture.log" 2>&1); then
 
-        # Verify output files exist (audio + analysis)
-        if [ -f "${PRESET_DIR}/wet.wav" ] && [ -f "${PRESET_DIR}/dry.wav" ] && \
-           [ -f "${PRESET_DIR}/rt60_metrics.json" ] && [ -f "${PRESET_DIR}/frequency_response.json" ]; then
-            echo "[Preset ${i}] ✓ Captured and analyzed successfully"
+        # Verify output files exist (audio only)
+        if [ -f "${PRESET_DIR}/wet.wav" ] && [ -f "${PRESET_DIR}/dry.wav" ]; then
+            echo "[Preset ${i}] ✓ Captured successfully"
 
             # Save metadata
             cat > "${PRESET_DIR}/metadata.json" <<EOF
 {
+  "version": "${SCHEMA_VERSION}",
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "plugin_path": "$PLUGIN_PATH",
+  "test_type": "impulse",
   "preset_index": $i,
-  "capture_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "duration_seconds": $DURATION,
-  "sample_rate": 48000,
+  "sample_rate": ${SAMPLE_RATE},
+  "num_channels": 2,
+  "block_size": ${BLOCK_SIZE},
   "bit_depth": 24,
-  "plugin_path": "$PLUGIN_PATH"
+  "output_files": {
+    "dry": "dry.wav",
+    "wet": "wet.wav"
+  }
 }
 EOF
             return 0
@@ -109,7 +168,7 @@ EOF
 
 # Export function and variables for parallel execution
 export -f capture_preset
-export ANALYZER_PATH PLUGIN_PATH OUTPUT_BASE DURATION
+export PROJECT_ROOT BUILD_DIR ANALYZER_PATH PLUGIN_PATH OUTPUT_BASE DURATION SAMPLE_RATE BLOCK_SIZE SCHEMA_VERSION
 
 # Track statistics
 START_TIME=$(date +%s)
@@ -138,8 +197,7 @@ SUCCESS_COUNT=0
 FAIL_COUNT=0
 for i in $(seq 0 7); do
     PRESET_DIR="${OUTPUT_BASE}/preset_$(printf "%02d" $i)"
-    if [ -f "${PRESET_DIR}/wet.wav" ] && [ -f "${PRESET_DIR}/dry.wav" ] && \
-       [ -f "${PRESET_DIR}/rt60_metrics.json" ] && [ -f "${PRESET_DIR}/frequency_response.json" ]; then
+    if [ -f "${PRESET_DIR}/wet.wav" ] && [ -f "${PRESET_DIR}/dry.wav" ]; then
         SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
     else
         FAIL_COUNT=$((FAIL_COUNT + 1))
@@ -163,8 +221,6 @@ if [ $SUCCESS_COUNT -eq $NUM_PRESETS ]; then
     echo ""
     echo -e "Generated for each preset:"
     echo -e "  • wet.wav, dry.wav (audio captures)"
-    echo -e "  • rt60_metrics.json (reverb time analysis)"
-    echo -e "  • frequency_response.json (spectral analysis)"
     echo -e "  • metadata.json (capture info)"
     echo ""
     echo -e "Next steps:"

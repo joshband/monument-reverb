@@ -239,7 +239,10 @@ public:
                            const ParameterBuffer& mass,
                            const ParameterBuffer& density,
                            const ParameterBuffer& bloom,
-                           const ParameterBuffer& gravity);
+                           const ParameterBuffer& gravity,
+                           float warp,
+                           float drift,
+                           bool freeze);
     void setWeatheringParams(const ParameterBuffer& warp, const ParameterBuffer& drift);
     void setTubeRayTracerParams(float tubeCount, float radiusVariation,
                                  float metallicResonance, float couplingStrength);
@@ -291,6 +294,7 @@ private:
 
     // Temp buffers for parallel processing (pre-allocated in prepare())
     std::array<juce::AudioBuffer<float>, static_cast<size_t>(ModuleType::Count)> tempBuffers;
+    std::array<juce::AudioBuffer<float>, static_cast<size_t>(ModuleType::Count)> moduleOutputBuffers;
     juce::AudioBuffer<float> feedbackBuffer;  // For feedback loops (1 block delay)
     juce::AudioBuffer<float> dryBuffer;       // Dry signal storage for parallel modes
 

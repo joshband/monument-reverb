@@ -134,7 +134,7 @@ const std::array<PresetManager::Preset, PresetManager::kNumFactoryPresets> Prese
              makeModConnection(monument::dsp::ModulationMatrix::SourceType::BrownianMotion,
                               monument::dsp::ModulationMatrix::DestinationType::Gravity, 0.18f, 0, 600.0f)})},
 
-    {"Chaos Hall", "The room breathes with strange, organic patterns—alive but unknowable.",
+    {"Chaos Hall", "The room breathes with strange, organic patterns - alive but unknowable.",
         makePresetWithMod(0.60f, 0.55f, 0.60f, 0.35f, 0.45f, 0.20f, 0.25f, 0.55f,
             {makeModConnection(monument::dsp::ModulationMatrix::SourceType::ChaosAttractor,
                               monument::dsp::ModulationMatrix::DestinationType::Warp, 0.45f, 0, 300.0f),
@@ -159,8 +159,8 @@ const std::array<PresetManager::Preset, PresetManager::kNumFactoryPresets> Prese
     // Phase 5: Physical Modeling Presets
     {"Metallic Corridor", "Sound travels through a network of resonant metal tubes, each ringing with its own harmonic character.",
         makePreset(0.65f, 0.55f, 0.60f, 0.35f, 0.50f, 0.20f, 0.15f, 0.60f, 0.0f, 0.5f, 0.4f, 0.3f,
-            0.85f,  // material: hard/metallic → strong metallic resonance, uniform tubes
-            0.60f,  // topology: moderate → complex tube network
+            0.85f,  // material: hard/metallic -> strong metallic resonance, uniform tubes
+            0.60f,  // topology: moderate -> complex tube network
             0.45f,  // viscosity: moderate
             0.30f,  // evolution: subtle
             0.0f,   // chaos: stable
@@ -168,20 +168,20 @@ const std::array<PresetManager::Preset, PresetManager::kNumFactoryPresets> Prese
 
     {"Elastic Cathedral", "The walls pulse and breathe with the music, deforming under acoustic pressure and slowly returning to shape.",
         makePreset(0.75f, 0.50f, 0.55f, 0.50f, 0.55f, 0.15f, 0.20f, 0.65f, 0.0f, 0.5f, 0.4f, 0.3f,
-            0.40f,  // material: soft → varied tubes
+            0.40f,  // material: soft -> varied tubes
             0.45f,  // topology: moderate
-            0.75f,  // viscosity: thick → slow wall recovery
-            0.60f,  // evolution: evolving → absorption drift
+            0.75f,  // viscosity: thick -> slow wall recovery
+            0.60f,  // evolution: evolving -> absorption drift
             0.0f,   // chaos: stable
-            0.80f)},// elasticity: slow deformation → high wall elasticity
+            0.80f)},// elasticity: slow deformation -> high wall elasticity
 
-    {"Impossible Chamber", "Physics breaks down—frequencies amplify impossibly, pitches drift through dimensions, reality bends.",
+    {"Impossible Chamber", "Physics breaks down - frequencies amplify impossibly, pitches drift through dimensions, reality bends.",
         makePreset(0.70f, 0.60f, 0.50f, 0.60f, 0.45f, 0.50f, 0.40f, 0.65f, 0.0f, 0.5f, 0.4f, 0.3f,
             0.50f,  // material: neutral
-            0.75f,  // topology: non-Euclidean → complex tube network, paradox freq variation
+            0.75f,  // topology: non-Euclidean -> complex tube network, paradox freq variation
             0.50f,  // viscosity: moderate
-            0.70f,  // evolution: high → pitch evolution, absorption drift
-            0.75f,  // chaos: very high → impossibility physics, nonlinearity, paradox gain
+            0.70f,  // evolution: high -> pitch evolution, absorption drift
+            0.75f,  // chaos: very high -> impossibility physics, nonlinearity, paradox gain
             0.40f)},// elasticity: moderate
 
     {"Breathing Tubes", "Organic metal pipes expand and contract like lungs, creating a living acoustic environment.",
@@ -191,12 +191,12 @@ const std::array<PresetManager::Preset, PresetManager::kNumFactoryPresets> Prese
              makeModConnection(monument::dsp::ModulationMatrix::SourceType::BrownianMotion,
                               monument::dsp::ModulationMatrix::DestinationType::Elasticity, 0.25f, 0, 500.0f)},
             0.0f, 0.5f, 0.4f, 0.3f,
-            0.65f,  // material: moderate hard → some metallic character
+            0.65f,  // material: moderate hard -> some metallic character
             0.50f,  // topology: moderate
-            0.80f,  // viscosity: thick → slow recovery
+            0.80f,  // viscosity: thick -> slow recovery
             0.45f,  // evolution: moderate
             0.20f,  // chaos: subtle instability
-            0.65f)},// elasticity: high → walls deform significantly
+            0.65f)},// elasticity: high -> walls deform significantly
 
     {"Quantum Hall", "A non-Euclidean space where tubes fold through higher dimensions and sound obeys impossible laws.",
         makePresetWithMod(0.80f, 0.65f, 0.45f, 0.70f, 0.50f, 0.70f, 0.60f, 0.70f,
@@ -206,10 +206,10 @@ const std::array<PresetManager::Preset, PresetManager::kNumFactoryPresets> Prese
                               monument::dsp::ModulationMatrix::DestinationType::ImpossibilityDegree, 0.30f, 1, 400.0f)},
             0.0f, 0.5f, 0.4f, 0.3f,
             0.55f,  // material: moderate
-            0.90f,  // topology: very non-Euclidean → max tube network complexity and coupling
+            0.90f,  // topology: very non-Euclidean -> max tube network complexity and coupling
             0.50f,  // viscosity: moderate
-            0.65f,  // evolution: high → pitch morphing
-            0.85f,  // chaos: very high → alien physics
+            0.65f,  // evolution: high -> pitch morphing
+            0.85f,  // chaos: very high -> alien physics
             0.50f)},// elasticity: moderate
 
     // Phase 6: Additional "Living" Presets (Task 3)
@@ -466,7 +466,7 @@ bool PresetManager::loadUserPreset(const juce::File& sourceFile)
     values.chaosIntensity = readFloatProperty(paramsObject, "chaosIntensity", values.chaosIntensity);
     values.elasticityDecay = readFloatProperty(paramsObject, "elasticityDecay", values.elasticityDecay);
 
-    // Phase 5: Load Ancient Monuments macros 7-10 (with v3→v4 migration defaults)
+    // Phase 5: Load Ancient Monuments macros 7-10 (with v3->v4 migration defaults)
     values.patina = readFloatProperty(paramsObject, "patina", 0.5f);
     values.abyss = readFloatProperty(paramsObject, "abyss", 0.5f);
     values.corona = readFloatProperty(paramsObject, "corona", 0.5f);

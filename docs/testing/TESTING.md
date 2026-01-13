@@ -1,5 +1,7 @@
 # Testing and Validation
 
+Note: The canonical testing hub is `TESTING.md` in the repo root. This file covers pluginval and manual checks.
+
 ## pluginval
 
 Use pluginval to run automated validation on the built plugin.

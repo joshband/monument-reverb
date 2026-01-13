@@ -32,6 +32,21 @@ python3 tools/capture_ui_reference.py
 #   - 04_timeline.png (TIMELINE panel)
 #   - metadata.json (capture info)
 #   - index.html (visual report)
+
+# Capture current UI for regression comparison
+python3 tools/capture_ui_reference.py --output-dir test-results/ui-current
+
+# Use a custom capture config (state list + optional click coords)
+python3 tools/capture_ui_reference.py --config docs/testing/ui_capture_config.json
+
+# Automated capture without AppleScript (uses CoreGraphics window list)
+python3 tools/capture_ui_reference.py --window-method cgwindow
+
+# Manual capture (no AppleScript automation)
+python3 tools/capture_ui_reference.py --manual --output-dir test-results/ui-current
+
+# Use a non-default build directory (e.g., Ninja)
+python3 tools/capture_ui_reference.py --build-dir build-ninja
 ```
 
 **Features:**
@@ -40,6 +55,12 @@ python3 tools/capture_ui_reference.py
 - Button clicking automation
 - Image analysis (brightness, color detection)
 - HTML report generation
+- Configurable UI states via JSON config
+
+**Automation Note:** The capture script clicks the `BASE PARAMS`, `MODULATION`, and `TIMELINE`
+tabs in the standalone UI. Some JUCE buttons are not visible to AppleScript, so the capture
+config includes fallback coordinates for pyautogui to click. Ensure `pyautogui` is installed
+if you rely on coordinate-based switching.
 
 **View Report:**
 ```bash
@@ -102,12 +123,19 @@ For headless CI (GitHub Actions, etc.), UI tests are automatically skipped.
 
 1. **Install dependencies:**
    ```bash
-   pip3 install pyautogui pillow numpy
+   pip3 install pillow numpy
+   # Optional (coordinate-based clicking or non-macOS fallback)
+   pip3 install pyautogui
    ```
 
 2. **Build standalone app:**
    ```bash
    cmake --build build --target Monument_Standalone
+# Optional: lock UI size for deterministic captures
+# cmake -S . -B build -G Xcode -DCMAKE_CXX_FLAGS="-DMONUMENT_TESTING=1 -DMONUMENT_TESTING_UI=1"
+#
+# Optional: build legacy UI instead of photorealistic UI
+# cmake -S . -B build -DMONUMENT_LEGACY_UI=1
    ```
 
 3. **Capture baseline:**
@@ -200,12 +228,30 @@ Shows test results with:
 ```bash
 # Check if app exists
 ls -la build/Monument_artefacts/Debug/Standalone/Monument.app
+ls -la build-ninja/Monument_artefacts/Debug/Standalone/Monument.app
 
 # Kill stuck processes
 killall Monument
 
 # Try manual launch
 open build/Monument_artefacts/Debug/Standalone/Monument.app
+open build-ninja/Monument_artefacts/Debug/Standalone/Monument.app
+```
+
+### "AppleEvent handler failed (-10000)"
+
+**Cause:** macOS Automation/Accessibility blocks UI scripting.
+
+**Fix:**
+```bash
+# Automated capture using CoreGraphics (no AppleScript)
+python3 tools/capture_ui_reference.py --window-method cgwindow
+
+# Coordinate-based tab switching (requires pyautogui)
+python3 tools/capture_ui_reference.py --config docs/testing/ui_capture_config.json
+
+# Manual capture fallback
+python3 tools/capture_ui_reference.py --manual --output-dir test-results/ui-current
 ```
 
 ### "pyautogui not found"
@@ -237,9 +283,9 @@ python3 tools/test_ui_visual.py --threshold 0.03
 
 ### Screenshot Capture
 
-Uses **PyAutoGUI** for cross-platform screenshots:
+Uses macOS `screencapture` by default (with PyAutoGUI fallback):
+- macOS capture uses `screencapture` (pixel-accurate, window-scoped)
 - Window detection via AppleScript (macOS)
-- Pixel-perfect capture at native resolution
 - PNG format (lossless)
 
 ### Image Comparison
@@ -337,6 +383,7 @@ Visual diff would show timeline overlaying controls.
 
 ## See Also
 
+- [TESTING.md](../../TESTING.md) - Testing hub (canonical)
 - [TESTING_GUIDE.md](TESTING_GUIDE.md) - Complete testing documentation
 - [BUILD_PATTERNS.md](BUILD_PATTERNS.md) - JUCE/CMake patterns
 - [tools/TESTING_INFRASTRUCTURE.md](../tools/TESTING_INFRASTRUCTURE.md) - Infrastructure details

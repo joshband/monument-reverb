@@ -3,6 +3,8 @@
 **Last Updated:** 2026-01-05
 **Status:** Production-Ready Testing Infrastructure
 
+Note: The canonical testing hub is `TESTING.md` in the repo root. This guide is a deep dive.
+
 ---
 
 ## Overview
@@ -35,15 +37,37 @@ Monument Reverb has a **comprehensive automated testing system** with zero manua
 
 ## Quick Start
 
-### 0. Build + CTest Smoke Tests
+### 0. C++ Unit Tests (Fast - Recommended for Development)
+
+```bash
+# Build specific DSP test (fast iteration)
+cmake --build build --target monument_reverb_dsp_test
+./build/monument_reverb_dsp_test_artefacts/Debug/monument_reverb_dsp_test
+
+# Run all C++ unit tests via CTest (22 tests)
+ctest --test-dir build -C Debug --output-on-failure
+
+# Run comprehensive CI test suite (includes C++ + Python tests)
+./scripts/run_ci_tests.sh
+```
+
+**Key C++ Tests:**
+
+- `monument_reverb_dsp_test` - Chambers FDN reverb algorithm (RT60, decay, stability)
+- `monument_dsp_initialization_test` - Module prepare/reset lifecycle
+- `monument_spatial_dsp_test` - 3D positioning and Doppler shift
+- `monument_parameter_stress_test` - Parameter smoothing and zipper noise
+- See `tests/` directory for all 22 test files
+
+`MONUMENT_ENABLE_TESTS` is ON by default and can be disabled at configure time.
+
+### 0a. Build + CTest Quick Validation
 
 ```bash
 cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64
 cmake --build build --config Release
 ctest --test-dir build -C Release
 ```
-
-`MONUMENT_ENABLE_TESTS` is ON by default and can be disabled at configure time.
 
 ### 1. Capture All Presets (Baseline)
 

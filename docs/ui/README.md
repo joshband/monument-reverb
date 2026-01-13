@@ -11,10 +11,51 @@ User interface design, implementation, and asset generation documentation for Mo
 - Reactive macro overlay driven by JSON profiles
 - ModMatrix panel for visual modulation editing
 
+**Current Implementation (Debug/Engineering UI):**
+- Scrollable control surface exposing all DSP parameters
+- Debug toggle reveals advanced sections (memory, physical modeling, timeline, safety)
+- Macro Mode selector switches Ancient vs Expressive macro panels
+- Output safety clip control and live input/output level readouts
+
 **Asset Sources:**
 - `assets/ui/celestial/` - Current UI visual assets
 - `assets/ui/macro_hints.json` - Macro visual hints
 - `assets/ui/visual_profiles.json` - Visual behavior profiles
+- `assets/ui/line6/` - Extracted Line 6 knob plates + knobs (layered UI assets)
+
+### Knob Packs (Layered)
+
+The editor will use layered knobs when assets are available.
+
+Default discovery order:
+- `assets/ui/archive` (Archive Instruments AI-generated pack)
+- `assets/ui/line6` (Line 6 extraction pack)
+
+Overrides:
+- `MONUMENT_KNOB_DIR=<path>` to point at a custom pack directory
+- `MONUMENT_KNOB_VARIANT=<variant>` to select a variant
+- `MONUMENT_LINE6_DIR` + `MONUMENT_LINE6_KNOB` are still honored for backward compatibility
+
+Layer files: `<variant>_plate.png`, `<variant>_plate_shadow.png` (optional), `<variant>_knob.png`, `<variant>_highlight.png`, `<variant>_shadow.png`, `<variant>_indicator.png`
+Rotation override: `MONUMENT_KNOB_ROTATION=indicator|knob`
+
+## Standalone UI Prototype App
+
+The `monument_ui_prototype` target launches the editor without a plugin host for
+rapid UI iteration.
+
+```bash
+cmake --build build --config Debug --target monument_ui_prototype
+```
+
+Run the app at:
+
+```
+build/monument_ui_prototype_artefacts/Debug/Monument UI Prototype.app
+```
+
+This prototype uses the same editor as the plugin and respects the
+`MONUMENT_LEGACY_UI` build option.
 
 ## Master Plan
 
@@ -117,6 +158,30 @@ The UI should feel like:
 - **No standard knobs** - Every control is a portal into the space
 
 ## Asset Generation
+
+### Archive Instruments AI Knob Generation
+
+```bash
+python tools/generate_archive_knob_ai.py \
+  --output-dir assets/ui/archive/raw \
+  --name archive_brass_precision \
+  --size 1024
+
+python tools/extract_line6_knob_layers.py \
+  --input-dir assets/ui/archive/raw \
+  --output-dir assets/ui/archive \
+  --size 1024 \
+  --prefix archive_ \
+  --single-name archive_brass_precision \
+  --plate-alpha-cut 0.25 \
+  --plate-erode 2 \
+  --plate-shadow-strength 0.35 \
+  --plate-shadow-blur 12 \
+  --plate-shadow-offset 6 \
+  --alpha-clip 0.12 \
+  --plate-edge-width 18 \
+  --plate-edge-darken 0.4
+```
 
 ### Blender Knob Pipeline
 

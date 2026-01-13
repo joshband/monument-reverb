@@ -1,6 +1,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "PluginEditorV2.h"
 #include "dsp/Chambers.h"
+#include "dsp/SequencePresets.h"
 
 #include <cmath>
 #if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
@@ -21,6 +23,7 @@ constexpr int kMemoryProveStage = MONUMENT_MEMORY_PROVE_STAGE;
 #if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
 std::once_flag gTestingLoggerOnce;
 std::unique_ptr<juce::FileLogger> gTestingLogger;
+std::atomic<int> gTestingLoggerUsers{0};
 
 void ensureTestingLogger()
 {
@@ -32,6 +35,12 @@ void ensureTestingLogger()
         juce::Logger::setCurrentLogger(gTestingLogger.get());
         juce::Logger::writeToLog("Monument MONUMENT_TESTING logger ready: " + logFile.getFullPathName());
     });
+}
+
+void releaseTestingLogger()
+{
+    juce::Logger::setCurrentLogger(nullptr);
+    gTestingLogger.reset();
 }
 #endif
 }
@@ -45,7 +54,17 @@ MonumentAudioProcessor::MonumentAudioProcessor()
 {
 }
 
-MonumentAudioProcessor::~MonumentAudioProcessor() = default;
+MonumentAudioProcessor::~MonumentAudioProcessor()
+{
+#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+    if (testingLoggerRegistered)
+    {
+        if (gTestingLoggerUsers.fetch_sub(1, std::memory_order_acq_rel) == 1)
+            releaseTestingLogger();
+        testingLoggerRegistered = false;
+    }
+#endif
+}
 
 const juce::String MonumentAudioProcessor::getName() const
 {
@@ -104,7 +123,14 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
 {
 #if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
     ensureTestingLogger();
+    if (!testingLoggerRegistered)
+    {
+        gTestingLoggerUsers.fetch_add(1, std::memory_order_acq_rel);
+        testingLoggerRegistered = true;
+    }
 #endif
+
+    paramBufferPool.prepare(samplesPerBlock);
 
     const auto numChannels = getTotalNumOutputChannels();
     dryBuffer.setSize(numChannels, samplesPerBlock, false, false, true);
@@ -130,10 +156,14 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     bloomSmoother.reset(sampleRate, smoothingRampSeconds);
     airSmoother.reset(sampleRate, smoothingRampSeconds);
     widthSmoother.reset(sampleRate, smoothingRampSeconds);
+    mixSmoother.reset(sampleRate, 0.10);  // Mix smoothing for click-free automation
     warpSmoother.reset(sampleRate, smoothingRampSeconds);
     driftSmoother.reset(sampleRate, smoothingRampSeconds);
     gravitySmoother.reset(sampleRate, smoothingRampSeconds);
     pillarShapeSmoother.reset(sampleRate, smoothingRampSeconds);
+
+    const float initialMix = parameters.getRawParameterValue("mix")->load(std::memory_order_relaxed);
+    mixSmoother.setCurrentAndTargetValue(initialMix);
 
     // Physical modeling parameter smoothers (50ms smoothing)
     tubeCountSmoother.reset(sampleRate, smoothingRampSeconds);
@@ -152,6 +182,7 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     // Initialize processing mode transition gain (starts at 1.0 for no fade)
     modeTransitionGain.reset(sampleRate, 0.05);  // 50ms fade time
     modeTransitionGain.setCurrentAndTargetValue(1.0f);
+    modeTransitionState = ModeTransitionState::None;
 
     presetFadeSamples = juce::jmax(
         1, static_cast<int>(std::round(sampleRate * (kPresetFadeMs / 1000.0f))));
@@ -271,6 +302,23 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     paramCache.paradoxResonanceFreq = parameters.getRawParameterValue("paradoxResonanceFreq")->load(std::memory_order_relaxed);
     paramCache.paradoxGain = parameters.getRawParameterValue("paradoxGain")->load(std::memory_order_relaxed);
     paramCache.routingPreset = parameters.getRawParameterValue("routingPreset")->load(std::memory_order_relaxed);
+    paramCache.macroMode = parameters.getRawParameterValue("macroMode")->load(std::memory_order_relaxed);
+    paramCache.safetyClip = parameters.getRawParameterValue("safetyClip")->load(std::memory_order_relaxed) > 0.5f;
+    paramCache.safetyClipDrive = parameters.getRawParameterValue("safetyClipDrive")->load(std::memory_order_relaxed);
+    paramCache.timelineEnabled = parameters.getRawParameterValue("timelineEnabled")->load(std::memory_order_relaxed) > 0.5f;
+    paramCache.timelinePreset = parameters.getRawParameterValue("timelinePreset")->load(std::memory_order_relaxed);
+
+    const int timelinePreset = static_cast<int>(paramCache.timelinePreset);
+    if (timelinePreset != lastTimelinePreset)
+    {
+        sequenceScheduler.loadSequence(monument::dsp::SequencePresets::getPreset(timelinePreset));
+        lastTimelinePreset = timelinePreset;
+    }
+    if (paramCache.timelineEnabled != lastTimelineEnabled)
+    {
+        sequenceScheduler.setEnabled(paramCache.timelineEnabled);
+        lastTimelineEnabled = paramCache.timelineEnabled;
+    }
 
     // Process sequence scheduler (Phase 4: Timeline automation)
     // This must happen BEFORE using paramCache values, so sequenced values can override them
@@ -309,16 +357,6 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     APPLY_SEQUENCED_PARAM(Corona, corona)
     APPLY_SEQUENCED_PARAM(Breath, breath)
     #undef APPLY_SEQUENCED_PARAM
-
-    // Handle routing preset changes (Phase 1.5)
-    const auto currentRoutingPreset = static_cast<int>(paramCache.routingPreset);
-    if (currentRoutingPreset != lastRoutingPreset)
-    {
-        // Map parameter index to RoutingPresetType enum
-        const auto presetType = static_cast<monument::dsp::RoutingPresetType>(currentRoutingPreset);
-        routingGraph.loadRoutingPreset(presetType);
-        lastRoutingPreset = currentRoutingPreset;
-    }
 
     // Use cached values (no more atomic loads)
     const auto mixPercentRaw = paramCache.mix;
@@ -362,45 +400,150 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const auto pitchEvolutionRate = paramCache.pitchEvolutionRate;
     const auto paradoxResonanceFreq = paramCache.paradoxResonanceFreq;
     const auto paradoxGain = paramCache.paradoxGain;
+    const auto character = paramCache.character;
+    const auto spaceType = paramCache.spaceType;
+    const auto energy = paramCache.energy;
+    const auto motion = paramCache.motion;
+    const auto color = paramCache.color;
+    const auto dimension = paramCache.dimension;
 
-    // Compute macro-driven parameter targets
-    // Phase 2: Choose between Ancient Monuments (10 macros) or Expressive (6 macros)
-    // Ancient Monuments Phase 5 - 10 macros (single macro mode)
-    const auto macroTargets = macroMapper.computeTargets(
-        material,        // stone
-        topology,        // labyrinth
-        viscosity,       // mist
-        evolution,       // bloom
-        chaosIntensity,  // tempest
-        elasticityDecay, // echo
-        patina,
-        abyss,
-        corona,
-        breath);
+    const bool useExpressive = paramCache.macroMode >= 0.5f;
+
+    struct MacroTargets
+    {
+        float time{0.55f};
+        float mass{0.5f};
+        float density{0.5f};
+        float bloom{0.5f};
+        float air{0.5f};
+        float width{0.5f};
+        float warp{0.0f};
+        float drift{0.0f};
+        float gravity{0.5f};
+        float pillarShape{0.5f};
+        float tubeCount{0.545f};
+        float radiusVariation{0.3f};
+        float metallicResonance{0.5f};
+        float couplingStrength{0.5f};
+        float elasticity{0.5f};
+        float recoveryTime{0.5f};
+        float absorptionDrift{0.3f};
+        float nonlinearity{0.3f};
+        float impossibilityDegree{0.3f};
+        float pitchEvolutionRate{0.3f};
+        float paradoxResonanceFreq{0.5f};
+        float paradoxGain{0.3f};
+        monument::dsp::RoutingPresetType routingPreset{monument::dsp::RoutingPresetType::TraditionalCathedral};
+    };
+
+    MacroTargets macroTargets{};
+    float macroInfluence = 0.0f;
+
+    if (useExpressive)
+    {
+        const auto expressiveTargets = expressiveMacroMapper.computeTargets(
+            character,
+            spaceType,
+            energy,
+            motion,
+            color,
+            dimension);
+
+        macroTargets.time = expressiveTargets.time;
+        macroTargets.mass = expressiveTargets.mass;
+        macroTargets.density = expressiveTargets.density;
+        macroTargets.bloom = expressiveTargets.bloom;
+        macroTargets.air = expressiveTargets.air;
+        macroTargets.width = expressiveTargets.width;
+        macroTargets.warp = expressiveTargets.warp;
+        macroTargets.drift = expressiveTargets.drift;
+        macroTargets.gravity = expressiveTargets.gravity;
+        macroTargets.pillarShape = expressiveTargets.pillarShape;
+        macroTargets.tubeCount = expressiveTargets.tubeCount;
+        macroTargets.radiusVariation = expressiveTargets.radiusVariation;
+        macroTargets.metallicResonance = expressiveTargets.metallicResonance;
+        macroTargets.couplingStrength = expressiveTargets.couplingStrength;
+        macroTargets.elasticity = expressiveTargets.elasticity;
+        macroTargets.recoveryTime = expressiveTargets.recoveryTime;
+        macroTargets.absorptionDrift = expressiveTargets.absorptionDrift;
+        macroTargets.nonlinearity = expressiveTargets.nonlinearity;
+        macroTargets.impossibilityDegree = expressiveTargets.impossibilityDegree;
+        macroTargets.pitchEvolutionRate = expressiveTargets.pitchEvolutionRate;
+        macroTargets.paradoxResonanceFreq = expressiveTargets.paradoxResonanceFreq;
+        macroTargets.paradoxGain = expressiveTargets.paradoxGain;
+        macroTargets.routingPreset = expressiveTargets.routingPreset;
+
+        // Expressive macro defaults:
+        // character=0.5, spaceType=0.3, energy=0.1, motion=0.2, color=0.5, dimension=0.5
+        const float characterDelta = std::abs(character - 0.5f);
+        const float spaceTypeDelta = std::abs(spaceType - 0.3f);
+        const float energyDelta = std::abs(energy - 0.1f);
+        const float motionDelta = std::abs(motion - 0.2f);
+        const float colorDelta = std::abs(color - 0.5f);
+        const float dimensionDelta = std::abs(dimension - 0.5f);
+        macroInfluence = juce::jmin(1.0f,
+            (characterDelta + spaceTypeDelta + energyDelta + motionDelta + colorDelta + dimensionDelta) * 2.0f);
+    }
+    else
+    {
+        const auto ancientTargets = macroMapper.computeTargets(
+            material,        // stone
+            topology,        // labyrinth
+            viscosity,       // mist
+            evolution,       // bloom
+            chaosIntensity,  // tempest
+            elasticityDecay, // echo
+            patina,
+            abyss,
+            corona,
+            breath);
+
+        macroTargets.time = ancientTargets.time;
+        macroTargets.mass = ancientTargets.mass;
+        macroTargets.density = ancientTargets.density;
+        macroTargets.bloom = ancientTargets.bloom;
+        macroTargets.air = ancientTargets.air;
+        macroTargets.width = ancientTargets.width;
+        macroTargets.warp = ancientTargets.warp;
+        macroTargets.drift = ancientTargets.drift;
+        macroTargets.gravity = ancientTargets.gravity;
+        macroTargets.pillarShape = ancientTargets.pillarShape;
+        macroTargets.routingPreset = static_cast<monument::dsp::RoutingPresetType>(
+            static_cast<int>(paramCache.routingPreset));
+
+        // Ancient Monuments Phase 5 - 10 macro defaults:
+        // stone=0.5, labyrinth=0.5, mist=0.5, bloom=0.5, tempest=0.0, echo=0.0
+        // patina=0.5, abyss=0.5, corona=0.5, breath=0.0
+        const float materialDelta = std::abs(material - 0.5f);          // stone
+        const float topologyDelta = std::abs(topology - 0.5f);          // labyrinth
+        const float viscosityDelta = std::abs(viscosity - 0.5f);        // mist
+        const float evolutionDelta = std::abs(evolution - 0.5f);        // bloom
+        const float chaosDelta = std::abs(chaosIntensity - 0.0f);       // tempest
+        const float elasticityDelta = std::abs(elasticityDecay - 0.0f); // echo
+        const float patinaDelta = std::abs(patina - 0.5f);
+        const float abyssDelta = std::abs(abyss - 0.5f);
+        const float coronaDelta = std::abs(corona - 0.5f);
+        const float breathDelta = std::abs(breath - 0.0f);
+
+        // Macro influence: 0 = all at defaults, 1 = at least one macro significantly moved
+        // Normalize by dividing by 10 macros (was 6), then scale by 2.0 for sensitivity
+        macroInfluence = juce::jmin(1.0f,
+            (materialDelta + topologyDelta + viscosityDelta + evolutionDelta + chaosDelta + elasticityDelta +
+             patinaDelta + abyssDelta + coronaDelta + breathDelta) * (2.0f * 6.0f / 10.0f));
+    }
 
     // Process modulation matrix (stub sources for Phase 2, returns 0 for all destinations)
     modulationMatrix.process(buffer, buffer.getNumSamples());
 
-    // Calculate macro influence: how far are macros from their defaults?
-    // Ancient Monuments Phase 5 - 10 macro defaults:
-    // stone=0.5, labyrinth=0.5, mist=0.5, bloom=0.5, tempest=0.0, echo=0.0
-    // patina=0.5, abyss=0.5, corona=0.5, breath=0.0
-    const float materialDelta = std::abs(material - 0.5f);          // stone
-    const float topologyDelta = std::abs(topology - 0.5f);          // labyrinth
-    const float viscosityDelta = std::abs(viscosity - 0.5f);        // mist
-    const float evolutionDelta = std::abs(evolution - 0.5f);        // bloom
-    const float chaosDelta = std::abs(chaosIntensity - 0.0f);       // tempest
-    const float elasticityDelta = std::abs(elasticityDecay - 0.0f); // echo
-    const float patinaDelta = std::abs(patina - 0.5f);
-    const float abyssDelta = std::abs(abyss - 0.5f);
-    const float coronaDelta = std::abs(corona - 0.5f);
-    const float breathDelta = std::abs(breath - 0.0f);
-
-    // Macro influence: 0 = all at defaults, 1 = at least one macro significantly moved
-    // Normalize by dividing by 10 macros (was 6), then scale by 2.0 for sensitivity
-    const float macroInfluence = juce::jmin(1.0f,
-        (materialDelta + topologyDelta + viscosityDelta + evolutionDelta + chaosDelta + elasticityDelta +
-         patinaDelta + abyssDelta + coronaDelta + breathDelta) * (2.0f * 6.0f / 10.0f));
+    const int targetRoutingPreset = useExpressive
+        ? static_cast<int>(macroTargets.routingPreset)
+        : static_cast<int>(paramCache.routingPreset);
+    if (targetRoutingPreset != lastRoutingPreset)
+    {
+        routingGraph.loadRoutingPreset(
+            static_cast<monument::dsp::RoutingPresetType>(targetRoutingPreset));
+        lastRoutingPreset = targetRoutingPreset;
+    }
 
     // Blend base parameters with macro targets based on macro influence
     // When macroInfluence = 0, use base parameters; when = 1, use macro targets
@@ -422,16 +565,30 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     // Fill per-sample parameter buffers for critical parameters (Phase 4: Per-sample interpolation)
     // These 8 parameters are most audible and require per-sample smoothing for zipper-free automation
     const int numSamples = buffer.getNumSamples();
-    jassert(numSamples <= ParameterBufferPool::kMaxSamples);  // Safety check (2048 max)
+    if (numSamples > paramBufferPool.capacity())
+    {
+        // Fallback: resize heap buffers if host changes block size without prepareToPlay().
+        paramBufferPool.prepare(numSamples);
+    }
+    jassert(numSamples <= paramBufferPool.capacity());
 
-    ParameterBufferPool::fillBuffer(paramBufferPool.timeBuffer, timeSmoother, numSamples);
-    ParameterBufferPool::fillBuffer(paramBufferPool.massBuffer, massSmoother, numSamples);
-    ParameterBufferPool::fillBuffer(paramBufferPool.densityBuffer, densitySmoother, numSamples);
-    ParameterBufferPool::fillBuffer(paramBufferPool.bloomBuffer, bloomSmoother, numSamples);
-    ParameterBufferPool::fillBuffer(paramBufferPool.gravityBuffer, gravitySmoother, numSamples);
-    ParameterBufferPool::fillBuffer(paramBufferPool.pillarShapeBuffer, pillarShapeSmoother, numSamples);
-    ParameterBufferPool::fillBuffer(paramBufferPool.warpBuffer, warpSmoother, numSamples);
-    ParameterBufferPool::fillBuffer(paramBufferPool.driftBuffer, driftSmoother, numSamples);
+    auto* timeBuffer = paramBufferPool.getTimeBuffer(numSamples);
+    auto* massBuffer = paramBufferPool.getMassBuffer(numSamples);
+    auto* densityBuffer = paramBufferPool.getDensityBuffer(numSamples);
+    auto* bloomBuffer = paramBufferPool.getBloomBuffer(numSamples);
+    auto* gravityBuffer = paramBufferPool.getGravityBuffer(numSamples);
+    auto* pillarShapeBuffer = paramBufferPool.getPillarShapeBuffer(numSamples);
+    auto* warpBuffer = paramBufferPool.getWarpBuffer(numSamples);
+    auto* driftBuffer = paramBufferPool.getDriftBuffer(numSamples);
+
+    ParameterBufferPool::fillBuffer(timeBuffer, timeSmoother, numSamples);
+    ParameterBufferPool::fillBuffer(massBuffer, massSmoother, numSamples);
+    ParameterBufferPool::fillBuffer(densityBuffer, densitySmoother, numSamples);
+    ParameterBufferPool::fillBuffer(bloomBuffer, bloomSmoother, numSamples);
+    ParameterBufferPool::fillBuffer(gravityBuffer, gravitySmoother, numSamples);
+    ParameterBufferPool::fillBuffer(pillarShapeBuffer, pillarShapeSmoother, numSamples);
+    ParameterBufferPool::fillBuffer(warpBuffer, warpSmoother, numSamples);
+    ParameterBufferPool::fillBuffer(driftBuffer, driftSmoother, numSamples);
 
     // Non-critical parameters (air, width): use block-rate averaging for now
     // These will be passed as ParameterBuffer constants (future optimization: move to pool)
@@ -451,14 +608,14 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     float warpSum = 0.0f, driftSum = 0.0f, gravitySum = 0.0f, pillarShapeSum = 0.0f;
     for (int i = 0; i < numSamples; ++i)
     {
-        timeSum += paramBufferPool.timeBuffer[i];
-        massSum += paramBufferPool.massBuffer[i];
-        densitySum += paramBufferPool.densityBuffer[i];
-        bloomSum += paramBufferPool.bloomBuffer[i];
-        warpSum += paramBufferPool.warpBuffer[i];
-        driftSum += paramBufferPool.driftBuffer[i];
-        gravitySum += paramBufferPool.gravityBuffer[i];
-        pillarShapeSum += paramBufferPool.pillarShapeBuffer[i];
+        timeSum += timeBuffer[i];
+        massSum += massBuffer[i];
+        densitySum += densityBuffer[i];
+        bloomSum += bloomBuffer[i];
+        warpSum += warpBuffer[i];
+        driftSum += driftBuffer[i];
+        gravitySum += gravityBuffer[i];
+        pillarShapeSum += pillarShapeBuffer[i];
     }
     const float timeEffective = timeSum / numSamples;
     const float massEffective = massSum / numSamples;
@@ -494,18 +651,31 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     CHECK_SMOOTHER(pillarShapeSmoother, 9)
 
     // Physical modeling parameter smoothers (Phase 5)
-    tubeCountSmoother.setTargetValue(tubeCount);
-    radiusVariationSmoother.setTargetValue(radiusVariation);
-    metallicResonanceSmoother.setTargetValue(metallicResonance);
-    couplingStrengthSmoother.setTargetValue(couplingStrength);
-    elasticitySmoother.setTargetValue(elasticity);
-    recoveryTimeSmoother.setTargetValue(recoveryTime);
-    absorptionDriftSmoother.setTargetValue(absorptionDrift);
-    nonlinearitySmoother.setTargetValue(nonlinearity);
-    impossibilityDegreeSmoother.setTargetValue(impossibilityDegree);
-    pitchEvolutionRateSmoother.setTargetValue(pitchEvolutionRate);
-    paradoxResonanceFreqSmoother.setTargetValue(paradoxResonanceFreq);
-    paradoxGainSmoother.setTargetValue(paradoxGain);
+    const float tubeCountTarget = useExpressive ? macroTargets.tubeCount : tubeCount;
+    const float radiusVariationTarget = useExpressive ? macroTargets.radiusVariation : radiusVariation;
+    const float metallicResonanceTarget = useExpressive ? macroTargets.metallicResonance : metallicResonance;
+    const float couplingStrengthTarget = useExpressive ? macroTargets.couplingStrength : couplingStrength;
+    const float elasticityTarget = useExpressive ? macroTargets.elasticity : elasticity;
+    const float recoveryTimeTarget = useExpressive ? macroTargets.recoveryTime : recoveryTime;
+    const float absorptionDriftTarget = useExpressive ? macroTargets.absorptionDrift : absorptionDrift;
+    const float nonlinearityTarget = useExpressive ? macroTargets.nonlinearity : nonlinearity;
+    const float impossibilityDegreeTarget = useExpressive ? macroTargets.impossibilityDegree : impossibilityDegree;
+    const float pitchEvolutionRateTarget = useExpressive ? macroTargets.pitchEvolutionRate : pitchEvolutionRate;
+    const float paradoxResonanceFreqTarget = useExpressive ? macroTargets.paradoxResonanceFreq : paradoxResonanceFreq;
+    const float paradoxGainTarget = useExpressive ? macroTargets.paradoxGain : paradoxGain;
+
+    tubeCountSmoother.setTargetValue(juce::jmap(macroInfluence, tubeCount, tubeCountTarget));
+    radiusVariationSmoother.setTargetValue(juce::jmap(macroInfluence, radiusVariation, radiusVariationTarget));
+    metallicResonanceSmoother.setTargetValue(juce::jmap(macroInfluence, metallicResonance, metallicResonanceTarget));
+    couplingStrengthSmoother.setTargetValue(juce::jmap(macroInfluence, couplingStrength, couplingStrengthTarget));
+    elasticitySmoother.setTargetValue(juce::jmap(macroInfluence, elasticity, elasticityTarget));
+    recoveryTimeSmoother.setTargetValue(juce::jmap(macroInfluence, recoveryTime, recoveryTimeTarget));
+    absorptionDriftSmoother.setTargetValue(juce::jmap(macroInfluence, absorptionDrift, absorptionDriftTarget));
+    nonlinearitySmoother.setTargetValue(juce::jmap(macroInfluence, nonlinearity, nonlinearityTarget));
+    impossibilityDegreeSmoother.setTargetValue(juce::jmap(macroInfluence, impossibilityDegree, impossibilityDegreeTarget));
+    pitchEvolutionRateSmoother.setTargetValue(juce::jmap(macroInfluence, pitchEvolutionRate, pitchEvolutionRateTarget));
+    paradoxResonanceFreqSmoother.setTargetValue(juce::jmap(macroInfluence, paradoxResonanceFreq, paradoxResonanceFreqTarget));
+    paradoxGainSmoother.setTargetValue(juce::jmap(macroInfluence, paradoxGain, paradoxGainTarget));
 
     // Mark physical modeling smoothers as potentially active (bits 10-21)
     activeSmoothers |= 0x3FFC00; // Bits 10-21 (physical modeling smoothers)
@@ -623,6 +793,7 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const float mixPercent = std::isfinite(mixPercentRaw) ? mixPercentRaw : 0.0f;
     const float mixPercentEffective = forceWet ? 100.0f : mixPercent;
     const bool freezeEffective = forceFreezeOff ? false : freeze;
+    mixSmoother.setTargetValue(juce::jlimit(0.0f, 100.0f, mixPercentEffective));
     // Use modulated values (Phase 3: modulation system now active)
     const float warpEffective = allowModulation ? warpModulated : 0.0f;
     const float driftEffective = allowModulation ? driftModulated : 0.0f;
@@ -651,26 +822,35 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     // Pillars: pillarShape is per-sample, density/warp are block-rate
     routingGraph.setPillarsParams(
         densityModulated,
-        makeModulatedView(paramBufferPool.pillarShapeBuffer, modPillarShape),
+        makeModulatedView(pillarShapeBuffer, modPillarShape),
         warpEffective
     );
 
     // Chambers: time, mass, density, bloom, gravity all per-sample
     routingGraph.setChambersParams(
-        makeModulatedView(paramBufferPool.timeBuffer, modTime),
-        makeModulatedView(paramBufferPool.massBuffer, modMass),
-        makeModulatedView(paramBufferPool.densityBuffer, modDensity),
-        makeModulatedView(paramBufferPool.bloomBuffer, modBloom),
-        makeModulatedView(paramBufferPool.gravityBuffer, modGravity)
+        makeModulatedView(timeBuffer, modTime),
+        makeModulatedView(massBuffer, modMass),
+        makeModulatedView(densityBuffer, modDensity),
+        makeModulatedView(bloomBuffer, modBloom),
+        makeModulatedView(gravityBuffer, modGravity),
+        warpEffective,
+        driftEffective,
+        freezeEffective
     );
 
     // Weathering: warp and drift are per-sample
     routingGraph.setWeatheringParams(
-        makeModulatedView(paramBufferPool.warpBuffer, modWarp),
-        makeModulatedView(paramBufferPool.driftBuffer, modDrift)
+        makeModulatedView(warpBuffer, modWarp),
+        makeModulatedView(driftBuffer, modDrift)
     );
     routingGraph.setButtressParams(juce::jmap(massModulated, 0.9f, 1.6f), 0.0f);
-    routingGraph.setFacadeParams(airModulated, juce::jmap(widthModulated, 0.0f, 2.0f), 1.0f);
+
+    // FEEDBACK SAFETY: Apply attenuation at high mix levels to prevent feedback runaway
+    // At 100% mix, use 0.94x gain to dampen feedback loops (6% reduction prevents energy buildup)
+    // At 0% mix, use 1.0x gain (no attenuation needed when dry signal dominates)
+    // Linear interpolation: gain = 1.0 - (mix * 0.06)
+    const float feedbackSafetyGain = juce::jmap(mixPercentEffective / 100.0f, 1.0f, 0.94f);
+    routingGraph.setFacadeParams(airModulated, juce::jmap(widthModulated, 0.0f, 2.0f), feedbackSafetyGain);
 
     // Physical modeling parameters
     routingGraph.setTubeRayTracerParams(tubeCountEffective, radiusVariationEffective,
@@ -710,9 +890,21 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     memoryEchoes.setFreeze(freezeEffective);
 #endif
 
-    const auto mix = juce::jlimit(0.0f, 100.0f, mixPercentEffective) / 100.0f;
-    const auto dryGain = std::cos(mix * juce::MathConstants<float>::halfPi);
-    const auto wetGain = std::sin(mix * juce::MathConstants<float>::halfPi);
+#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+    // DEBUG: Log mix values (every 100 blocks to avoid flooding)
+    static int mixLogCounter = 0;
+    if (++mixLogCounter % 100 == 0)
+    {
+        const float mixTargetPercent = mixSmoother.getTargetValue();
+        const float mixTarget = mixTargetPercent / 100.0f;
+        const float dryGainTarget = std::cos(mixTarget * juce::MathConstants<float>::halfPi);
+        const float wetGainTarget = std::sin(mixTarget * juce::MathConstants<float>::halfPi);
+        juce::Logger::writeToLog("Monument DEBUG: Mix calculation mixPercent=" + juce::String(mixPercentEffective, 1) +
+                                 " mix=" + juce::String(mixTarget, 3) +
+                                 " dryGain=" + juce::String(dryGainTarget, 3) +
+                                 " wetGain=" + juce::String(wetGainTarget, 3));
+    }
+#endif
 
     const auto numChannels = buffer.getNumChannels();
     // numSamples already declared above for parameter smoothing
@@ -729,17 +921,11 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     // Check for processing mode change (Ancient Monuments routing)
     if (modeChangeRequested.exchange(false, std::memory_order_acquire))
     {
-        // Fade out current mode (50ms)
-        modeTransitionGain.setTargetValue(0.0f);
-
-        // Wait for fade to complete (handled smoothly by SmoothedValue)
-        // After processing this block at reduced gain, switch mode
-
-        // Switch to pending mode
-        currentMode = pendingMode.load(std::memory_order_acquire);
-
-        // Fade in new mode (50ms)
-        modeTransitionGain.setTargetValue(1.0f);
+        if (modeTransitionState != ModeTransitionState::FadingOut)
+        {
+            modeTransitionGain.setTargetValue(0.0f);
+            modeTransitionState = ModeTransitionState::FadingOut;
+        }
     }
 
     // Process with current routing mode (Ancient Monuments routing modes)
@@ -770,6 +956,19 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
         }
     }
 
+    if (modeTransitionState == ModeTransitionState::FadingOut
+        && !modeTransitionGain.isSmoothing())
+    {
+        currentMode = pendingMode.load(std::memory_order_acquire);
+        modeTransitionGain.setTargetValue(1.0f);
+        modeTransitionState = ModeTransitionState::FadingIn;
+    }
+    else if (modeTransitionState == ModeTransitionState::FadingIn
+        && !modeTransitionGain.isSmoothing())
+    {
+        modeTransitionState = ModeTransitionState::None;
+    }
+
 #if defined(MONUMENT_MEMORY_PROVE)
     if (routeMemoryToOutput)
     {
@@ -789,17 +988,27 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 
     if (!dryReady)
     {
+        const float mixPercentSmoothed = juce::jlimit(0.0f, 100.0f, mixSmoother.getNextValue());
+        if (numSamples > 1)
+            mixSmoother.skip(numSamples - 1);
+        const float mix = mixPercentSmoothed / 100.0f;
+        const float wetGain = std::sin(mix * juce::MathConstants<float>::halfPi);
         buffer.applyGain(wetGain);
         return;
     }
 
-    for (int channel = 0; channel < numChannels; ++channel)
+    auto* wetChannels = buffer.getArrayOfWritePointers();
+    auto* dryChannels = dryBuffer.getArrayOfReadPointers();
+    for (int sample = 0; sample < numSamples; ++sample)
     {
-        const auto* dry = dryBuffer.getReadPointer(channel);
-        auto* wet = buffer.getWritePointer(channel);
+        const float mixPercentSmoothed = juce::jlimit(0.0f, 100.0f, mixSmoother.getNextValue());
+        const float mix = mixPercentSmoothed / 100.0f;
+        const float dryGain = std::cos(mix * juce::MathConstants<float>::halfPi);
+        const float wetGain = std::sin(mix * juce::MathConstants<float>::halfPi);
 
-        for (int sample = 0; sample < numSamples; ++sample)
-            wet[sample] = dry[sample] * dryGain + wet[sample] * wetGain;
+        for (int channel = 0; channel < numChannels; ++channel)
+            wetChannels[channel][sample] = dryChannels[channel][sample] * dryGain
+                + wetChannels[channel][sample] * wetGain;
     }
 
     if (presetTransition != PresetTransitionState::None)
@@ -848,6 +1057,26 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
         }
     }
 
+    if (paramCache.safetyClip)
+    {
+        const float drive = juce::jmap(
+            juce::jlimit(0.0f, 1.0f, paramCache.safetyClipDrive),
+            1.0f,
+            2.5f);
+        const float norm = juce::dsp::FastMathApproximations::tanh(drive);
+        const float normSafe = norm > 0.0f ? norm : 1.0f;
+
+        for (int channel = 0; channel < numChannels; ++channel)
+        {
+            auto* data = buffer.getWritePointer(channel);
+            for (int sample = 0; sample < numSamples; ++sample)
+            {
+                const float driven = data[sample] * drive;
+                data[sample] = juce::dsp::FastMathApproximations::tanh(driven) / normSafe;
+            }
+        }
+    }
+
     float outputRms = 0.0f;
     const auto outputChannels = buffer.getNumChannels();
     for (int channel = 0; channel < outputChannels; ++channel)
@@ -879,16 +1108,20 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 
 juce::AudioProcessorEditor* MonumentAudioProcessor::createEditor()
 {
-#if defined(MONUMENT_TESTING)
+#if defined(MONUMENT_TESTING) && !defined(MONUMENT_TESTING_UI)
     return nullptr;
 #else
+  #if defined(MONUMENT_LEGACY_UI)
     return new MonumentAudioProcessorEditor(*this);
+  #else
+    return new MonumentAudioProcessorEditorV2(*this);
+  #endif
 #endif
 }
 
 bool MonumentAudioProcessor::hasEditor() const
 {
-#if defined(MONUMENT_TESTING)
+#if defined(MONUMENT_TESTING) && !defined(MONUMENT_TESTING_UI)
     return false;
 #else
     return true;
@@ -972,92 +1205,99 @@ void MonumentAudioProcessor::loadUserPreset(const juce::File& sourceFile)
 MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+    auto makeFloat = [](const char* id,
+                        const char* name,
+                        juce::NormalisableRange<float> range,
+                        float defaultValue)
+    {
+        return std::make_unique<juce::AudioParameterFloat>(id, name, range, defaultValue);
+    };
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "mix",
         "Mix",
         juce::NormalisableRange<float>(0.0f, 100.0f),
-        0.0f));
+        55.0f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "time",
         "Time",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.55f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "mass",
         "Mass",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "density",
         "Density",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "bloom",
         "Bloom",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "air",
         "Air",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "width",
         "Width",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "warp",
         "Warp",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.3f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "drift",
         "Drift",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.3f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "memory",
         "Memory",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.0f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "memoryDepth",
         "Memory Depth",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "memoryDecay",
         "Memory Decay",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.4f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "memoryDrift",
         "Memory Drift",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.3f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "gravity",
         "Gravity",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "pillarShape",
         "Pillar Shape",
         juce::NormalisableRange<float>(0.0f, 1.0f),
@@ -1110,37 +1350,37 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
     // High-level, musically-meaningful controls that map to multiple parameters
     // ========================================================================
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "material",
         "Stone",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // 0 = soft, 1 = hard
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "topology",
         "Labyrinth",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // 0 = regular, 1 = non-Euclidean
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "viscosity",
         "Mist",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // 0 = airy, 1 = thick
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "evolution",
         "Bloom",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // 0 = static, 1 = evolving
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "chaosIntensity",
         "Tempest",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.0f));  // 0 = stable, 1 = chaotic
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "elasticityDecay",
         "Echo",
         juce::NormalisableRange<float>(0.0f, 1.0f),
@@ -1151,25 +1391,25 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
     // 4 new poetic macro controls: Patina, Abyss, Corona, Breath
     // ========================================================================
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "patina",
         "Patina",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // 0 = pristine, 1 = weathered
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "abyss",
         "Abyss",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // 0 = shallow, 1 = infinite void
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "corona",
         "Corona",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // 0 = shadow, 1 = sacred halo
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "breath",
         "Breath",
         juce::NormalisableRange<float>(0.0f, 1.0f),
@@ -1180,37 +1420,37 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
     // 6 musically-intuitive, performance-oriented controls
     // ========================================================================
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "character",
         "Character",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // 0 = subtle, 1 = extreme
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "spaceType",
         "Space Type",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.3f));  // 0=Chamber, 0.3=Hall, 0.5=Shimmer, 0.7=Granular, 0.9=Metallic
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "energy",
         "Energy",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.1f));  // 0=Decay, 0.3=Sustain, 0.6=Grow, 0.9=Chaos
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "motion",
         "Motion",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.2f));  // 0=Still, 0.3=Drift, 0.6=Pulse, 0.9=Random
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "color",
         "Color",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // 0=Dark, 0.5=Balanced, 0.8=Bright, 1.0=Spectral
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "dimension",
         "Dimension",
         juce::NormalisableRange<float>(0.0f, 1.0f),
@@ -1222,79 +1462,113 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
     // ========================================================================
 
     // TubeRayTracer parameters
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "tubeCount",
         "Tube Count",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.545f));  // Default: ~11 tubes (mid-range)
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "radiusVariation",
         "Radius Variation",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.3f));  // Default: moderate variation
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "metallicResonance",
         "Metallic Resonance",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // Default: moderate resonance
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "couplingStrength",
         "Coupling Strength",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // Default: moderate coupling
 
     // ElasticHallway parameters
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "elasticity",
         "Wall Elasticity",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // Default: moderate elasticity
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "recoveryTime",
         "Recovery Time",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // Default: moderate recovery (~1s)
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "absorptionDrift",
         "Absorption Drift",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.3f));  // Default: subtle drift
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "nonlinearity",
         "Wall Nonlinearity",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.3f));  // Default: subtle nonlinearity
 
     // AlienAmplification parameters
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "impossibilityDegree",
         "Impossibility",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.3f));  // Default: subtle impossibility
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "pitchEvolutionRate",
         "Pitch Evolution",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.3f));  // Default: subtle pitch morphing
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "paradoxResonanceFreq",
         "Paradox Frequency",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.5f));  // Default: 432 Hz (mid-range)
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+    params.push_back(makeFloat(
         "paradoxGain",
         "Paradox Gain",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.3f));  // Default: subtle amplification
+
+    // ========================================================================
+    // OUTPUT SAFETY (Soft Clip Limiter)
+    // ========================================================================
+
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        "safetyClip",
+        "Safety Clip",
+        true));
+
+    params.push_back(makeFloat(
+        "safetyClipDrive",
+        "Safety Clip Drive",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.25f));
+
+    // ========================================================================
+    // TIMELINE (Sequence Scheduler)
+    // ========================================================================
+
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        "timelineEnabled",
+        "Timeline Enabled",
+        false));
+
+    juce::StringArray timelinePresets;
+    for (int i = 0; i < monument::dsp::SequencePresets::getNumPresets(); ++i)
+        timelinePresets.add(monument::dsp::SequencePresets::getPresetName(i));
+
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        "timelinePreset",
+        "Timeline Preset",
+        timelinePresets,
+        0));
 
     return {params.begin(), params.end()};
 }

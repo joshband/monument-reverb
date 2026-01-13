@@ -1,0 +1,16 @@
+{
+  "source": "/Users/noisebox/Desktop/Line 6 Delay/knobs/ChatGPT Image Jan 11, 2026, 04_03_31 PM.png",
+  "crop_box": [
+    67,
+    54,
+    1515,
+    380
+  ],
+  "bg_color": [
+    245.0,
+    240.0,
+    237.0
+  ],
+  "knob_radius": 75.0,
+  "output_size": 512
+}

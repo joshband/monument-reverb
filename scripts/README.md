@@ -20,6 +20,10 @@ Automation and workflow scripts for development, testing, profiling, and CI/CD.
 | [analyze_profile.py](#analyze_profilepy) | Parse profiling results | `python3 scripts/analyze_profile.py <trace.xml>` |
 | [run_pluginval.sh](#run_pluginvalsh) | VST3/AU validation | `./scripts/run_pluginval.sh` |
 
+**Build directory overrides:**
+- Most scripts respect `BUILD_DIR` (e.g., `BUILD_DIR=build-ninja ./scripts/run_ci_tests.sh`).
+- Default preference is `build/` if present, otherwise `build-ninja/`.
+
 ---
 
 ## Build & Development Scripts
@@ -38,10 +42,16 @@ Automation and workflow scripts for development, testing, profiling, and CI/CD.
 ./scripts/build_macos.sh
 ```
 
+**Optional overrides:**
+```bash
+BUILD_DIR=build-ninja ./scripts/build_macos.sh
+GENERATOR="Ninja Multi-Config" ./scripts/build_macos.sh
+```
+
 **Output:**
-- `build/Monument_artefacts/VST3/Monument.vst3`
-- `build/Monument_artefacts/AU/Monument.component`
-- `build/Monument_artefacts/Standalone/Monument.app`
+- `build-ninja/Monument_artefacts/VST3/Monument.vst3`
+- `build-ninja/Monument_artefacts/AU/Monument.component`
+- `build-ninja/Monument_artefacts/Standalone/Monument.app`
 
 **Notes:**
 - Uses ccache if available for faster rebuilds
@@ -106,7 +116,7 @@ Automation and workflow scripts for development, testing, profiling, and CI/CD.
 ```
 
 **Requirements:**
-- Pre-built plugins in `build/Monument_artefacts/`
+- Pre-built plugins in `build-ninja/Monument_artefacts/` or `build/Monument_artefacts/`
 
 **Installation Locations:**
 - VST3: `~/Library/Audio/Plug-Ins/VST3/Monument.vst3`
@@ -214,7 +224,16 @@ ENABLE_UI_TESTS=1 ./scripts/run_ci_tests.sh
 **Environment Variables:**
 - `THRESHOLD` - Regression tolerance (default: `0.01` = 1%)
 - `BASELINE_DIR` - Baseline location (default: `test-results/baseline-ci`)
+- `BUILD_DIR` - Build directory for artifacts/tests (default: `build/` if present, otherwise `build-ninja/`)
 - `ENABLE_UI_TESTS` - Enable visual regression (default: `0`)
+- `ENABLE_RT_ALLOCATION_CHECK` - Enable real-time allocation gate (default: `0`)
+- `TEST_CONFIG` - Build config to search for binaries and to pass to CTest (default: `Release`)
+- `CTEST_CONTINUE_ON_FAILURE` - Continue after CTest failures (default: `0`, still exits non-zero)
+- `CTEST_RERUN_FAILED` - Rerun only failed tests from last CTest run (default: `0`)
+- `CTEST_FILTER` - Regex filter for CTest (default: empty)
+- `CTEST_EXCLUDE` - Regex exclude for CTest (default: empty)
+- `PRESET_CAPTURE_CONTINUE_ON_FAILURE` - Continue after preset capture failures (default: `0`, skips audio pipeline)
+- `DSP_CONTINUE_ON_FAILURE` - Continue after critical DSP failures (default: `0`, still exits non-zero)
 
 **Exit Codes:**
 - `0` - All tests passed
@@ -1115,10 +1134,10 @@ When adding new scripts:
 
 ## See Also
 
-- [docs/TESTING_GUIDE.md](../docs/TESTING_GUIDE.md) - Comprehensive testing documentation
+- [TESTING.md](../TESTING.md) - Testing hub (canonical)
 - [docs/BUILD_PATTERNS.md](../docs/BUILD_PATTERNS.md) - Build system architecture
 - [tools/plugin-analyzer/README.md](../tools/plugin-analyzer/README.md) - Plugin analyzer documentation
-- [docs/testing_audit.md](../docs/testing_audit.md) - Testing infrastructure audit
+- [docs/testing/TESTING_AUDIT.md](../docs/testing/TESTING_AUDIT.md) - Testing infrastructure audit
 
 ---
 

@@ -207,7 +207,7 @@ void TubeRayTracer::updateTubeResonanceFilter(Tube& tube)
         auto coeffs = juce::dsp::IIR::Coefficients<float>::makeBandPass(
             sampleRateHz, fundamentalFreq, resonanceQ);
 
-        *tube.resonanceFilter.coefficients = *coeffs;
+        *tube.resonanceFilter.state = *coeffs;
         tube.lastCachedFundamentalFreq = fundamentalFreq;
     }
 }

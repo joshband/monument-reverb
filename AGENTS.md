@@ -26,6 +26,7 @@ Formatting uses `.clang-format`. C++ standard is C++17.
 
 ## Testing Guidelines
 Tests use CTest and live under `tests/`.
+Canonical QA/CI/testing hub: `TESTING.md` (full harness: `./scripts/run_ci_tests.sh`). Index: `docs/testing/README.md`.
 
 ## Commit & Pull Request Guidelines
 There is no Git history yet, so no existing commit conventions to summarize. Until standards are set, use Conventional Commits (e.g., `feat: add reverb preset loader`).

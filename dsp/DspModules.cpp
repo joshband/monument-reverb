@@ -655,6 +655,10 @@ void Facade::prepare(double sampleRate, int blockSize, int numChannels)
     setAir(air);
     airGainSmoother.setCurrentAndTargetValue(juce::jmap(air, -0.3f, 0.35f));
 
+    // Initialize output gain smoother for feedback safety (20ms ramp)
+    outputGainSmoother.reset(sampleRate, 0.02);
+    outputGainSmoother.setCurrentAndTargetValue(outputGain);
+
     // Phase 2: Three-System Plan - Initialize 3D panning gain smoothers (20ms ramp for smooth transitions)
     leftGainSmoother.reset(sampleRate, 0.02);
     rightGainSmoother.reset(sampleRate, 0.02);
@@ -672,7 +676,6 @@ void Facade::process(juce::AudioBuffer<float>& buffer)
     const auto numSamples = buffer.getNumSamples();
     const auto numChannels = buffer.getNumChannels();
     const auto widthLocal = juce::jlimit(0.0f, 2.0f, width);
-    const auto gainLocal = outputGain;
 
     for (int channel = 0; channel < numChannels; ++channel)
     {
@@ -694,7 +697,13 @@ void Facade::process(juce::AudioBuffer<float>& buffer)
 
     if (numChannels < 2)
     {
-        buffer.applyGain(gainLocal);
+        // Apply smoothed gain per-sample (mono)
+        auto* data = buffer.getWritePointer(0);
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            const float gain = outputGainSmoother.getNextValue();
+            data[sample] *= gain;
+        }
         return;
     }
 
@@ -713,9 +722,10 @@ void Facade::process(juce::AudioBuffer<float>& buffer)
             // Apply smoothed panning gains (constant power law, calculated in setSpatialPositions)
             const float leftGain = leftGainSmoother.getNextValue();
             const float rightGain = rightGainSmoother.getNextValue();
+            const float outputGain = outputGainSmoother.getNextValue();  // Per-sample smoothed output gain
 
-            left[sample] = mono * leftGain * gainLocal;
-            right[sample] = mono * rightGain * gainLocal;
+            left[sample] = mono * leftGain * outputGain;
+            right[sample] = mono * rightGain * outputGain;
         }
     }
     else
@@ -726,9 +736,10 @@ void Facade::process(juce::AudioBuffer<float>& buffer)
             const float mid = 0.5f * (left[sample] + right[sample]);
             float side = 0.5f * (left[sample] - right[sample]);
             side *= widthLocal;
+            const float outputGain = outputGainSmoother.getNextValue();  // Per-sample smoothed output gain
 
-            left[sample] = (mid + side) * gainLocal;
-            right[sample] = (mid - side) * gainLocal;
+            left[sample] = (mid + side) * outputGain;
+            right[sample] = (mid - side) * outputGain;
         }
     }
 }
@@ -752,6 +763,7 @@ void Facade::setAir(float airAmount)
 void Facade::setOutputGain(float gainLinear)
 {
     outputGain = juce::jmax(0.0f, gainLinear);
+    outputGainSmoother.setTargetValue(outputGain);  // Smooth transitions for feedback safety
 }
 
 void Facade::set3DPanning(bool enable) noexcept

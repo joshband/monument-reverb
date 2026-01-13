@@ -65,6 +65,12 @@ void DspRoutingGraph::prepare(double sampleRate, int maxBlockSize, int numChanne
         buffer.clear();
     }
 
+    for (auto& buffer : moduleOutputBuffers)
+    {
+        buffer.setSize(numChannels, maxBlockSize);
+        buffer.clear();
+    }
+
     feedbackBuffer.setSize(numChannels, maxBlockSize);
     feedbackBuffer.clear();
 
@@ -103,6 +109,8 @@ void DspRoutingGraph::reset()
     dryBuffer.clear();
     for (auto& buffer : tempBuffers)
         buffer.clear();
+    for (auto& buffer : moduleOutputBuffers)
+        buffer.clear();
 
     // Reset feedback safety components
     feedbackGainSmoothed.setCurrentAndTargetValue(0.0f);
@@ -116,28 +124,64 @@ void DspRoutingGraph::reset()
 
 void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
 {
+    const auto numChannels = buffer.getNumChannels();
+    const auto numSamples = buffer.getNumSamples();
+
     // Save dry signal for parallel modes (dedicated buffer for clarity)
-    dryBuffer.makeCopyOf(buffer);
+    const bool dryReady = dryBuffer.getNumChannels() >= numChannels
+        && dryBuffer.getNumSamples() >= numSamples;
+    jassert(dryReady);
+    if (dryReady)
+    {
+        for (int ch = 0; ch < numChannels; ++ch)
+            dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
+    }
 
     // Lock-free preset read: Load current preset index atomically
     const size_t presetIdx = activePresetIndex.load(std::memory_order_acquire);
     const auto& currentPresetData = presetData[presetIdx];
+
+    std::array<bool, static_cast<size_t>(ModuleType::Count)> moduleHasOutput{};
+
+    auto copyBuffer = [numChannels, numSamples](juce::AudioBuffer<float>& dest,
+                                                const juce::AudioBuffer<float>& src)
+    {
+        for (int ch = 0; ch < numChannels; ++ch)
+            dest.copyFrom(ch, 0, src, ch, 0, numSamples);
+    };
+
+    auto ensureModuleOutput = [&](ModuleType module,
+                                  const juce::AudioBuffer<float>& input) -> juce::AudioBuffer<float>&
+    {
+        const auto idx = static_cast<size_t>(module);
+        auto& outBuf = moduleOutputBuffers[idx];
+        if (!moduleHasOutput[idx])
+        {
+            copyBuffer(outBuf, input);
+            if (!currentPresetData.bypass[idx])
+                processModule(module, outBuf);
+            moduleHasOutput[idx] = true;
+        }
+        return outBuf;
+    };
 
     // Process each connection in order (from pre-allocated preset data)
     for (size_t i = 0; i < currentPresetData.connectionCount; ++i)
     {
         const auto& conn = currentPresetData.connections[i];
 
-        // Skip disabled connections or bypassed modules (read from preset data for lock-free operation)
-        if (!conn.enabled || currentPresetData.bypass[static_cast<size_t>(conn.source)])
+        // Skip disabled connections
+        if (!conn.enabled)
             continue;
+
+        auto& sourceBuf = ensureModuleOutput(conn.source, dryBuffer);
 
         switch (conn.mode)
         {
             case RoutingMode::Series:
             {
-                // Simple series connection: process destination module
-                processModule(conn.destination, buffer);
+                auto& destBuf = ensureModuleOutput(conn.destination, sourceBuf);
+                copyBuffer(buffer, destBuf);
                 break;
             }
 
@@ -145,20 +189,23 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
             {
                 // Skip if destination module is bypassed (early exit before buffer ops)
                 if (currentPresetData.bypass[static_cast<size_t>(conn.destination)])
+                {
+                    ensureModuleOutput(conn.destination, sourceBuf);
                     break;
+                }
 
                 // Parallel: process in temp buffer, then blend with main
                 auto& parallelBuf = tempBuffers[static_cast<size_t>(conn.destination)];
 
-                // Use efficient copyFrom instead of makeCopyOf
-                for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-                    parallelBuf.copyFrom(ch, 0, dryBuffer, ch, 0, buffer.getNumSamples());
+                copyBuffer(parallelBuf, sourceBuf);
 
                 processModule(conn.destination, parallelBuf);
+                copyBuffer(moduleOutputBuffers[static_cast<size_t>(conn.destination)], parallelBuf);
+                moduleHasOutput[static_cast<size_t>(conn.destination)] = true;
 
                 // Use JUCE's optimized addFrom with gain
-                for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-                    buffer.addFrom(ch, 0, parallelBuf, ch, 0, buffer.getNumSamples(), conn.blendAmount);
+                for (int ch = 0; ch < numChannels; ++ch)
+                    buffer.addFrom(ch, 0, parallelBuf, ch, 0, numSamples, conn.blendAmount);
                 break;
             }
 
@@ -166,41 +213,64 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
             {
                 // Skip if destination module is bypassed
                 if (currentPresetData.bypass[static_cast<size_t>(conn.destination)])
+                {
+                    ensureModuleOutput(conn.destination, sourceBuf);
                     break;
+                }
 
                 // Parallel with dry mix: process module, blend with original dry
                 auto& parallelBuf = tempBuffers[static_cast<size_t>(conn.destination)];
 
-                // Copy current buffer state
-                for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-                    parallelBuf.copyFrom(ch, 0, buffer, ch, 0, buffer.getNumSamples());
+                copyBuffer(parallelBuf, sourceBuf);
 
                 processModule(conn.destination, parallelBuf);
+                copyBuffer(moduleOutputBuffers[static_cast<size_t>(conn.destination)], parallelBuf);
+                moduleHasOutput[static_cast<size_t>(conn.destination)] = true;
 
                 // Optimized mix using JUCE buffer operations
                 const float dryGain = 1.0f - conn.blendAmount;
                 const float wetGain = conn.blendAmount;
 
-                for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+                for (int ch = 0; ch < numChannels; ++ch)
                 {
-                    buffer.copyFrom(ch, 0, dryBuffer, ch, 0, buffer.getNumSamples());
-                    buffer.applyGain(ch, 0, buffer.getNumSamples(), dryGain);
-                    buffer.addFrom(ch, 0, parallelBuf, ch, 0, buffer.getNumSamples(), wetGain);
+                    buffer.copyFrom(ch, 0, dryBuffer, ch, 0, numSamples);
+                    buffer.applyGain(ch, 0, numSamples, dryGain);
+                    buffer.addFrom(ch, 0, parallelBuf, ch, 0, numSamples, wetGain);
                 }
                 break;
             }
 
             case RoutingMode::Feedback:
             {
+                if (currentPresetData.bypass[static_cast<size_t>(conn.destination)])
+                {
+                    copyBuffer(feedbackBuffer, sourceBuf);
+                    if (numChannels >= 1)
+                    {
+                        auto* dataL = feedbackBuffer.getWritePointer(0);
+                        for (int i = 0; i < numSamples; ++i)
+                            dataL[i] = feedbackLowpassL.processSample(dataL[i]);
+                    }
+                    if (numChannels >= 2)
+                    {
+                        auto* dataR = feedbackBuffer.getWritePointer(1);
+                        for (int i = 0; i < numSamples; ++i)
+                            dataR[i] = feedbackLowpassR.processSample(dataR[i]);
+                    }
+                    break;
+                }
+
                 // Clamp feedback gain to safety limit
                 const float safeGain = juce::jlimit(0.0f, kMaxFeedbackGain, conn.feedbackGain);
                 feedbackGainSmoothed.setTargetValue(safeGain);
 
+                copyBuffer(buffer, sourceBuf);
+
                 // Mix feedback buffer into input with smoothed gain
-                for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+                for (int sample = 0; sample < numSamples; ++sample)
                 {
                     const float smoothedGain = feedbackGainSmoothed.getNextValue();
-                    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+                    for (int ch = 0; ch < numChannels; ++ch)
                     {
                         float fbSample = feedbackBuffer.getSample(ch, sample);
                         buffer.setSample(ch, sample,
@@ -210,30 +280,32 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
 
                 // Process module
                 processModule(conn.destination, buffer);
+                copyBuffer(moduleOutputBuffers[static_cast<size_t>(conn.destination)], buffer);
+                moduleHasOutput[static_cast<size_t>(conn.destination)] = true;
+
+                // Update feedback buffer using source output (1-block delay)
+                copyBuffer(feedbackBuffer, sourceBuf);
 
                 // Apply low-pass filter to feedback to prevent high-frequency buildup
-                if (buffer.getNumChannels() >= 1)
+                if (numChannels >= 1)
                 {
-                    auto* dataL = buffer.getWritePointer(0);
-                    for (int i = 0; i < buffer.getNumSamples(); ++i)
+                    auto* dataL = feedbackBuffer.getWritePointer(0);
+                    for (int i = 0; i < numSamples; ++i)
                         dataL[i] = feedbackLowpassL.processSample(dataL[i]);
                 }
-                if (buffer.getNumChannels() >= 2)
+                if (numChannels >= 2)
                 {
-                    auto* dataR = buffer.getWritePointer(1);
-                    for (int i = 0; i < buffer.getNumSamples(); ++i)
+                    auto* dataR = feedbackBuffer.getWritePointer(1);
+                    for (int i = 0; i < numSamples; ++i)
                         dataR[i] = feedbackLowpassR.processSample(dataR[i]);
                 }
-
-                // Save filtered output for next block's feedback (1-block delay)
-                feedbackBuffer.makeCopyOf(buffer);
                 break;
             }
 
             case RoutingMode::Crossfeed:
             {
                 // L/R channel crossfeed using optimized operations
-                if (buffer.getNumChannels() >= 2)
+                if (numChannels >= 2)
                 {
                     const float crossfeed = conn.crossfeedAmount;
                     const float dryAmount = 1.0f - crossfeed;
@@ -241,16 +313,16 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
                     // Store original channels in temp buffer
                     auto& tempL = tempBuffers[0];
                     auto& tempR = tempBuffers[1];
-                    tempL.copyFrom(0, 0, buffer, 0, 0, buffer.getNumSamples());
-                    tempR.copyFrom(0, 0, buffer, 1, 0, buffer.getNumSamples());
+                    tempL.copyFrom(0, 0, buffer, 0, 0, numSamples);
+                    tempR.copyFrom(0, 0, buffer, 1, 0, numSamples);
 
                     // L = L * dry + (L+R)/2 * crossfeed
                     // R = R * dry + (L+R)/2 * crossfeed
                     for (int ch = 0; ch < 2; ++ch)
                     {
-                        buffer.applyGain(ch, 0, buffer.getNumSamples(), dryAmount);
-                        buffer.addFrom(ch, 0, tempL, 0, 0, buffer.getNumSamples(), crossfeed * 0.5f);
-                        buffer.addFrom(ch, 0, tempR, 0, 0, buffer.getNumSamples(), crossfeed * 0.5f);
+                        buffer.applyGain(ch, 0, numSamples, dryAmount);
+                        buffer.addFrom(ch, 0, tempL, 0, 0, numSamples, crossfeed * 0.5f);
+                        buffer.addFrom(ch, 0, tempR, 0, 0, numSamples, crossfeed * 0.5f);
                     }
                 }
                 break;
@@ -419,6 +491,22 @@ bool DspRoutingGraph::setRouting(const std::vector<RoutingConnection>& connectio
 
     routingConnections = connections;
     currentPreset = RoutingPresetType::Custom;
+    auto& data = presetData[static_cast<size_t>(RoutingPresetType::Custom)];
+    data.connectionCount = 0;
+    data.bypass = moduleBypassed;
+
+    for (const auto& connection : connections)
+    {
+        if (data.connectionCount >= kMaxRoutingConnections)
+        {
+            jassertfalse;
+            break;
+        }
+        data.connections[data.connectionCount++] = connection;
+    }
+
+    activePresetIndex.store(static_cast<size_t>(RoutingPresetType::Custom),
+                            std::memory_order_release);
     return true;
 }
 
@@ -464,7 +552,10 @@ void DspRoutingGraph::setChambersParams(const ParameterBuffer& time,
                                          const ParameterBuffer& mass,
                                          const ParameterBuffer& density,
                                          const ParameterBuffer& bloom,
-                                         const ParameterBuffer& gravity)
+                                         const ParameterBuffer& gravity,
+                                         float warp,
+                                         float drift,
+                                         bool freeze)
 {
     // Store per-sample parameter buffers for use in process()
     chambersTimeBuffer = time;
@@ -472,6 +563,23 @@ void DspRoutingGraph::setChambersParams(const ParameterBuffer& time,
     chambersDensityBuffer = density;
     chambersBloomBuffer = bloom;
     chambersGravityBuffer = gravity;
+
+#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+    // DEBUG: Log first parameter value from each buffer (sample 0)
+    static int logCounter = 0;
+    if (++logCounter % 100 == 0)  // Log every 100th call to avoid flooding
+    {
+        const float timeVal = time.numSamples > 0 ? time[0] : 0.0f;
+        const float massVal = mass.numSamples > 0 ? mass[0] : 0.0f;
+        const float densityVal = density.numSamples > 0 ? density[0] : 0.0f;
+        juce::Logger::writeToLog("Monument DEBUG: Chambers params time=" + juce::String(timeVal, 3) +
+                                 " mass=" + juce::String(massVal, 3) +
+                                 " density=" + juce::String(densityVal, 3) +
+                                 " warp=" + juce::String(warp, 3) +
+                                 " drift=" + juce::String(drift, 3) +
+                                 " freeze=" + juce::String(freeze ? 1 : 0));
+    }
+#endif
 
     if (chambers)
     {
@@ -482,6 +590,11 @@ void DspRoutingGraph::setChambersParams(const ParameterBuffer& time,
         chambers->setDensity(density);
         chambers->setBloom(bloom);
         chambers->setGravity(gravity);
+
+        // Block-rate parameters for Chambers reverb characteristics
+        chambers->setWarp(warp);
+        chambers->setDrift(drift);
+        chambers->setFreeze(freeze);
     }
 }
 
@@ -643,7 +756,28 @@ void DspRoutingGraph::processAncientWay(juce::AudioBuffer<float>& buffer)
     //                      Buttress → Facade
     processModule(ModuleType::Foundation, buffer);
     processModule(ModuleType::Pillars, buffer);
+
+#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+    // DEBUG: Check signal before Chambers
+    float preChambersRMS = 0.0f;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        preChambersRMS = juce::jmax(preChambersRMS, buffer.getRMSLevel(ch, 0, buffer.getNumSamples()));
+#endif
+
     processModule(ModuleType::Chambers, buffer);
+
+#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+    // DEBUG: Check signal after Chambers
+    float postChambersRMS = 0.0f;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        postChambersRMS = juce::jmax(postChambersRMS, buffer.getRMSLevel(ch, 0, buffer.getNumSamples()));
+
+    const bool chambersBypassed = moduleBypassed[static_cast<size_t>(ModuleType::Chambers)];
+    juce::Logger::writeToLog("Monument DEBUG: Chambers bypassed=" + juce::String(chambersBypassed ? "YES" : "NO") +
+                             " preRMS=" + juce::String(preChambersRMS, 6) +
+                             " postRMS=" + juce::String(postChambersRMS, 6));
+#endif
+
     processModule(ModuleType::Weathering, buffer);
     processModule(ModuleType::TubeRayTracer, buffer);
     processModule(ModuleType::ElasticHallway, buffer);

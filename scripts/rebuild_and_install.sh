@@ -16,7 +16,18 @@ NC='\033[0m' # No Color
 # Script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-BUILD_DIR="$PROJECT_ROOT/build"
+if [ -z "${BUILD_DIR:-}" ]; then
+    if [ -d "$PROJECT_ROOT/build" ]; then
+        BUILD_DIR="$PROJECT_ROOT/build"
+    elif [ -d "$PROJECT_ROOT/build-ninja" ]; then
+        BUILD_DIR="$PROJECT_ROOT/build-ninja"
+    else
+        BUILD_DIR="$PROJECT_ROOT/build"
+    fi
+elif [[ "$BUILD_DIR" != /* ]]; then
+    BUILD_DIR="$PROJECT_ROOT/$BUILD_DIR"
+fi
+TEST_CONFIG="${TEST_CONFIG:-Debug}"
 
 # System plugin directories
 VST3_INSTALL_DIR="$HOME/Library/Audio/Plug-Ins/VST3"
@@ -32,6 +43,27 @@ echo ""
 
 # Change to project root
 cd "$PROJECT_ROOT"
+
+find_bundle() {
+    local subpath="$1"
+    local base="$BUILD_DIR/Monument_artefacts"
+    local candidates=(
+        "$base/$TEST_CONFIG/$subpath"
+        "$base/Debug/$subpath"
+        "$base/Release/$subpath"
+        "$base/RelWithDebInfo/$subpath"
+        "$base/$subpath"
+    )
+
+    for candidate in "${candidates[@]}"; do
+        if [ -d "$candidate" ]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+
+    return 1
+}
 
 # Step 1: Clean build (optional, only for Monument)
 if [[ "$TARGET" == "Monument" ]] || [[ "$TARGET" == "all" ]]; then
@@ -72,18 +104,10 @@ fi
 if [[ "$TARGET" == "Monument" ]] || [[ "$TARGET" == "all" ]]; then
     echo -e "${YELLOW}▸ Installing VST3 plugin...${NC}"
 
-    # Find the VST3 bundle (Debug first, as that's where the actual binaries are)
-    VST3_DEBUG_SOURCE="$BUILD_DIR/Monument_artefacts/Debug/VST3/Monument.vst3"
-    VST3_RELEASE_SOURCE="$BUILD_DIR/Monument_artefacts/Release/VST3/Monument.vst3"
-
-    if [ -d "$VST3_DEBUG_SOURCE" ]; then
-        VST3_PATH="$VST3_DEBUG_SOURCE"
-    elif [ -d "$VST3_RELEASE_SOURCE" ]; then
-        VST3_PATH="$VST3_RELEASE_SOURCE"
+    if VST3_PATH=$(find_bundle "VST3/Monument.vst3"); then
+        true
     else
-        echo -e "${RED}  ✗ VST3 bundle not found at:${NC}"
-        echo -e "    $VST3_SOURCE"
-        echo -e "    $VST3_DEBUG_SOURCE"
+        echo -e "${RED}  ✗ VST3 bundle not found in $BUILD_DIR/Monument_artefacts${NC}"
         exit 1
     fi
 
@@ -106,14 +130,8 @@ if [[ "$TARGET" == "Monument" ]] || [[ "$TARGET" == "all" ]]; then
     # Install AU component
     echo -e "${YELLOW}▸ Installing AU plugin...${NC}"
 
-    # Find the AU component (Debug first, as that's where the actual binaries are)
-    AU_DEBUG_SOURCE="$BUILD_DIR/Monument_artefacts/Debug/AU/Monument.component"
-    AU_RELEASE_SOURCE="$BUILD_DIR/Monument_artefacts/Release/AU/Monument.component"
-
-    if [ -d "$AU_DEBUG_SOURCE" ]; then
-        AU_PATH="$AU_DEBUG_SOURCE"
-    elif [ -d "$AU_RELEASE_SOURCE" ]; then
-        AU_PATH="$AU_RELEASE_SOURCE"
+    if AU_PATH=$(find_bundle "AU/Monument.component"); then
+        true
     else
         echo -e "${YELLOW}  ⚠ AU component not found (may not be built)${NC}"
         AU_PATH=""
@@ -149,8 +167,22 @@ fi
 
 # Step 5: Show installed analyzer path (if built)
 if [[ "$TARGET" == "monument_plugin_analyzer" ]] || [[ "$TARGET" == "all" ]]; then
-    ANALYZER_PATH="$BUILD_DIR/monument_plugin_analyzer_artefacts/Debug/monument_plugin_analyzer"
-    if [ -f "$ANALYZER_PATH" ]; then
+    ANALYZER_CANDIDATES=(
+        "$BUILD_DIR/monument_plugin_analyzer_artefacts/$TEST_CONFIG/monument_plugin_analyzer"
+        "$BUILD_DIR/monument_plugin_analyzer_artefacts/Debug/monument_plugin_analyzer"
+        "$BUILD_DIR/monument_plugin_analyzer_artefacts/Release/monument_plugin_analyzer"
+        "$BUILD_DIR/monument_plugin_analyzer_artefacts/RelWithDebInfo/monument_plugin_analyzer"
+        "$BUILD_DIR/monument_plugin_analyzer_artefacts/monument_plugin_analyzer"
+    )
+    ANALYZER_PATH=""
+    for candidate in "${ANALYZER_CANDIDATES[@]}"; do
+        if [ -f "$candidate" ]; then
+            ANALYZER_PATH="$candidate"
+            break
+        fi
+    done
+
+    if [ -n "$ANALYZER_PATH" ]; then
         echo -e "${GREEN}▸ Plugin Analyzer location:${NC}"
         echo -e "  $ANALYZER_PATH"
         echo ""

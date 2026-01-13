@@ -6,13 +6,44 @@
 set -e  # Exit on error
 
 # Configuration
-INPUT_BASE="./test-results/preset-baseline"
-PYTHON_RT60="./tools/plugin-analyzer/python/rt60_analysis_robust.py"
-PYTHON_FREQ="./tools/plugin-analyzer/python/frequency_response.py"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+INPUT_BASE="${INPUT_BASE:-$PROJECT_ROOT/test-results/preset-baseline}"
+if [[ "$INPUT_BASE" != /* ]]; then
+    INPUT_BASE="$PROJECT_ROOT/$INPUT_BASE"
+fi
+PYTHON_RT60="$PROJECT_ROOT/tools/plugin-analyzer/python/rt60_analysis_robust.py"
+PYTHON_FREQ="$PROJECT_ROOT/tools/plugin-analyzer/python/frequency_response.py"
 NUM_PRESETS=37
 
+PYTHON_BIN="${PYTHON_BIN:-}"
+if [ -z "$PYTHON_BIN" ]; then
+    if [ -n "${VENV_PATH:-}" ] && [ -x "$VENV_PATH/bin/python" ]; then
+        PYTHON_BIN="$VENV_PATH/bin/python"
+    elif [ -x "$PROJECT_ROOT/.venv/bin/python" ]; then
+        PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python"
+    else
+        PYTHON_BIN="python3"
+    fi
+fi
+
+PIP_CMD=("$PYTHON_BIN" -m pip)
+
 # Parallel execution (default: use all CPU cores)
-PARALLEL_JOBS=${PARALLEL_JOBS:-$(sysctl -n hw.ncpu)}
+# Set PARALLEL_JOBS=1 to disable parallel processing
+detect_parallel_jobs() {
+    if command -v sysctl >/dev/null 2>&1; then
+        sysctl -n hw.ncpu 2>/dev/null && return 0
+    fi
+    if command -v getconf >/dev/null 2>&1; then
+        getconf _NPROCESSORS_ONLN 2>/dev/null && return 0
+    fi
+    if command -v nproc >/dev/null 2>&1; then
+        nproc 2>/dev/null && return 0
+    fi
+    echo 1
+}
+
+PARALLEL_JOBS=${PARALLEL_JOBS:-$(detect_parallel_jobs)}
 MAX_PARALLEL=8  # Cap at 8 to avoid overwhelming the system
 PARALLEL_JOBS=$((PARALLEL_JOBS > MAX_PARALLEL ? MAX_PARALLEL : PARALLEL_JOBS))
 
@@ -42,9 +73,9 @@ if [ ! -d "$INPUT_BASE" ]; then
 fi
 
 # Check for Python dependencies
-if ! python3 -c "import pyroomacoustics, numpy, scipy, matplotlib" 2>/dev/null; then
+if ! "$PYTHON_BIN" -c "import pyroomacoustics, numpy, scipy, matplotlib" 2>/dev/null; then
     echo -e "${YELLOW}Installing Python dependencies...${NC}"
-    pip3 install -q pyroomacoustics numpy scipy matplotlib
+    "${PIP_CMD[@]}" install -q pyroomacoustics numpy scipy matplotlib
 fi
 
 # Print header
@@ -69,8 +100,13 @@ done
 
 echo -e "${YELLOW}Found ${VALID_COUNT}/${NUM_PRESETS} valid captures${NC}"
 echo ""
-read -p "Press Enter to continue or Ctrl+C to cancel..."
-echo ""
+if [ -z "${NON_INTERACTIVE:-}" ] && [ -z "${CI:-}" ]; then
+    read -p "Press Enter to continue or Ctrl+C to cancel..."
+    echo ""
+else
+    echo "Non-interactive mode: skipping prompt."
+    echo ""
+fi
 
 # Function to analyze a single preset (will be called in parallel)
 analyze_preset() {
@@ -87,7 +123,7 @@ analyze_preset() {
     echo "[Preset ${i}] Analyzing..."
 
     # Run RT60 analysis
-    if python3 "$PYTHON_RT60" "$WET_WAV" \
+    if "$PYTHON_BIN" "$PYTHON_RT60" "$WET_WAV" \
         --output "${PRESET_DIR}/rt60_metrics.json" \
         > "${PRESET_DIR}/rt60_analysis.log" 2>&1; then
         echo "[Preset ${i}] ✓ RT60 analysis complete"
@@ -96,7 +132,7 @@ analyze_preset() {
     fi
 
     # Run frequency response analysis
-    if python3 "$PYTHON_FREQ" "$WET_WAV" \
+    if "$PYTHON_BIN" "$PYTHON_FREQ" "$WET_WAV" \
         --impulse \
         --output "${PRESET_DIR}/freq_metrics.json" \
         > "${PRESET_DIR}/freq_analysis.log" 2>&1; then
@@ -116,7 +152,7 @@ analyze_preset() {
 
 # Export function and variables for parallel execution
 export -f analyze_preset
-export INPUT_BASE PYTHON_RT60 PYTHON_FREQ
+export INPUT_BASE PYTHON_RT60 PYTHON_FREQ PYTHON_BIN
 
 # Track statistics
 START_TIME=$(date +%s)

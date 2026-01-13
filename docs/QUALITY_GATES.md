@@ -766,7 +766,7 @@ python3 scripts/analyze_profile.py monument_profile_export.xml
 
 - **Implementation:** [docs/PHASE_3_STEP_2_QUALITY_GATES_COMPLETE.md](PHASE_3_STEP_2_QUALITY_GATES_COMPLETE.md)
 - **Tool Docs:** [scripts/README.md#quality-gate-scripts](../scripts/README.md#quality-gate-scripts)
-- **Testing Guide:** [docs/TESTING_GUIDE.md#quality-gates](TESTING_GUIDE.md#quality-gates)
+- **Testing Guide:** [testing/TESTING_GUIDE.md#quality-gates](testing/TESTING_GUIDE.md#quality-gates)
 
 ---
 

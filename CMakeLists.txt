@@ -58,6 +58,8 @@ target_sources(Monument
     plugin/PresetManager.cpp
     plugin/PluginEditor.h
     plugin/PluginEditor.cpp
+    plugin/PluginEditorV2.h
+    plugin/PluginEditorV2.cpp
     dsp/DspModule.h
     dsp/DspModules.h
     dsp/DspModules.cpp
@@ -152,6 +154,7 @@ target_compile_definitions(Monument
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
+    MONUMENT_TESTING_UI=1
 )
 
 target_link_libraries(Monument
@@ -166,13 +169,60 @@ target_link_libraries(Monument
     juce::juce_recommended_warning_flags
 )
 
+juce_add_gui_app(monument_ui_prototype
+  PRODUCT_NAME "Monument UI Prototype"
+  COMPANY_NAME "Monument Audio"
+  BUNDLE_ID "com.monumentaudio.monument.ui.prototype"
+)
+
+juce_generate_juce_header(monument_ui_prototype)
+
+target_sources(monument_ui_prototype
+  PRIVATE
+    ui/MonumentUiPrototype.cpp
+)
+
+target_include_directories(monument_ui_prototype
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_compile_definitions(monument_ui_prototype
+  PRIVATE
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+    MONUMENT_TESTING_UI=1
+)
+
+target_link_libraries(monument_ui_prototype
+  PRIVATE
+    Monument
+    juce::juce_audio_utils
+    juce::juce_dsp
+    juce::juce_gui_extra
+    juce::juce_opengl
+  PUBLIC
+    juce::juce_recommended_config_flags
+    juce::juce_recommended_lto_flags
+    juce::juce_recommended_warning_flags
+)
+
 option(MONUMENT_ENABLE_TESTS "Build Monument tests" ON)
 option(MONUMENT_ENABLE_MEMORY "Enable Memory Echoes in plugin" OFF)
+option(MONUMENT_LEGACY_UI "Use legacy UI layout" OFF)
 
 if(MONUMENT_ENABLE_MEMORY)
   target_compile_definitions(Monument
     PRIVATE
       MONUMENT_ENABLE_MEMORY=1
+  )
+endif()
+
+if(MONUMENT_LEGACY_UI)
+  target_compile_definitions(Monument
+    PRIVATE
+      MONUMENT_LEGACY_UI=1
   )
 endif()
 
@@ -485,6 +535,144 @@ if(BUILD_TESTING)
   add_test(NAME monument_parameter_smoothing_test COMMAND $<TARGET_FILE:monument_parameter_smoothing_test>)
 endif()
 
+# Macro Mode Integration Test
+if(BUILD_TESTING)
+  juce_add_console_app(monument_macro_mode_integration_test
+    PRODUCT_NAME "Monument Macro Mode Integration Test"
+  )
+
+  juce_generate_juce_header(monument_macro_mode_integration_test)
+
+  target_sources(monument_macro_mode_integration_test
+    PRIVATE
+      tests/MacroModeIntegrationTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_macro_mode_integration_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_macro_mode_integration_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_macro_mode_integration_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_macro_mode_integration_test COMMAND $<TARGET_FILE:monument_macro_mode_integration_test>)
+endif()
+
+# Timeline Integration Test
+if(BUILD_TESTING)
+  juce_add_console_app(monument_timeline_integration_test
+    PRODUCT_NAME "Monument Timeline Integration Test"
+  )
+
+  juce_generate_juce_header(monument_timeline_integration_test)
+
+  target_sources(monument_timeline_integration_test
+    PRIVATE
+      tests/TimelineIntegrationTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_timeline_integration_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_timeline_integration_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_timeline_integration_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_timeline_integration_test COMMAND $<TARGET_FILE:monument_timeline_integration_test>)
+endif()
+
+# Output Safety Clip Test
+if(BUILD_TESTING)
+  juce_add_console_app(monument_output_safety_clip_test
+    PRODUCT_NAME "Monument Output Safety Clip Test"
+  )
+
+  juce_generate_juce_header(monument_output_safety_clip_test)
+
+  target_sources(monument_output_safety_clip_test
+    PRIVATE
+      tests/OutputSafetyClipTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_output_safety_clip_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_output_safety_clip_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_output_safety_clip_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_output_safety_clip_test COMMAND $<TARGET_FILE:monument_output_safety_clip_test>)
+endif()
+
 # Stereo Width Test (Phase 4: Enhanced Testing)
 if(BUILD_TESTING)
   juce_add_console_app(monument_stereo_width_test
@@ -661,6 +849,46 @@ if(BUILD_TESTING)
   )
 
   add_test(NAME monument_dsp_routing_graph_test COMMAND $<TARGET_FILE:monument_dsp_routing_graph_test>)
+endif()
+
+# Feedback Mix Safety Test (Regression: 100% mix feedback runaway)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_feedback_mix_safety_test
+    PRODUCT_NAME "Monument Feedback Mix Safety Test"
+  )
+
+  juce_generate_juce_header(monument_feedback_mix_safety_test)
+
+  target_sources(monument_feedback_mix_safety_test
+    PRIVATE
+      tests/FeedbackMixSafetyTest.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_feedback_mix_safety_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_feedback_mix_safety_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+
+  target_link_libraries(monument_feedback_mix_safety_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_feedback_mix_safety_test COMMAND $<TARGET_FILE:monument_feedback_mix_safety_test>)
 endif()
 
 # ModulationMatrix Test (Phase 1.2: Critical Infrastructure)

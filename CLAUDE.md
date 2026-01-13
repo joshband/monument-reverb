@@ -84,10 +84,11 @@ MyPlugin/
 
 ## Monument Reverb Project
 
-**Build:** `cmake --build build --target Monument_All -j8` or `./scripts/rebuild_and_install.sh all`
-**Install:** Auto-installs to `~/Library/Audio/Plug-Ins/{VST3,Components}/Monument.{vst3,component}`
-**Tests:** `./scripts/run_ci_tests.sh` (comprehensive) or `ctest --test-dir build` (C++ only)
-**Docs:** See `docs/TESTING_GUIDE.md` and `docs/BUILD_PATTERNS.md` for detailed workflows
+**Build:** `./scripts/rebuild_and_install.sh` (builds + installs VST3/AU to system)
+**Quick Test:** `ctest --test-dir build -C Release -R monument_reverb_dsp_test`
+**Full Tests:** `./scripts/run_ci_tests.sh` (CTest + audio regression + quality gates). Use `TEST_CONFIG=Debug` for Debug builds.
+**Build Dir Override:** `BUILD_DIR=build-ninja` for Ninja builds (scripts default to `build/` if present).
+**Docs:** `TESTING.md` (canonical testing hub). Index: `docs/testing/README.md`
 
 ## Reference Skills
 

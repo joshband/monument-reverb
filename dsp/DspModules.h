@@ -212,7 +212,8 @@ private:
     float outputGain = 1.0f;
     juce::AudioBuffer<float> airState;
     float airCoefficient = 0.0f;
-    juce::SmoothedValue<float> airGainSmoother;  // Per-sample smoothing for airGain
+    juce::SmoothedValue<float> airGainSmoother;      // Per-sample smoothing for airGain
+    juce::SmoothedValue<float> outputGainSmoother;   // Per-sample smoothing for feedback-safe output gain
 
     // Phase 2: Three-System Plan - 3D Panning
     bool use3DPanning = false;

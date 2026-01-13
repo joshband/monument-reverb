@@ -373,6 +373,9 @@ struct ParameterBufferPool
 };
 ```
 
+**Note:** Runtime now supports a heap-backed fallback for block sizes above `kMaxSamples`
+via `prepare(numSamples)`/`capacity()`. Stack buffers remain the fast path.
+
 **Memory Layout:**
 
 ```

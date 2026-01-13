@@ -1,13 +1,17 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <array>
+#include <initializer_list>
+
 #include "PluginProcessor.h"
 
 /**
- * Simple JUCE-based editor for Monument Reverb
- * Uses basic Slider components for clean, functional UI
+ * Expanded JUCE-based editor for Monument Reverb.
+ * Exposes full DSP controls with an optional debug mode for advanced sections.
  */
-class MonumentAudioProcessorEditor : public juce::AudioProcessorEditor
+class MonumentAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                      private juce::Timer
 {
 public:
     explicit MonumentAudioProcessorEditor(MonumentAudioProcessor&);
@@ -17,46 +21,169 @@ public:
     void resized() override;
 
 private:
+    enum class SectionView
+    {
+        BaseParams,
+        Modulation,
+        Timeline
+    };
+
+    using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
+    using ComboBoxAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
+    using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
+
+    static constexpr int kModulationRowCount = 8;
+
+    struct LabeledSlider
+    {
+        juce::Slider slider;
+        juce::Label label;
+        std::unique_ptr<SliderAttachment> attachment;
+    };
+
+    struct LabeledCombo
+    {
+        juce::ComboBox combo;
+        juce::Label label;
+        std::unique_ptr<ComboBoxAttachment> attachment;
+    };
+
+    struct LabeledToggle
+    {
+        juce::ToggleButton toggle;
+        juce::Label label;
+        std::unique_ptr<ButtonAttachment> attachment;
+    };
+
+    struct ControlEntry
+    {
+        juce::Component* control{nullptr};
+        juce::Label* label{nullptr};
+        int controlHeight{0};
+        int controlWidth{0};
+    };
+
     MonumentAudioProcessor& processorRef;
 
-    // Header label
     juce::Label titleLabel;
+    juce::ToggleButton debugToggle;
+    juce::TextButton baseParamsButton;
+    juce::TextButton modulationButton;
+    juce::TextButton timelineButton;
 
-    // Macro parameter sliders (10 controls)
-    juce::Slider materialSlider;
-    juce::Slider topologySlider;
-    juce::Slider viscositySlider;
-    juce::Slider evolutionSlider;
-    juce::Slider chaosSlider;
-    juce::Slider elasticitySlider;
-    juce::Slider patinaSlider;
-    juce::Slider abyssSlider;
-    juce::Slider coronaSlider;
-    juce::Slider breathSlider;
+    juce::Viewport controlsViewport;
+    juce::Component controlsContent;
 
-    // Labels for sliders
-    juce::Label materialLabel;
-    juce::Label topologyLabel;
-    juce::Label viscosityLabel;
-    juce::Label evolutionLabel;
-    juce::Label chaosLabel;
-    juce::Label elasticityLabel;
-    juce::Label patinaLabel;
-    juce::Label abyssLabel;
-    juce::Label coronaLabel;
-    juce::Label breathLabel;
+    juce::GroupComponent macroModeGroup;
+    juce::GroupComponent ancientMacroGroup;
+    juce::GroupComponent expressiveMacroGroup;
+    juce::GroupComponent coreGroup;
+    juce::GroupComponent routingGroup;
+    juce::GroupComponent modulationGroup;
+    juce::GroupComponent memoryGroup;
+    juce::GroupComponent physicalGroup;
+    juce::GroupComponent timelineGroup;
+    juce::GroupComponent safetyGroup;
+    juce::GroupComponent diagnosticsGroup;
 
-    // Slider attachments
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> materialAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> topologyAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> viscosityAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> evolutionAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> chaosAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> elasticityAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> patinaAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> abyssAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> coronaAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> breathAttachment;
+    LabeledCombo macroModeControl;
+    LabeledCombo routingPresetControl;
+    LabeledCombo pillarModeControl;
+    LabeledCombo timelinePresetControl;
+
+    LabeledToggle freezeControl;
+    LabeledToggle timelineEnabledControl;
+    LabeledToggle safetyClipControl;
+
+    LabeledSlider mixControl;
+    LabeledSlider timeControl;
+    LabeledSlider massControl;
+    LabeledSlider densityControl;
+    LabeledSlider bloomControl;
+    LabeledSlider airControl;
+    LabeledSlider widthControl;
+    LabeledSlider warpControl;
+    LabeledSlider driftControl;
+    LabeledSlider gravityControl;
+    LabeledSlider pillarShapeControl;
+
+    LabeledSlider materialControl;
+    LabeledSlider topologyControl;
+    LabeledSlider viscosityControl;
+    LabeledSlider evolutionControl;
+    LabeledSlider chaosControl;
+    LabeledSlider elasticityDecayControl;
+    LabeledSlider patinaControl;
+    LabeledSlider abyssControl;
+    LabeledSlider coronaControl;
+    LabeledSlider breathControl;
+
+    LabeledSlider characterControl;
+    LabeledSlider spaceTypeControl;
+    LabeledSlider energyControl;
+    LabeledSlider motionControl;
+    LabeledSlider colorControl;
+    LabeledSlider dimensionControl;
+
+    LabeledSlider memoryControl;
+    LabeledSlider memoryDepthControl;
+    LabeledSlider memoryDecayControl;
+    LabeledSlider memoryDriftControl;
+
+    LabeledSlider tubeCountControl;
+    LabeledSlider radiusVariationControl;
+    LabeledSlider metallicResonanceControl;
+    LabeledSlider couplingStrengthControl;
+    LabeledSlider elasticityControl;
+    LabeledSlider recoveryTimeControl;
+    LabeledSlider absorptionDriftControl;
+    LabeledSlider nonlinearityControl;
+    LabeledSlider impossibilityDegreeControl;
+    LabeledSlider pitchEvolutionRateControl;
+    LabeledSlider paradoxResonanceFreqControl;
+    LabeledSlider paradoxGainControl;
+
+    LabeledSlider safetyClipDriveControl;
+
+    juce::Label inputLevelLabel;
+    juce::Label outputLevelLabel;
+
+    juce::Label modulationSummaryLabel;
+    std::array<juce::Label, kModulationRowCount> modulationConnectionLabels;
+    juce::TextButton modulationSparseButton;
+    juce::TextButton modulationDenseButton;
+    juce::TextButton modulationClearButton;
+
+    bool debugMode{false};
+    SectionView activeSection{SectionView::BaseParams};
+    int modulationLabelTick{0};
+
+    void timerCallback() override;
+
+    void setupSlider(LabeledSlider& control, const juce::String& labelText, const juce::String& paramId);
+    void setupCombo(LabeledCombo& control,
+                    const juce::String& labelText,
+                    const juce::StringArray& items,
+                    const juce::String& paramId);
+    void setupToggle(LabeledToggle& control, const juce::String& labelText, const juce::String& paramId);
+
+    ControlEntry entry(LabeledSlider& control) const;
+    ControlEntry entry(LabeledCombo& control) const;
+    ControlEntry entry(LabeledToggle& control) const;
+
+    int layoutGroup(juce::GroupComponent& group,
+                    int y,
+                    int columns,
+                    std::initializer_list<ControlEntry> controls);
+    void setControlsVisible(std::initializer_list<ControlEntry> controls, bool visible);
+    void setComponentsVisible(std::initializer_list<juce::Component*> components, bool visible);
+
+    void setActiveSection(SectionView view);
+    void layoutControls();
+    void updateDebugVisibility();
+    void updateSectionVisibility();
+    void updateMacroModeVisibility(bool allowShow);
+    void updateModulationLabels();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MonumentAudioProcessorEditor)
 };

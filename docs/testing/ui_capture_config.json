@@ -1,0 +1,23 @@
+{
+  "process_name": "Monument",
+  "states": [
+    {
+      "name": "01_default"
+    },
+    {
+      "name": "02_base_params",
+      "label": "BASE PARAMS",
+      "coords": [0.18, 0.09]
+    },
+    {
+      "name": "03_modulation",
+      "label": "MODULATION",
+      "coords": [0.5, 0.09]
+    },
+    {
+      "name": "04_timeline",
+      "label": "TIMELINE",
+      "coords": [0.82, 0.09]
+    }
+  ]
+}

@@ -12,8 +12,26 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
+import tempfile
+from datetime import datetime
 from pathlib import Path
+
+cache_root = Path(os.environ.get("MPLCONFIGDIR", "")) if os.environ.get("MPLCONFIGDIR") else None
+if not cache_root:
+    cache_root = Path(tempfile.gettempdir()) / "monument-mplcache"
+os.environ.setdefault("MPLBACKEND", "Agg")
+try:
+    cache_root.mkdir(parents=True, exist_ok=True)
+except OSError:
+    cache_root = Path(tempfile.gettempdir()) / "monument-mplcache"
+    cache_root.mkdir(parents=True, exist_ok=True)
+    os.environ["MPLCONFIGDIR"] = str(cache_root)
+    os.environ["XDG_CACHE_HOME"] = str(cache_root)
+else:
+    os.environ.setdefault("MPLCONFIGDIR", str(cache_root))
+    os.environ.setdefault("XDG_CACHE_HOME", str(cache_root))
 
 try:
     import numpy as np
@@ -25,6 +43,8 @@ except ImportError as e:
     print("\nInstall dependencies:")
     print("  pip3 install numpy scipy matplotlib")
     sys.exit(1)
+
+SCHEMA_VERSION = "1.0.0"
 
 
 def analyze_impulse_response(impulse_file, output_json=None, plot=True):
@@ -66,7 +86,8 @@ def analyze_impulse_response(impulse_file, output_json=None, plot=True):
             audio = audio.astype(np.float32) / max_val
 
     print(f"  Sample rate: {sample_rate} Hz")
-    print(f"  Duration: {len(audio) / sample_rate:.3f} seconds")
+    duration_seconds = float(len(audio) / sample_rate)
+    print(f"  Duration: {duration_seconds:.3f} seconds")
     print(f"  Samples: {len(audio)}")
 
     # Compute FFT
@@ -87,22 +108,25 @@ def analyze_impulse_response(impulse_file, output_json=None, plot=True):
     magnitude_db = magnitude_db - np.max(magnitude_db)
 
     # Analyze response in octave bands
-    octave_bands = {
-        '63Hz': (45, 90),
-        '125Hz': (90, 177),
-        '250Hz': (177, 355),
-        '500Hz': (355, 710),
-        '1kHz': (710, 1420),
-        '2kHz': (1420, 2840),
-        '4kHz': (2840, 5680),
-        '8kHz': (5680, 11360),
-        '16kHz': (11360, 20000)
-    }
+    octave_band_defs = [
+        ('63', '63Hz', 45, 90),
+        ('125', '125Hz', 90, 177),
+        ('250', '250Hz', 177, 355),
+        ('500', '500Hz', 355, 710),
+        ('1000', '1kHz', 710, 1420),
+        ('2000', '2kHz', 1420, 2840),
+        ('4000', '4kHz', 2840, 5680),
+        ('8000', '8kHz', 5680, 11360),
+        ('16000', '16kHz', 11360, 20000)
+    ]
 
     band_analysis = {}
+    band_analysis_legacy = {}
+    octave_band_ranges = {}
 
     print(f"\n▸ Octave band analysis:")
-    for band_name, (f_low, f_high) in octave_bands.items():
+    for band_key, band_name, f_low, f_high in octave_band_defs:
+        octave_band_ranges[band_name] = (f_low, f_high)
         # Find indices for this band
         mask = (freqs >= f_low) & (freqs <= f_high)
 
@@ -112,13 +136,20 @@ def analyze_impulse_response(impulse_file, output_json=None, plot=True):
             min_db = np.min(band_response)
             max_db = np.max(band_response)
             variation = max_db - min_db
+            flatness_band = np.std(band_response)
 
-            band_analysis[band_name] = {
+            band_analysis[band_key] = {
+                'gain_db': float(avg_db),
+                'flatness_db': float(flatness_band)
+            }
+
+            band_analysis_legacy[band_name] = {
                 'frequency_range': f'{f_low}-{f_high} Hz',
                 'average_db': float(avg_db),
                 'min_db': float(min_db),
                 'max_db': float(max_db),
-                'variation_db': float(variation)
+                'variation_db': float(variation),
+                'flatness_db': float(flatness_band)
             }
 
             print(f"  {band_name:6s}: {avg_db:6.2f} dB (±{variation/2:.2f} dB)")
@@ -128,32 +159,58 @@ def analyze_impulse_response(impulse_file, output_json=None, plot=True):
     audio_range_mask = (freqs >= 20) & (freqs <= 20000)
     audio_spectrum = magnitude_db[audio_range_mask]
     flatness_db = np.std(audio_spectrum)
+    mean_gain_db = np.mean(audio_spectrum)
+
+    audio_freqs = freqs[audio_range_mask]
+    if audio_spectrum.size > 0:
+        peak_frequency_hz = float(audio_freqs[np.argmax(audio_spectrum)])
+        notch_frequency_hz = float(audio_freqs[np.argmin(audio_spectrum)])
+    else:
+        peak_frequency_hz = None
+        notch_frequency_hz = None
 
     print(f"\n▸ Overall flatness: ±{flatness_db:.2f} dB std deviation")
 
     if flatness_db < 3:
+        quality_rating = "Excellent"
         flatness_rating = "Excellent (±3dB)"
     elif flatness_db < 6:
+        quality_rating = "Good"
         flatness_rating = "Good (±6dB)"
     elif flatness_db < 10:
+        quality_rating = "Fair"
         flatness_rating = "Fair (±10dB)"
     else:
+        quality_rating = "Colored"
         flatness_rating = "Colored (>±10dB)"
 
     print(f"  Rating: {flatness_rating}")
 
     # Build results
     results = {
+        'version': SCHEMA_VERSION,
+        'timestamp': datetime.utcnow().replace(microsecond=0).isoformat() + 'Z',
+        'input_file': str(impulse_file),
+        'sample_rate': int(sample_rate),
+        'broadband': {
+            'flatness_db': float(flatness_db),
+            'mean_gain_db': float(mean_gain_db),
+            'peak_frequency_hz': peak_frequency_hz,
+            'notch_frequency_hz': notch_frequency_hz
+        },
         'octave_bands': band_analysis,
+        'quality_rating': quality_rating,
         'overall': {
             'flatness_std_db': float(flatness_db),
             'flatness_rating': flatness_rating,
-            'frequency_range': '20-20000 Hz'
+            'frequency_range': '20-20000 Hz',
+            'mean_gain_db': float(mean_gain_db)
         },
+        'octave_bands_legacy': band_analysis_legacy,
         '_metadata': {
             'audio_file': str(impulse_file),
             'sample_rate': int(sample_rate),
-            'duration_seconds': float(len(audio) / sample_rate),
+            'duration_seconds': duration_seconds,
             'analysis_method': 'FFT of windowed impulse response'
         }
     }
@@ -174,7 +231,7 @@ def analyze_impulse_response(impulse_file, output_json=None, plot=True):
             plot_path = Path(impulse_file).with_name(
                 Path(impulse_file).stem + '_frequency_response.png'
             )
-            generate_frequency_plot(freqs, magnitude_db, octave_bands, plot_path)
+            generate_frequency_plot(freqs, magnitude_db, octave_band_ranges, plot_path)
             print(f"▸ Saved plot to: {plot_path}")
         except Exception as e:
             print(f"▸ Failed to generate plot: {e}")

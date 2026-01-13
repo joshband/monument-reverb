@@ -79,18 +79,24 @@ private:
 
     // Pitch evolution: Allpass cascade for frequency-dependent phase shift
     // This creates spectral "rotation" where frequencies gradually shift
-    std::array<juce::dsp::IIR::Filter<float>, kNumPitchBands> pitchEvolutionFilters;
+    std::array<juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>,
+                                              juce::dsp::IIR::Coefficients<float>>,
+               kNumPitchBands> pitchEvolutionFilters;
     float pitchEvolutionPhase{0.0f};          // Slow LFO for phase modulation
 
     // Paradox resonance: Narrow peak that amplifies instead of decays
-    juce::dsp::IIR::Filter<float> paradoxResonanceFilter;
+    juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>,
+                                   juce::dsp::IIR::Coefficients<float>>
+        paradoxResonanceFilter;
     float paradoxFrequencyHz{432.0f};         // Current paradox freq (default: 432 Hz)
     float paradoxGain{1.0f};                  // Current gain (1.0 = unity, >1.0 = amplification)
     float lastCachedParadoxGain{-1.0f};       // Cache for coefficient updates
 
     // Non-local absorption: Frequency-dependent filter that drifts
     std::array<float, 16> absorptionCurve;    // Per-band absorption profile
-    juce::dsp::IIR::Filter<float> absorptionFilter;
+    juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>,
+                                   juce::dsp::IIR::Coefficients<float>>
+        absorptionFilter;
     float absorptionDriftPhase{0.0f};
     juce::AudioBuffer<float> wetBuffer;       // Pre-allocated buffer for absorption effect
 

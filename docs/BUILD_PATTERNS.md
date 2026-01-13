@@ -393,6 +393,6 @@ cmake --build build --target monument_sequence_scheduler_test -j8
 ---
 
 **See Also:**
-- [TESTING_GUIDE.md](TESTING_GUIDE.md) - Complete testing documentation
+- [testing/README.md](testing/README.md) - Testing hub
 - [STANDARD_BUILD_WORKFLOW.md](../STANDARD_BUILD_WORKFLOW.md) - Build workflow
 - [tools/COMPREHENSIVE_TEST_PLAN.md](../tools/COMPREHENSIVE_TEST_PLAN.md) - Original test plan

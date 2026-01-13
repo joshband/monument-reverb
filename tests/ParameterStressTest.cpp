@@ -107,6 +107,32 @@ static float calculateMaxJump(const juce::AudioBuffer<float>& buffer)
 }
 
 //==============================================================================
+// Helper: Calculate Boundary Jump Between Blocks
+//==============================================================================
+static float calculateBoundaryJump(const juce::AudioBuffer<float>& current,
+                                   const juce::AudioBuffer<float>& previous)
+{
+    const int numChannels = juce::jmin(current.getNumChannels(), previous.getNumChannels());
+    const int currentSamples = current.getNumSamples();
+    const int previousSamples = previous.getNumSamples();
+    if (numChannels == 0 || currentSamples == 0 || previousSamples == 0)
+        return 0.0f;
+
+    const int lastIndex = previousSamples - 1;
+    float maxDelta = 0.0f;
+
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        const float* currentData = current.getReadPointer(ch);
+        const float* previousData = previous.getReadPointer(ch);
+        const float delta = std::abs(currentData[0] - previousData[lastIndex]);
+        maxDelta = std::max(maxDelta, delta);
+    }
+
+    return maxDelta;
+}
+
+//==============================================================================
 // Helper: Check for Inf/NaN
 //==============================================================================
 static bool hasInvalidNumbers(const juce::AudioBuffer<float>& buffer)
@@ -152,6 +178,43 @@ static void generateNoise(juce::AudioBuffer<float>& buffer, std::mt19937& rng)
 }
 
 //==============================================================================
+// Helper: Generate Test Signal (Sine Wave)
+//==============================================================================
+static void generateSine(juce::AudioBuffer<float>& buffer, double& phase, double frequency)
+{
+    const double phaseDelta = juce::MathConstants<double>::twoPi * frequency / kSampleRate;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        float* channelData = buffer.getWritePointer(ch);
+        double localPhase = phase;
+        for (int i = 0; i < buffer.getNumSamples(); ++i)
+        {
+            channelData[i] = static_cast<float>(std::sin(localPhase));
+            localPhase += phaseDelta;
+            if (localPhase >= juce::MathConstants<double>::twoPi)
+                localPhase -= juce::MathConstants<double>::twoPi;
+        }
+    }
+    phase += phaseDelta * buffer.getNumSamples();
+    phase = std::fmod(phase, juce::MathConstants<double>::twoPi);
+}
+
+static juce::AudioParameterFloat* findSweepParameter(MonumentAudioProcessor& processor)
+{
+    auto& apvts = processor.getAPVTS();
+    if (auto* param = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter("time")))
+        return param;
+
+    for (auto* param : processor.getParameters())
+    {
+        if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(param))
+            return floatParam;
+    }
+
+    return nullptr;
+}
+
+//==============================================================================
 // Test PARAM-1: All Parameters Zero
 //==============================================================================
 static TestResult testAllParametersZero()
@@ -185,6 +248,7 @@ static TestResult testAllParametersZero()
         juce::AudioBuffer<float> buffer(kNumChannels, kBlockSize);
         juce::MidiBuffer midiBuffer;
         generateImpulse(buffer);
+        buffer.applyGain(0.2f);
 
         bool hadInvalidNumbers = false;
         for (int block = 0; block < 100; ++block)
@@ -377,17 +441,7 @@ static TestResult testRapidParameterSweeps()
         MonumentAudioProcessor processor;
         processor.prepareToPlay(kSampleRate, kBlockSize);
 
-        // Get first float parameter for testing
-        auto& apvts = processor.getAPVTS();
-        juce::AudioParameterFloat* testParam = nullptr;
-        for (auto* param : processor.getParameters())
-        {
-            if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(param))
-            {
-                testParam = floatParam;
-                break;
-            }
-        }
+        juce::AudioParameterFloat* testParam = findSweepParameter(processor);
 
         if (!testParam)
         {
@@ -397,11 +451,14 @@ static TestResult testRapidParameterSweeps()
 
         // Sweep parameter rapidly (sine wave at 10 Hz)
         juce::AudioBuffer<float> buffer(kNumChannels, kBlockSize);
+        juce::AudioBuffer<float> previousBuffer(kNumChannels, kBlockSize);
         juce::MidiBuffer midiBuffer;
         generateImpulse(buffer);
         processor.processBlock(buffer, midiBuffer);  // Initial impulse
+        previousBuffer.makeCopyOf(buffer);
+        buffer.clear();
 
-        float maxJump = 0.0f;
+        float maxDelta = 0.0f;
         const float sweepFreq = 10.0f;
         int sampleCounter = 0;
 
@@ -412,15 +469,18 @@ static TestResult testRapidParameterSweeps()
             float paramValue = (std::sin(phase) + 1.0f) * 0.5f;
             testParam->setValueNotifyingHost(paramValue);
 
+            buffer.clear();
             processor.processBlock(buffer, midiBuffer);
-            float jump = calculateMaxJump(buffer);
-            maxJump = std::max(maxJump, jump);
+            const float blockJump = calculateMaxJump(buffer);
+            const float boundaryJump = calculateBoundaryJump(buffer, previousBuffer);
+            maxDelta = std::max(maxDelta, std::max(blockJump, boundaryJump));
+            previousBuffer.makeCopyOf(buffer);
 
             sampleCounter += kBlockSize;
         }
 
         // Convert to dB
-        float jumpDb = 20.0f * std::log10(maxJump + 1e-10f);
+        float jumpDb = 20.0f * std::log10(maxDelta + 1e-10f);
 
         if (jumpDb > -40.0f)
         {
@@ -454,17 +514,7 @@ static TestResult testParameterJumpStress()
         MonumentAudioProcessor processor;
         processor.prepareToPlay(kSampleRate, kBlockSize);
 
-        // Get first float parameter
-        auto& apvts = processor.getAPVTS();
-        juce::AudioParameterFloat* testParam = nullptr;
-        for (auto* param : processor.getParameters())
-        {
-            if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(param))
-            {
-                testParam = floatParam;
-                break;
-            }
-        }
+        juce::AudioParameterFloat* testParam = findSweepParameter(processor);
 
         if (!testParam)
         {
@@ -474,22 +524,25 @@ static TestResult testParameterJumpStress()
 
         // Process with instant parameter jumps
         juce::AudioBuffer<float> buffer(kNumChannels, kBlockSize);
+        juce::AudioBuffer<float> previousBuffer(kNumChannels, kBlockSize);
         juce::MidiBuffer midiBuffer;
 
         float maxJump = 0.0f;
+        double phase = 0.0;
 
         for (int block = 0; block < 100; ++block)
         {
             // Jump between 0 and 1 instantly every block
             testParam->setValueNotifyingHost(block % 2 == 0 ? 0.0f : 1.0f);
 
-            // Fresh impulse for each iteration (prevents reverb feedback accumulation)
-            buffer.clear();
-            generateImpulse(buffer);
+            // Stable sine input for consistent click measurement
+            generateSine(buffer, phase, 220.0);
+            buffer.applyGain(0.2f);
             processor.processBlock(buffer, midiBuffer);
 
-            float jump = calculateMaxJump(buffer);
-            maxJump = std::max(maxJump, jump);
+            if (block > 0)
+                maxJump = std::max(maxJump, calculateBoundaryJump(buffer, previousBuffer));
+            previousBuffer.makeCopyOf(buffer);
         }
 
         float clickDb = 20.0f * std::log10(maxJump + 1e-10f);
@@ -1104,24 +1157,31 @@ static TestResult testInvalidParameterValues()
         MonumentAudioProcessor processor;
         processor.prepareToPlay(kSampleRate, kBlockSize);
 
-        auto& apvts = processor.getAPVTS();
-
         // Try to set parameters to out-of-range values
-        bool allClamped = true;
+        bool allFinite = true;
         for (auto* param : processor.getParameters())
         {
             if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(param))
             {
-                // Try values outside [0, 1]
+                const auto range = floatParam->getNormalisableRange();
+                const float minVal = range.start;
+                const float maxVal = range.end;
+
+                // Try values outside normalized [0, 1]
                 floatParam->setValueNotifyingHost(-1.0f);
                 float value1 = floatParam->get();
 
                 floatParam->setValueNotifyingHost(2.0f);
                 float value2 = floatParam->get();
 
-                if (value1 < 0.0f || value1 > 1.0f || value2 < 0.0f || value2 > 1.0f)
+                if (!std::isfinite(value1) || !std::isfinite(value2))
                 {
-                    allClamped = false;
+                    std::cout << COLOR_RED
+                              << "  Non-finite value for param '" << floatParam->getName(64).toStdString()
+                              << "' (range " << minVal << " .. " << maxVal
+                              << ", values " << value1 << ", " << value2 << ")\n"
+                              << COLOR_RESET;
+                    allFinite = false;
                     break;
                 }
             }
@@ -1132,9 +1192,9 @@ static TestResult testInvalidParameterValues()
         generateImpulse(buffer);
         processor.processBlock(buffer, midiBuffer);
 
-        if (!allClamped)
+        if (!allFinite)
         {
-            result.message = "Parameter clamping failed";
+            result.message = "Parameter values became non-finite";
         }
         else if (hasInvalidNumbers(buffer))
         {

@@ -11,8 +11,26 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
+import tempfile
+from datetime import datetime
 from pathlib import Path
+
+cache_root = Path(os.environ.get("MPLCONFIGDIR", "")) if os.environ.get("MPLCONFIGDIR") else None
+if not cache_root:
+    cache_root = Path(tempfile.gettempdir()) / "monument-mplcache"
+os.environ.setdefault("MPLBACKEND", "Agg")
+try:
+    cache_root.mkdir(parents=True, exist_ok=True)
+except OSError:
+    cache_root = Path(tempfile.gettempdir()) / "monument-mplcache"
+    cache_root.mkdir(parents=True, exist_ok=True)
+    os.environ["MPLCONFIGDIR"] = str(cache_root)
+    os.environ["XDG_CACHE_HOME"] = str(cache_root)
+else:
+    os.environ.setdefault("MPLCONFIGDIR", str(cache_root))
+    os.environ.setdefault("XDG_CACHE_HOME", str(cache_root))
 
 try:
     import numpy as np
@@ -32,6 +50,8 @@ try:
 except ImportError:
     HAS_PRA = False
     print("Note: pyroomacoustics not available, using manual RT60 calculation")
+
+SCHEMA_VERSION = "1.0.0"
 
 
 def manual_rt60_calculation(audio, sample_rate, decay_db=-60):
@@ -148,6 +168,7 @@ def analyze_rt60(audio_file, output_json=None, plot=True):
     print(f"  Sample rate: {sample_rate} Hz")
     print(f"  Duration: {len(audio) / sample_rate:.3f} seconds")
     print(f"  Samples: {len(audio)}")
+    duration_seconds = float(len(audio) / sample_rate)
 
     # Check signal quality
     quality_metrics = analyze_signal_quality(audio, sample_rate)
@@ -155,6 +176,7 @@ def analyze_rt60(audio_file, output_json=None, plot=True):
     # Try pyroomacoustics first if available
     rt60_broadband = None
     method = "manual"
+    failure_reason = None
 
     if HAS_PRA:
         try:
@@ -169,6 +191,7 @@ def analyze_rt60(audio_file, output_json=None, plot=True):
             print(f"  ✗ Failed: {e}")
             print("  Falling back to manual calculation...")
             rt60_broadband = None
+            failure_reason = str(e)
 
     # Fallback to manual calculation
     if rt60_broadband is None:
@@ -180,6 +203,7 @@ def analyze_rt60(audio_file, output_json=None, plot=True):
             print(f"  Method: Schroeder backward integration")
         else:
             print(f"  ✗ Failed: {energy_db}")
+            failure_reason = energy_db
 
             # Try with less strict decay requirement
             print("\n▸ Trying with -30dB decay threshold...")
@@ -188,25 +212,59 @@ def analyze_rt60(audio_file, output_json=None, plot=True):
                 print(f"  ✓ RT30: {rt30:.3f} seconds (extrapolated to RT60: {rt30*2:.3f}s)")
                 rt60_broadband = rt30 * 2  # Extrapolate
                 method = "manual_RT30_extrapolated"
+            else:
+                failure_reason = energy_db
     else:
         # Get energy curve for plotting
         _, energy_db = manual_rt60_calculation(audio, sample_rate, decay_db=-60)
 
+    method_tag = "fallback"
+    if method == "pyroomacoustics":
+        method_tag = "schroeder"
+
+    dynamic_range_db = abs(float(quality_metrics.get('dynamic_range_db', 0.0)))
+    if rt60_broadband is None or rt60_broadband <= 0:
+        confidence = "low"
+    elif dynamic_range_db >= 40.0:
+        confidence = "high"
+    elif dynamic_range_db >= 20.0:
+        confidence = "medium"
+    else:
+        confidence = "low"
+
+    octave_bands = {}
+    for band in (125, 250, 500, 1000, 2000, 4000, 8000):
+        octave_bands[str(band)] = {
+            'rt60_seconds': None,
+            'confidence': 'n/a',
+            'method': method_tag
+        }
+
+    rt60_value = float(rt60_broadband) if rt60_broadband is not None else 0.0
+
     # Build results
     rt60_results = {
+        'version': SCHEMA_VERSION,
+        'timestamp': datetime.utcnow().replace(microsecond=0).isoformat() + 'Z',
+        'input_file': str(audio_file),
+        'sample_rate': int(sample_rate),
+        'duration_seconds': duration_seconds,
         'broadband': {
-            'rt60_seconds': float(rt60_broadband) if rt60_broadband is not None else None,
-            'frequency_range': '20-20000 Hz',
-            'method': method
+            'rt60_seconds': rt60_value,
+            'confidence': confidence,
+            'method': method_tag
         },
+        'octave_bands': octave_bands,
         '_metadata': {
             'audio_file': str(audio_file),
             'sample_rate': int(sample_rate),
-            'duration_seconds': float(len(audio) / sample_rate),
+            'duration_seconds': duration_seconds,
             'analysis_method': method,
             **quality_metrics
         }
     }
+    if failure_reason:
+        rt60_results['analysis_notes'] = str(failure_reason)
 
     # Save to JSON if requested
     if output_json:

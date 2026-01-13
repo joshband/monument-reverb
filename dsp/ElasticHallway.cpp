@@ -29,7 +29,7 @@ void ElasticHallway::prepare(double sampleRate, int blockSize, int numChannels)
     // Prepare pressure tracking filter (low-pass for RMS smoothing)
     auto pressureCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(
         sampleRate, 2.0, 0.707); // 2 Hz cutoff for slow pressure tracking
-    *pressureFilter.coefficients = *pressureCoeffs;
+    *pressureFilter.state = *pressureCoeffs;
     pressureFilter.prepare({sampleRate, static_cast<juce::uint32>(blockSize),
                            static_cast<juce::uint32>(numChannels)});
     pressureFilter.reset();
@@ -216,7 +216,7 @@ void ElasticHallway::updateModalFilters()
             auto coeffs = juce::dsp::IIR::Coefficients<float>::makeBandPass(
                 sampleRateHz, mode.currentFrequency, Q);
 
-            *mode.filter.coefficients = *coeffs;
+            *mode.filter.state = *coeffs;
             mode.lastCachedFrequency = mode.currentFrequency;
         }
     }

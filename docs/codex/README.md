@@ -11,3 +11,7 @@ Short guide set for brand new Codex users. Start here, then use the deeper manua
 - Quick Reference: ./Quick_Reference.md
 - Security and Privacy: ./Security_and_Privacy.md
 - Glossary: ./Glossary.md
+
+## Repo entrypoints
+- Local rules: `AGENTS.md`
+- Testing hub: `TESTING.md` (canonical). Index: `docs/testing/README.md`

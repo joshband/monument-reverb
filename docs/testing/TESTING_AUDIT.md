@@ -697,7 +697,7 @@ matplotlib >= 3.5.0          # Visualization
 
 ## 11. Missing Coverage (Future Enhancements)
 
-From [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) "Future Enhancements":
+From [docs/testing/TESTING_GUIDE.md](docs/testing/TESTING_GUIDE.md) "Future Enhancements":
 
 ### 11.1 Performance Benchmarking
 **Status:** Not implemented
@@ -824,7 +824,7 @@ From [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) "Future Enhancements":
 
 | Document | Status | Completeness |
 |----------|--------|--------------|
-| [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) | ✅ Complete | 90% |
+| [docs/testing/TESTING_GUIDE.md](docs/testing/TESTING_GUIDE.md) | ✅ Complete | 90% |
 | [docs/BUILD_PATTERNS.md](docs/BUILD_PATTERNS.md) | ✅ Complete | 85% |
 | [tests/README.md](tests/README.md) | ✅ Present | 70% |
 | [tools/plugin-analyzer/README.md](tools/plugin-analyzer/README.md) | ⚠️ Minimal | 40% |
@@ -1194,7 +1194,7 @@ analyze_profile.py
 - [.github/workflows/build.yml](.github/workflows/build.yml)
 
 ### Documentation
-- [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)
+- [docs/testing/TESTING_GUIDE.md](docs/testing/TESTING_GUIDE.md)
 - [docs/BUILD_PATTERNS.md](docs/BUILD_PATTERNS.md)
 - [tests/README.md](tests/README.md)
 

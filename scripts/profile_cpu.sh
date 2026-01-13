@@ -5,7 +5,45 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-APP_PATH="$PROJECT_ROOT/build/Monument_artefacts/RelWithDebInfo/Standalone/Monument.app"
+if [ -z "${BUILD_DIR:-}" ]; then
+    if [ -d "$PROJECT_ROOT/build" ]; then
+        BUILD_DIR="$PROJECT_ROOT/build"
+    elif [ -d "$PROJECT_ROOT/build-ninja" ]; then
+        BUILD_DIR="$PROJECT_ROOT/build-ninja"
+    else
+        BUILD_DIR="$PROJECT_ROOT/build"
+    fi
+elif [[ "$BUILD_DIR" != /* ]]; then
+    BUILD_DIR="$PROJECT_ROOT/$BUILD_DIR"
+fi
+PROFILE_CONFIG="${PROFILE_CONFIG:-RelWithDebInfo}"
+
+find_standalone_app() {
+    local base="$BUILD_DIR/Monument_artefacts"
+    local candidates=(
+        "$base/$PROFILE_CONFIG/Standalone/Monument.app"
+        "$base/RelWithDebInfo/Standalone/Monument.app"
+        "$base/Release/Standalone/Monument.app"
+        "$base/Debug/Standalone/Monument.app"
+        "$base/Standalone/Monument.app"
+    )
+
+    for candidate in "${candidates[@]}"; do
+        if [ -d "$candidate" ]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+APP_PATH=""
+if APP_PATH=$(find_standalone_app); then
+    true
+else
+    APP_PATH="$BUILD_DIR/Monument_artefacts/$PROFILE_CONFIG/Standalone/Monument.app"
+fi
 TRACE_OUTPUT="$PROJECT_ROOT/monument_profile.trace"
 
 # Colors
@@ -22,8 +60,8 @@ echo ""
 if [ ! -d "$APP_PATH" ]; then
     echo -e "${RED}Error: Monument.app not found at $APP_PATH${NC}"
     echo "Please build with RelWithDebInfo first:"
-    echo "  cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo"
-    echo "  cmake --build build --config RelWithDebInfo"
+    echo "  cmake -B \"$BUILD_DIR\" -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    echo "  cmake --build \"$BUILD_DIR\" --config RelWithDebInfo"
     exit 1
 fi
 

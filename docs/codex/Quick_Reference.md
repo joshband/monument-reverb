@@ -21,3 +21,7 @@ Output: ..."
 - Name the command to run.
 - Specify build config (Debug or Release).
 - Ask for a summary of failures if any.
+
+## Repo entrypoints
+- Check `AGENTS.md` for local rules.
+- Testing hub: `TESTING.md` (canonical). Index: `docs/testing/README.md`.

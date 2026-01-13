@@ -74,7 +74,7 @@
 
 **Testing Documentation:**
 
-- `docs/TESTING_GUIDE.md` → Already in `docs/testing/TESTING.md` (consolidate)
+- `docs/testing/TESTING_GUIDE.md` → Link from `TESTING.md` / `docs/testing/README.md`
 - `docs/testing_audit.md` (1,203 lines) → Move to `docs/testing/TESTING_AUDIT.md`
 - `docs/test_output_schemas.md` (737 lines) → Move to `docs/schemas/test_output_schemas.md`
 
@@ -251,7 +251,7 @@ docs/
 
 **Actions:**
 
-- Move `docs/TESTING_GUIDE.md` → Merge into `docs/testing/TESTING.md`
+- Move `docs/testing/TESTING_GUIDE.md` → Link from `TESTING.md`
 - Move `docs/testing_audit.md` → `docs/testing/TESTING_AUDIT.md`
 - Move `docs/test_output_schemas.md` → `docs/schemas/test_output_schemas.md`
 - Move `docs/STRESS_TEST_PLAN.md` → `docs/testing/STRESS_TEST_PLAN.md`

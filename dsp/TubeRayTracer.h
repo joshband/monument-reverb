@@ -67,7 +67,9 @@ private:
         float diameterMM{25.0f};            // Diameter: 5mm - 50mm
         float absorptionPerMeter{0.1f};     // High-frequency absorption coefficient
         std::vector<float> modalFrequencies; // Helmholtz resonance frequencies
-        juce::dsp::IIR::Filter<float> resonanceFilter; // Modal resonance emphasis
+        juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>,
+                                       juce::dsp::IIR::Coefficients<float>>
+            resonanceFilter; // Modal resonance emphasis
         float currentEnergy{0.0f};          // Ray energy in this tube (block-rate)
         float lastCachedFundamentalFreq{-1.0f}; // Cache for coefficient updates
     };

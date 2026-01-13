@@ -52,7 +52,18 @@ assets/textures/
 assets/ui/knobs_enhanced/
 
 # Test output (generated audio captures and analysis)
-test-results/
+test-results/*
+test-results/.*
+!test-results/README.md
+
+# UI design references (large, local-only)
+docs/ui/design-references/**/*.png
+docs/ui/design-references/**/*.jpg
+docs/ui/design-references/**/*.jpeg
+docs/ui/design-references/**/*.gif
+docs/ui/design-references/**/*.webp
+docs/ui/design-references/**/*.tif
+docs/ui/design-references/**/*.tiff
 
 # Large filmstrip files (>50MB)
 assets/ui/knobs_photorealistic/*_filmstrip.png

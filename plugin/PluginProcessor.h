@@ -81,8 +81,19 @@ public:
     float getInputLevel() const noexcept { return inputLevel.load(std::memory_order_relaxed); }
     float getOutputLevel() const noexcept { return outputLevel.load(std::memory_order_relaxed); }
 
+#if defined(MONUMENT_TESTING)
+    int getLastRoutingPresetForTesting() const noexcept { return lastRoutingPreset; }
+#endif
+
 private:
     enum class PresetTransitionState
+    {
+        None,
+        FadingOut,
+        FadingIn
+    };
+
+    enum class ModeTransitionState
     {
         None,
         FadingOut,
@@ -119,11 +130,17 @@ private:
         float impossibilityDegree, pitchEvolutionRate, paradoxResonanceFreq, paradoxGain;
         float routingPreset;  // DSP routing architecture (0-7)
         float macroMode;  // 0 = Ancient Monuments, 1 = Expressive Macros
+        float safetyClipDrive;  // Output soft clip intensity (0..1)
+        float timelinePreset;  // Timeline preset index
+        bool safetyClip;
+        bool timelineEnabled;
         bool freeze;
     } paramCache{};
 
     // Track last routing preset to detect changes
     int lastRoutingPreset{0};
+    int lastTimelinePreset{-1};
+    bool lastTimelineEnabled{false};
 
     // Processing mode state (Ancient Monuments routing modes)
     ProcessingMode currentMode{ProcessingMode::AncientWay};
@@ -137,6 +154,7 @@ private:
     juce::SmoothedValue<float> bloomSmoother;
     juce::SmoothedValue<float> airSmoother;
     juce::SmoothedValue<float> widthSmoother;
+    juce::SmoothedValue<float> mixSmoother;
     juce::SmoothedValue<float> warpSmoother;
     juce::SmoothedValue<float> driftSmoother;
     juce::SmoothedValue<float> gravitySmoother;
@@ -166,6 +184,7 @@ private:
 
     // Processing mode transition gain (prevents clicks on mode change)
     juce::SmoothedValue<float> modeTransitionGain;
+    ModeTransitionState modeTransitionState{ModeTransitionState::None};
 
     std::atomic<bool> presetResetRequested{false};
     PresetTransitionState presetTransition = PresetTransitionState::None;
@@ -175,6 +194,9 @@ private:
 #if defined(MONUMENT_MEMORY_PROVE)
     int memoryProvePulseInterval = 0;
     int memoryProvePulseRemaining = 0;
+#endif
+#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+    bool testingLoggerRegistered{false};
 #endif
 
     // Processing mode implementations (Ancient Monuments routing)

@@ -19,7 +19,7 @@ Monument is a compositional tool for massive, slow, dense, evolving ambience. It
 
 **Build Status:** ✅ VST3/AU compiling and installing successfully
 
-**Test Status:** 17/21 tests passing (81%)
+**Test Status:** See `TESTING.md` for the current test matrix and run results.
 
 **Preset Count:** 8 presets (3 original + 5 experimental)
 
@@ -41,11 +41,17 @@ Monument is a compositional tool for massive, slow, dense, evolving ambience. It
 ### Build and Install
 
 ```bash
-# Initial setup (first time only)
-cmake -B build -DCMAKE_BUILD_TYPE=Release
+# Configure (Xcode generator)
+cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64
 
-# Build and auto-install (VST3 + AU)
+# Build Release
 cmake --build build --config Release -j8
+
+# One-shot Debug + Release build
+./scripts/build_macos.sh
+
+# Generate and open Xcode project
+./scripts/open_xcode.sh
 
 # Run tests
 ctest --test-dir build -C Release
@@ -162,16 +168,43 @@ User presets can be saved as JSON in `~/Documents/MonumentPresets/`.
 ## Testing
 
 ```bash
-# Run all tests
+# Build analyzer (needed for audio regression + preset capture)
+cmake --build build --config Release --target monument_plugin_analyzer
+
+# Use a non-default build directory (e.g., Ninja)
+BUILD_DIR=build-ninja cmake --build build-ninja --config Release --target monument_plugin_analyzer
+
+# Install Python deps for analysis (one-time)
+python3 -m pip install -r tools/plugin-analyzer/python/requirements.txt
+
+# Run C++ tests
 ctest --test-dir build -C Release
 
-# Or use comprehensive test script
+# Run C++ tests from a Ninja build
+ctest --test-dir build-ninja -C Release
+
+# Run comprehensive CI/QA harness (CTest + audio regression + quality gates)
 ./scripts/run_ci_tests.sh
 ```
 
-**Test Status:** 17/21 tests passing (81%)
+Set `TEST_CONFIG=Debug` to point the harness at Debug builds and test binaries.
+Set `BUILD_DIR=build-ninja` to point the harness at a Ninja build directory.
 
-**For detailed testing guide, see [docs/testing/TESTING_GUIDE.md](docs/testing/TESTING_GUIDE.md)**
+**Testing hub:** [TESTING.md](TESTING.md) (canonical) and [docs/testing/README.md](docs/testing/README.md) (index).
+
+---
+
+## UI Prototype
+
+```bash
+cmake --build build --config Debug --target monument_ui_prototype
+```
+
+Run the app at:
+
+```
+build/monument_ui_prototype_artefacts/Debug/Monument UI Prototype.app
+```
 
 ---
 
@@ -181,15 +214,13 @@ ctest --test-dir build -C Release
 monument-reverb/
 ├── plugin/           # JUCE processor and editor
 ├── dsp/              # DSP modules
-├── ui/               # Custom UI components (LayeredKnob)
-├── playground/       # Standalone UI playground app
-├── Source/Particles/ # Particle simulation + presets (playground)
+├── ui/               # UI components + UI prototype entrypoint
 ├── assets/ui/        # Knob layer PNGs
-├── assets/knob_*/     # PBR knob packs for playground
 ├── scripts/          # Build scripts, Blender knob generation
 ├── tests/            # CTest coverage
 ├── docs/             # Documentation (see docs/INDEX.md)
-└── build/            # CMake build output (gitignored)
+├── build/            # CMake build output (Xcode, gitignored)
+└── build-ninja/      # Ninja build output (optional, gitignored)
 ```
 
 ---

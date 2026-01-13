@@ -101,7 +101,8 @@
 
 ### Testing Guides
 
-- [testing/TESTING_GUIDE.md](testing/TESTING_GUIDE.md) - End-to-end testing infrastructure
+- [testing/README.md](testing/README.md) - Testing hub (canonical entrypoint)
+- [testing/TESTING_GUIDE.md](testing/TESTING_GUIDE.md) - End-to-end testing infrastructure (deep dive)
 - [testing/TESTING.md](testing/TESTING.md) - Pluginval and validation
 - [testing/TESTING_AUDIT.md](testing/TESTING_AUDIT.md) - Testing audit
 - [testing/MODULATION_TESTING_GUIDE.md](testing/MODULATION_TESTING_GUIDE.md) - Test modulation system
@@ -289,10 +290,11 @@ docs/
 
 ### Path 4: QA/Testing
 
-1. [testing/TESTING_GUIDE.md](testing/TESTING_GUIDE.md) - Testing infrastructure
-2. [testing/MODULATION_TESTING_GUIDE.md](testing/MODULATION_TESTING_GUIDE.md) - Modulation testing
-3. [development/QUICK_START_MACRO_TESTING.md](development/QUICK_START_MACRO_TESTING.md) - Macro testing
-4. [testing/STRESS_TEST_PLAN.md](testing/STRESS_TEST_PLAN.md) - Stress testing
+1. [testing/README.md](testing/README.md) - Testing hub
+2. [testing/TESTING_GUIDE.md](testing/TESTING_GUIDE.md) - Testing infrastructure (deep dive)
+3. [testing/MODULATION_TESTING_GUIDE.md](testing/MODULATION_TESTING_GUIDE.md) - Modulation testing
+4. [development/QUICK_START_MACRO_TESTING.md](development/QUICK_START_MACRO_TESTING.md) - Macro testing
+5. [testing/STRESS_TEST_PLAN.md](testing/STRESS_TEST_PLAN.md) - Stress testing
 
 ---
 

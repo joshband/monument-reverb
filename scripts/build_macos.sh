@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${ROOT_DIR}/build-ninja"
+BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build-ninja}"
+GENERATOR="${GENERATOR:-Ninja}"
 
 if [[ -z "${JUCE_SOURCE_DIR:-}" ]]; then
     echo "JUCE_SOURCE_DIR is required (local JUCE checkout)."
@@ -10,7 +11,7 @@ if [[ -z "${JUCE_SOURCE_DIR:-}" ]]; then
     exit 1
 fi
 
-cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" -G Ninja \
+cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" -G "${GENERATOR}" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DMONUMENT_USE_LOCAL_JUCE=ON \

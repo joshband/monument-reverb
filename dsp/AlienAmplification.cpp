@@ -152,7 +152,7 @@ void AlienAmplification::initializePitchEvolutionFilters()
         auto coeffs = juce::dsp::IIR::Coefficients<float>::makeAllPass(
             sampleRateHz, freq, Q);
 
-        *pitchEvolutionFilters[i].coefficients = *coeffs;
+        *pitchEvolutionFilters[i].state = *coeffs;
     }
 }
 
@@ -189,7 +189,7 @@ void AlienAmplification::updatePitchEvolution()
         auto coeffs = juce::dsp::IIR::Coefficients<float>::makeAllPass(
             sampleRateHz, modulatedFreq, 0.707f);
 
-        *pitchEvolutionFilters[i].coefficients = *coeffs;
+        *pitchEvolutionFilters[i].state = *coeffs;
     }
 }
 
@@ -212,7 +212,7 @@ void AlienAmplification::updateParadoxResonance()
             sampleRateHz, paradoxFrequencyHz, Q,
             juce::Decibels::decibelsToGain((paradoxGain - 1.0f) * 100.0f)); // Convert to dB gain
 
-        *paradoxResonanceFilter.coefficients = *coeffs;
+        *paradoxResonanceFilter.state = *coeffs;
         lastCachedParadoxGain = paradoxGain;
     }
 }
@@ -303,7 +303,7 @@ void AlienAmplification::applyNonLocalAbsorption(juce::AudioBuffer<float>& buffe
     auto coeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(
         sampleRateHz, cutoffHz, 0.707f);
 
-    *absorptionFilter.coefficients = *coeffs;
+    *absorptionFilter.state = *coeffs;
 
     // Apply filter with wet/dry mix using pre-allocated buffer
     wetBuffer.clear();

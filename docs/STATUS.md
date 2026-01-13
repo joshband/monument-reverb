@@ -8,7 +8,7 @@
 
 **Phase 4: Supporting Systems Documentation** - ✅ **COMPLETE** (4/4 modules)
 
-**Test Status:** 17/21 tests passing (81%)
+**Test Status:** See `TESTING.md` for the current test matrix and run results.
 
 **Build Status:** ✅ VST3 compiling and installing successfully
 

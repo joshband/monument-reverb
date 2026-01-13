@@ -83,7 +83,9 @@ private:
         float currentFrequency{100.0f};    // Deformation-modified frequency
         float lastCachedFrequency{-1.0f};  // Cache for coefficient updates
         float amplitude{0.0f};             // Modal amplitude (energy)
-        juce::dsp::IIR::Filter<float> filter; // Resonant filter for this mode
+        juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>,
+                                       juce::dsp::IIR::Coefficients<float>>
+            filter; // Resonant filter for this mode
     };
 
     static constexpr int kNumModes = 8; // Number of room modes to simulate
@@ -120,7 +122,9 @@ private:
     juce::AudioBuffer<float> modalBuffer;
 
     // Pressure tracking filter (exponential averaging)
-    juce::dsp::IIR::Filter<float> pressureFilter;
+    juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>,
+                                   juce::dsp::IIR::Coefficients<float>>
+        pressureFilter;
 
     // Absorption drift LFO state
     float absorptionDriftPhase{0.0f};

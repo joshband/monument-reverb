@@ -2,6 +2,8 @@
 
 Complete automated testing system for batch analyzing all 37 factory presets.
 
+Note: The canonical testing hub is `TESTING.md` in the repo root. This file focuses on the audio regression tooling details.
+
 ## Quick Start
 
 ```bash
@@ -249,6 +251,7 @@ pip3 install pyroomacoustics
      --plugin ~/Library/Audio/Plug-Ins/VST3/Monument.vst3 \
      --preset 0 --duration 15
    ```
+   For Ninja builds, swap `build/` with `build-ninja/` or set `BUILD_DIR`.
 
 ---
 

@@ -320,6 +320,11 @@ void Chambers::reset()
     writePositions.fill(0);
     lowpassState.fill(0.0f);
     gravityLowpassState.fill(0.0f);
+    dcBlockerLowpassState.fill(0.0f);
+    inputDCBlockerMidState = 0.0f;
+    inputDCBlockerSideState = 0.0f;
+    outputDCBlockerLeftState = 0.0f;
+    outputDCBlockerRightState = 0.0f;
     for (auto& diffuser : inputDiffusers)
         diffuser.reset();
     for (auto& diffuser : lateDiffusers)

@@ -77,6 +77,66 @@ struct ParameterBuffer
     }
 
     /**
+     * @brief Copy constructor (safe for constant buffers).
+     *
+     * Repoints constant-mode data to this instance's storage to avoid dangling pointers.
+     */
+    ParameterBuffer(const ParameterBuffer& other) noexcept
+        : data(other.data)
+        , numSamples(other.numSamples)
+        , isPerSample(other.isPerSample)
+        , constantStorage(other.constantStorage)
+    {
+        if (!isPerSample)
+            data = &constantStorage;
+    }
+
+    /**
+     * @brief Copy assignment (safe for constant buffers).
+     *
+     * Repoints constant-mode data to this instance's storage to avoid dangling pointers.
+     */
+    ParameterBuffer& operator=(const ParameterBuffer& other) noexcept
+    {
+        if (this == &other)
+            return *this;
+
+        numSamples = other.numSamples;
+        isPerSample = other.isPerSample;
+        constantStorage = other.constantStorage;
+        data = isPerSample ? other.data : &constantStorage;
+        return *this;
+    }
+
+    /**
+     * @brief Move constructor (safe for constant buffers).
+     */
+    ParameterBuffer(ParameterBuffer&& other) noexcept
+        : data(other.data)
+        , numSamples(other.numSamples)
+        , isPerSample(other.isPerSample)
+        , constantStorage(other.constantStorage)
+    {
+        if (!isPerSample)
+            data = &constantStorage;
+    }
+
+    /**
+     * @brief Move assignment (safe for constant buffers).
+     */
+    ParameterBuffer& operator=(ParameterBuffer&& other) noexcept
+    {
+        if (this == &other)
+            return *this;
+
+        numSamples = other.numSamples;
+        isPerSample = other.isPerSample;
+        constantStorage = other.constantStorage;
+        data = isPerSample ? other.data : &constantStorage;
+        return *this;
+    }
+
+    /**
      * @brief Default constructor (safe default - points to constant storage).
      */
     ParameterBuffer() noexcept
@@ -124,6 +184,42 @@ struct ParameterBufferPool
     alignas(64) float driftBuffer[kMaxSamples];
 
     /**
+     * @brief Ensure the pool can handle a given block size.
+     *
+     * Uses stack buffers for <= kMaxSamples, otherwise allocates heap buffers
+     * during prepare time (not real-time critical).
+     */
+    void prepare(int numSamples) noexcept
+    {
+        if (numSamples <= kMaxSamples)
+        {
+            heapSamples = 0;
+            return;
+        }
+
+        if (numSamples <= heapSamples)
+            return;
+
+        heapSamples = numSamples;
+        timeHeap.calloc(static_cast<size_t>(heapSamples));
+        massHeap.calloc(static_cast<size_t>(heapSamples));
+        densityHeap.calloc(static_cast<size_t>(heapSamples));
+        bloomHeap.calloc(static_cast<size_t>(heapSamples));
+        gravityHeap.calloc(static_cast<size_t>(heapSamples));
+        pillarShapeHeap.calloc(static_cast<size_t>(heapSamples));
+        warpHeap.calloc(static_cast<size_t>(heapSamples));
+        driftHeap.calloc(static_cast<size_t>(heapSamples));
+    }
+
+    /**
+     * @brief Maximum buffer size supported by the pool.
+     */
+    int capacity() const noexcept
+    {
+        return heapSamples > 0 ? heapSamples : kMaxSamples;
+    }
+
+    /**
      * @brief Fill buffer with per-sample smoothed values from JUCE SmoothedValue.
      *
      * Advances the smoother and fills the destination buffer with
@@ -159,4 +255,115 @@ struct ParameterBufferPool
     {
         return ParameterBuffer(buffer, numSamples);
     }
+
+    float* getTimeBuffer(int numSamples) noexcept
+    {
+        return selectBuffer(timeBuffer, timeHeap, numSamples);
+    }
+
+    float* getMassBuffer(int numSamples) noexcept
+    {
+        return selectBuffer(massBuffer, massHeap, numSamples);
+    }
+
+    float* getDensityBuffer(int numSamples) noexcept
+    {
+        return selectBuffer(densityBuffer, densityHeap, numSamples);
+    }
+
+    float* getBloomBuffer(int numSamples) noexcept
+    {
+        return selectBuffer(bloomBuffer, bloomHeap, numSamples);
+    }
+
+    float* getGravityBuffer(int numSamples) noexcept
+    {
+        return selectBuffer(gravityBuffer, gravityHeap, numSamples);
+    }
+
+    float* getPillarShapeBuffer(int numSamples) noexcept
+    {
+        return selectBuffer(pillarShapeBuffer, pillarShapeHeap, numSamples);
+    }
+
+    float* getWarpBuffer(int numSamples) noexcept
+    {
+        return selectBuffer(warpBuffer, warpHeap, numSamples);
+    }
+
+    float* getDriftBuffer(int numSamples) noexcept
+    {
+        return selectBuffer(driftBuffer, driftHeap, numSamples);
+    }
+
+    const float* getTimeBuffer(int numSamples) const noexcept
+    {
+        return selectBuffer(timeBuffer, timeHeap, numSamples);
+    }
+
+    const float* getMassBuffer(int numSamples) const noexcept
+    {
+        return selectBuffer(massBuffer, massHeap, numSamples);
+    }
+
+    const float* getDensityBuffer(int numSamples) const noexcept
+    {
+        return selectBuffer(densityBuffer, densityHeap, numSamples);
+    }
+
+    const float* getBloomBuffer(int numSamples) const noexcept
+    {
+        return selectBuffer(bloomBuffer, bloomHeap, numSamples);
+    }
+
+    const float* getGravityBuffer(int numSamples) const noexcept
+    {
+        return selectBuffer(gravityBuffer, gravityHeap, numSamples);
+    }
+
+    const float* getPillarShapeBuffer(int numSamples) const noexcept
+    {
+        return selectBuffer(pillarShapeBuffer, pillarShapeHeap, numSamples);
+    }
+
+    const float* getWarpBuffer(int numSamples) const noexcept
+    {
+        return selectBuffer(warpBuffer, warpHeap, numSamples);
+    }
+
+    const float* getDriftBuffer(int numSamples) const noexcept
+    {
+        return selectBuffer(driftBuffer, driftHeap, numSamples);
+    }
+
+private:
+    static float* selectBuffer(float* stackBuffer,
+                               juce::HeapBlock<float>& heapBuffer,
+                               int numSamples) noexcept
+    {
+        if (numSamples > kMaxSamples)
+            return heapBuffer.get();
+
+        return stackBuffer;
+    }
+
+    static const float* selectBuffer(const float* stackBuffer,
+                                     const juce::HeapBlock<float>& heapBuffer,
+                                     int numSamples) noexcept
+    {
+        if (numSamples > kMaxSamples)
+            return heapBuffer.get();
+
+        return stackBuffer;
+    }
+
+    int heapSamples{0};
+    juce::HeapBlock<float> timeHeap;
+    juce::HeapBlock<float> massHeap;
+    juce::HeapBlock<float> densityHeap;
+    juce::HeapBlock<float> bloomHeap;
+    juce::HeapBlock<float> gravityHeap;
+    juce::HeapBlock<float> pillarShapeHeap;
+    juce::HeapBlock<float> warpHeap;
+    juce::HeapBlock<float> driftHeap;
 };

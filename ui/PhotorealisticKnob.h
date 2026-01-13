@@ -16,6 +16,12 @@ namespace monument {
 class PhotorealisticKnob : public juce::Slider
 {
 public:
+    enum class RotationMode
+    {
+        KnobAndIndicator,
+        IndicatorOnly,
+    };
+
     PhotorealisticKnob()
     {
         setSliderStyle(juce::Slider::RotaryVerticalDrag);
@@ -37,6 +43,61 @@ public:
         frameHeight = filmstrip.getHeight() / numFrames;
     }
 
+    /** Load layered knob assets (static plate + rotating knob). */
+    void setLayerImages(const juce::Image& plateImage, const juce::Image& knobImage)
+    {
+        plateLayer = plateImage;
+        knobLayer = knobImage;
+        useLayeredImages = plateLayer.isValid() && knobLayer.isValid();
+        repaint();
+    }
+
+    /** Optional overlay layers (static shadow + static highlight). */
+    void setOverlayImages(const juce::Image& highlightImage, const juce::Image& shadowImage)
+    {
+        highlightLayer = highlightImage;
+        shadowLayer = shadowImage;
+        repaint();
+    }
+
+    /** Optional plate shadow layer (static, drawn behind plate). */
+    void setPlateShadowImage(const juce::Image& plateShadowImage)
+    {
+        plateShadowLayer = plateShadowImage;
+        repaint();
+    }
+
+    /** Optional indicator layer (rotates when enabled). */
+    void setIndicatorImage(const juce::Image& indicatorImage)
+    {
+        indicatorLayer = indicatorImage;
+        repaint();
+    }
+
+    void setRotationMode(RotationMode mode)
+    {
+        rotationMode = mode;
+        repaint();
+    }
+
+    void setIndicatorColor(juce::Colour color)
+    {
+        indicatorColor = color;
+        repaint();
+    }
+
+    void clearLayerImages()
+    {
+        plateLayer = {};
+        plateShadowLayer = {};
+        knobLayer = {};
+        highlightLayer = {};
+        shadowLayer = {};
+        indicatorLayer = {};
+        useLayeredImages = false;
+        repaint();
+    }
+
     /** Enable/disable LED ring overlay */
     void setLEDRingEnabled(bool enabled)
     {
@@ -53,26 +114,36 @@ public:
 
     void paint(juce::Graphics& g) override
     {
-        if (!filmstrip.isValid())
-        {
-            // Fallback rendering if no filmstrip loaded
-            paintFallback(g);
-            return;
-        }
-
         // Calculate frame index from value (0 to numFrames-1)
         const float normalizedValue = static_cast<float>(valueToProportionOfLength(getValue()));
-        const int frameIndex = juce::jlimit(0, numFrames - 1,
-                                           static_cast<int>(normalizedValue * (numFrames - 1)));
 
-        // Draw filmstrip frame
-        const juce::Rectangle<int> sourceRect(0, frameIndex * frameHeight,
-                                              filmstrip.getWidth(), frameHeight);
+        if (useLayeredImages && plateLayer.isValid() && knobLayer.isValid())
+        {
+            paintLayeredKnob(g, normalizedValue);
+        }
+        else if (filmstrip.isValid())
+        {
+            const int frameIndex = juce::jlimit(0, numFrames - 1,
+                                               static_cast<int>(normalizedValue * (numFrames - 1)));
+            const juce::Rectangle<int> sourceRect(0, frameIndex * frameHeight,
+                                                  filmstrip.getWidth(), frameHeight);
 
-        g.drawImage(filmstrip,
-                   getLocalBounds().toFloat(),
-                   sourceRect.toFloat(),
-                   false);  // Don't use high quality (faster rendering)
+            auto bounds = getKnobBounds().toNearestInt();
+            g.drawImage(filmstrip,
+                       bounds.getX(),
+                       bounds.getY(),
+                       bounds.getWidth(),
+                       bounds.getHeight(),
+                       sourceRect.getX(),
+                       sourceRect.getY(),
+                       sourceRect.getWidth(),
+                       sourceRect.getHeight(),
+                       false);  // Don't use high quality (faster rendering)
+        }
+        else
+        {
+            paintFallback(g);
+        }
 
         // Draw LED ring overlay if enabled
         if (ledRingEnabled)
@@ -97,7 +168,7 @@ public:
 private:
     void paintFallback(juce::Graphics& g)
     {
-        auto bounds = getLocalBounds().toFloat().reduced(10.0f);
+        auto bounds = getKnobBounds().reduced(10.0f);
 
         // Draw circular knob background
         g.setColour(juce::Colours::darkgrey);
@@ -127,9 +198,80 @@ private:
         g.fillPath(indicator);
     }
 
+    void paintLayeredKnob(juce::Graphics& g, float normalizedValue)
+    {
+        auto bounds = getKnobBounds().toFloat();
+        const auto& rotaryParams = getRotaryParameters();
+        const float angle = static_cast<float>(rotaryParams.startAngleRadians +
+            (rotaryParams.endAngleRadians - rotaryParams.startAngleRadians) * normalizedValue);
+
+        if (plateShadowLayer.isValid())
+            g.drawImage(plateShadowLayer, bounds, juce::RectanglePlacement::centred);
+        g.drawImage(plateLayer, bounds, juce::RectanglePlacement::centred);
+        if (shadowLayer.isValid())
+            g.drawImage(shadowLayer, bounds, juce::RectanglePlacement::centred);
+
+        if (rotationMode == RotationMode::IndicatorOnly)
+        {
+            g.drawImage(knobLayer, bounds, juce::RectanglePlacement::centred);
+        }
+        else
+        {
+            const float scaleX = bounds.getWidth() / static_cast<float>(knobLayer.getWidth());
+            const float scaleY = bounds.getHeight() / static_cast<float>(knobLayer.getHeight());
+            const float scale = juce::jmin(scaleX, scaleY);
+            auto transform = juce::AffineTransform::translation(
+                -knobLayer.getWidth() * 0.5f,
+                -knobLayer.getHeight() * 0.5f)
+                .rotated(angle)
+                .scaled(scale, scale)
+                .translated(bounds.getCentreX(), bounds.getCentreY());
+
+            g.drawImageTransformed(knobLayer, transform, false);
+        }
+        if (highlightLayer.isValid())
+            g.drawImage(highlightLayer, bounds, juce::RectanglePlacement::centred);
+
+        paintIndicator(g, bounds, angle);
+    }
+
+    void paintIndicator(juce::Graphics& g, const juce::Rectangle<float>& bounds, float angle)
+    {
+        if (indicatorLayer.isValid())
+        {
+            const float scaleX = bounds.getWidth() / static_cast<float>(indicatorLayer.getWidth());
+            const float scaleY = bounds.getHeight() / static_cast<float>(indicatorLayer.getHeight());
+            const float scale = juce::jmin(scaleX, scaleY);
+            auto transform = juce::AffineTransform::translation(
+                -indicatorLayer.getWidth() * 0.5f,
+                -indicatorLayer.getHeight() * 0.5f)
+                .rotated(angle)
+                .scaled(scale, scale)
+                .translated(bounds.getCentreX(), bounds.getCentreY());
+
+            g.drawImageTransformed(indicatorLayer, transform, false);
+            return;
+        }
+
+        const float radius = bounds.getWidth() * 0.45f;
+        const float centerX = bounds.getCentreX();
+        const float centerY = bounds.getCentreY();
+        const float lineLength = radius * 0.75f;
+
+        juce::Path indicator;
+        indicator.addLineSegment(
+            juce::Line<float>(centerX, centerY,
+                              centerX + lineLength * std::sin(angle),
+                              centerY - lineLength * std::cos(angle)),
+            3.0f);
+
+        g.setColour(indicatorColor);
+        g.fillPath(indicator);
+    }
+
     void paintLEDRing(juce::Graphics& g, float normalizedValue)
     {
-        auto bounds = getLocalBounds().toFloat().reduced(5.0f);
+        auto bounds = getKnobBounds().reduced(5.0f);
         const float centerX = bounds.getCentreX();
         const float centerY = bounds.getCentreY();
         const float radius = bounds.getWidth() * 0.5f + 10.0f;  // Outside knob
@@ -184,9 +326,48 @@ private:
         g.drawText(label, labelBounds, juce::Justification::centred);
     }
 
+    juce::Rectangle<float> getKnobBounds() const
+    {
+        auto bounds = getLocalBounds().toFloat();
+        const int textBoxHeight = getTextBoxHeight();
+        const int textBoxWidth = getTextBoxWidth();
+
+        switch (getTextBoxPosition())
+        {
+            case juce::Slider::TextBoxBelow:
+                bounds = bounds.withTrimmedBottom(static_cast<float>(textBoxHeight));
+                break;
+            case juce::Slider::TextBoxAbove:
+                bounds = bounds.withTrimmedTop(static_cast<float>(textBoxHeight));
+                break;
+            case juce::Slider::TextBoxLeft:
+                bounds = bounds.withTrimmedLeft(static_cast<float>(textBoxWidth));
+                break;
+            case juce::Slider::TextBoxRight:
+                bounds = bounds.withTrimmedRight(static_cast<float>(textBoxWidth));
+                break;
+            case juce::Slider::NoTextBox:
+            default:
+                break;
+        }
+
+        const float size = juce::jmin(bounds.getWidth(), bounds.getHeight());
+        return juce::Rectangle<float>(size, size).withCentre(bounds.getCentre());
+    }
+
     juce::Image filmstrip;
     int numFrames{128};
     int frameHeight{0};
+
+    juce::Image plateLayer;
+    juce::Image plateShadowLayer;
+    juce::Image knobLayer;
+    juce::Image highlightLayer;
+    juce::Image shadowLayer;
+    juce::Image indicatorLayer;
+    bool useLayeredImages{false};
+    RotationMode rotationMode{RotationMode::KnobAndIndicator};
+    juce::Colour indicatorColor{juce::Colour(0xffcaa254)};
 
     bool ledRingEnabled{true};
     juce::Colour ledColor{juce::Colours::cyan};
