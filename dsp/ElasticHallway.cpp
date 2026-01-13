@@ -93,27 +93,37 @@ void ElasticHallway::process(juce::AudioBuffer<float>& buffer)
 
 void ElasticHallway::setElasticity(float normalized)
 {
+    if (!std::isfinite(normalized))
+        return;
     elasticityTarget = juce::jlimit(0.0f, 1.0f, normalized);
 }
 
 void ElasticHallway::setRecoveryTime(float normalized)
 {
-    recoveryTimeTarget = juce::jlimit(0.0f, 1.0f, normalized);
+    if (!std::isfinite(normalized))
+        return;
+    const float clamped = juce::jlimit(0.0f, 1.0f, normalized);
+    recoveryTimeTarget = clamped;
 
     // Map [0, 1] → [100ms, 5000ms]
-    recoveryTimeSeconds = 0.1f + normalized * 4.9f;
+    recoveryTimeSeconds = 0.1f + clamped * 4.9f;
 }
 
 void ElasticHallway::setAbsorptionDrift(float normalized)
 {
-    absorptionDriftTarget = juce::jlimit(0.0f, 1.0f, normalized);
+    if (!std::isfinite(normalized))
+        return;
+    const float clamped = juce::jlimit(0.0f, 1.0f, normalized);
+    absorptionDriftTarget = clamped;
 
     // Map [0, 1] → [0.01 Hz, 0.2 Hz] (very slow drift)
-    absorptionDriftRate = 0.01f + normalized * 0.19f;
+    absorptionDriftRate = 0.01f + clamped * 0.19f;
 }
 
 void ElasticHallway::setNonlinearity(float normalized)
 {
+    if (!std::isfinite(normalized))
+        return;
     nonlinearityTarget = juce::jlimit(0.0f, 1.0f, normalized);
 }
 

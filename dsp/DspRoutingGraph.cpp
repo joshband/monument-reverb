@@ -90,6 +90,7 @@ void DspRoutingGraph::prepare(double sampleRate, int maxBlockSize, int numChanne
 
     // Load default routing preset
     loadRoutingPreset(RoutingPresetType::TraditionalCathedral);
+    isPrepared = true;
 }
 
 void DspRoutingGraph::reset()
@@ -124,6 +125,13 @@ void DspRoutingGraph::reset()
 
 void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
 {
+    if (!isPrepared)
+    {
+        jassertfalse;
+        buffer.clear();
+        return;
+    }
+
     const auto numChannels = buffer.getNumChannels();
     const auto numSamples = buffer.getNumSamples();
 
@@ -751,6 +759,13 @@ std::vector<ModuleType> DspRoutingGraph::computeProcessingOrder() const
 
 void DspRoutingGraph::processAncientWay(juce::AudioBuffer<float>& buffer)
 {
+    if (!isPrepared)
+    {
+        jassertfalse;
+        buffer.clear();
+        return;
+    }
+
     // Traditional routing: Foundation → Pillars → Chambers → Weathering →
     //                      TubeRayTracer → ElasticHallway → AlienAmplification →
     //                      Buttress → Facade
@@ -788,6 +803,13 @@ void DspRoutingGraph::processAncientWay(juce::AudioBuffer<float>& buffer)
 
 void DspRoutingGraph::processResonantHalls(juce::AudioBuffer<float>& buffer)
 {
+    if (!isPrepared)
+    {
+        jassertfalse;
+        buffer.clear();
+        return;
+    }
+
     // Metallic First routing: Foundation → Pillars → TubeRayTracer → Chambers →
     //                         Weathering → ElasticHallway → AlienAmplification →
     //                         Buttress → Facade
@@ -806,6 +828,13 @@ void DspRoutingGraph::processResonantHalls(juce::AudioBuffer<float>& buffer)
 
 void DspRoutingGraph::processBreathingStone(juce::AudioBuffer<float>& buffer)
 {
+    if (!isPrepared)
+    {
+        jassertfalse;
+        buffer.clear();
+        return;
+    }
+
     // Elastic Core routing: Foundation → Pillars → ElasticHallway → Chambers →
     //                       ElasticHallway → Weathering → TubeRayTracer →
     //                       AlienAmplification → Buttress → Facade

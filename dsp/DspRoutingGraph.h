@@ -306,6 +306,7 @@ private:
     double sampleRateHz{48000.0};
     int maxBlockSizeInternal{2048};
     int numChannelsInternal{2};
+    bool isPrepared{false};
 
     // Parameter buffer storage (references to PluginProcessor's parameter pools)
     // These are set via setXXXParams() and used during process()

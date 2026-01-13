@@ -105,6 +105,8 @@ private:
     float densityAmount = 0.5f;
     float warpAmount = 0.0f;
     ParameterBuffer pillarShapeBuffer;  // Phase 4: Per-sample parameter buffer (16-byte view)
+    float lastShapeValue = 0.5f;
+    bool lastShapeValid = false;
     Mode pillarMode = Mode::Glass;
     bool tapsDirty = true;
     int mutationSamplesRemaining = 0;

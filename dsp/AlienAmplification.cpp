@@ -109,30 +109,40 @@ void AlienAmplification::process(juce::AudioBuffer<float>& buffer)
 
 void AlienAmplification::setImpossibilityDegree(float normalized)
 {
+    if (!std::isfinite(normalized))
+        return;
     impossibilityDegreeTarget = juce::jlimit(0.0f, 1.0f, normalized);
 }
 
 void AlienAmplification::setPitchEvolutionRate(float normalized)
 {
+    if (!std::isfinite(normalized))
+        return;
     pitchEvolutionRateTarget = juce::jlimit(0.0f, 1.0f, normalized);
 }
 
 void AlienAmplification::setParadoxResonanceFreq(float normalized)
 {
-    paradoxResonanceFreqTarget = juce::jlimit(0.0f, 1.0f, normalized);
+    if (!std::isfinite(normalized))
+        return;
+    const float clamped = juce::jlimit(0.0f, 1.0f, normalized);
+    paradoxResonanceFreqTarget = clamped;
 
     // Map [0, 1] → [50 Hz, 5000 Hz] (logarithmic)
     float logMin = std::log(50.0f);
     float logMax = std::log(5000.0f);
-    paradoxFrequencyHz = std::exp(logMin + normalized * (logMax - logMin));
+    paradoxFrequencyHz = std::exp(logMin + clamped * (logMax - logMin));
 }
 
 void AlienAmplification::setParadoxGain(float normalized)
 {
-    paradoxGainTarget = juce::jlimit(0.0f, 1.0f, normalized);
+    if (!std::isfinite(normalized))
+        return;
+    const float clamped = juce::jlimit(0.0f, 1.0f, normalized);
+    paradoxGainTarget = clamped;
 
     // Map [0, 1] → [1.0, 1.05] (careful: >1.0 can cause instability)
-    paradoxGain = 1.0f + normalized * 0.05f;
+    paradoxGain = 1.0f + clamped * 0.05f;
 }
 
 void AlienAmplification::initializePitchEvolutionFilters()

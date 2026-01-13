@@ -93,6 +93,8 @@ void TubeRayTracer::process(juce::AudioBuffer<float>& buffer)
 
 void TubeRayTracer::setTubeCount(float normalized)
 {
+    if (!std::isfinite(normalized))
+        return;
     // Map [0, 1] → [5, 16] tubes
     int newCount = kMinTubes + static_cast<int>(normalized * (kMaxTubes - kMinTubes));
     newCount = juce::jlimit(kMinTubes, kMaxTubes, newCount);
@@ -107,16 +109,22 @@ void TubeRayTracer::setTubeCount(float normalized)
 
 void TubeRayTracer::setRadiusVariation(float normalized)
 {
+    if (!std::isfinite(normalized))
+        return;
     radiusVariationTarget = juce::jlimit(0.0f, 1.0f, normalized);
 }
 
 void TubeRayTracer::setMetallicResonance(float normalized)
 {
+    if (!std::isfinite(normalized))
+        return;
     metallicResonanceTarget = juce::jlimit(0.0f, 1.0f, normalized);
 }
 
 void TubeRayTracer::setCouplingStrength(float normalized)
 {
+    if (!std::isfinite(normalized))
+        return;
     couplingStrengthTarget = juce::jlimit(0.0f, 1.0f, normalized);
 }
 

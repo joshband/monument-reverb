@@ -17,6 +17,14 @@ This session completed comprehensive real-time audio thread safety fixes across 
 
 ---
 
+## 2026-01-11 DSP Stability Addendum
+
+- Added parameter sanitization and smoother initialization defaults to prevent NaN propagation and startup zippering.
+- Reduced Pillars tap layout churn by tracking shape changes and cutting per-sample overhead.
+- Guarded routing graph processing before prepare to avoid filter assertions on uninitialized state.
+
+---
+
 ## Implementation Summary by Priority
 
 ### Priority 1: Critical Real-Time Safety (8 Fixes) ✅
@@ -333,4 +341,3 @@ All 11 real-time safety violations have been eliminated. The Monument Reverb DSP
 ✅ **Production-ready audio plugin**
 
 The codebase is now ready for professional audio production use with reliable real-time performance on macOS AU/VST3 hosts.
-

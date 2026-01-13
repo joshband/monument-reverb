@@ -12,6 +12,70 @@
 namespace
 {
 constexpr float kPresetFadeMs = 60.0f;
+constexpr float kDefaultMixPercent = 55.0f;
+constexpr float kDefaultTime = 0.55f;
+constexpr float kDefaultMass = 0.5f;
+constexpr float kDefaultDensity = 0.5f;
+constexpr float kDefaultBloom = 0.5f;
+constexpr float kDefaultAir = 0.5f;
+constexpr float kDefaultWidth = 0.5f;
+constexpr float kDefaultWarp = 0.3f;
+constexpr float kDefaultDrift = 0.3f;
+constexpr float kDefaultGravity = 0.5f;
+constexpr float kDefaultPillarShape = 0.5f;
+constexpr float kDefaultMemory = 0.0f;
+constexpr float kDefaultMemoryDepth = 0.5f;
+constexpr float kDefaultMemoryDecay = 0.4f;
+constexpr float kDefaultMemoryDrift = 0.3f;
+constexpr float kDefaultMaterial = 0.5f;
+constexpr float kDefaultTopology = 0.5f;
+constexpr float kDefaultViscosity = 0.5f;
+constexpr float kDefaultEvolution = 0.5f;
+constexpr float kDefaultChaosIntensity = 0.0f;
+constexpr float kDefaultElasticityDecay = 0.0f;
+constexpr float kDefaultPatina = 0.5f;
+constexpr float kDefaultAbyss = 0.5f;
+constexpr float kDefaultCorona = 0.5f;
+constexpr float kDefaultBreath = 0.0f;
+constexpr float kDefaultCharacter = 0.5f;
+constexpr float kDefaultSpaceType = 0.3f;
+constexpr float kDefaultEnergy = 0.1f;
+constexpr float kDefaultMotion = 0.2f;
+constexpr float kDefaultColor = 0.5f;
+constexpr float kDefaultDimension = 0.5f;
+constexpr float kDefaultTubeCount = 0.545f;
+constexpr float kDefaultRadiusVariation = 0.3f;
+constexpr float kDefaultMetallicResonance = 0.5f;
+constexpr float kDefaultCouplingStrength = 0.5f;
+constexpr float kDefaultElasticity = 0.5f;
+constexpr float kDefaultRecoveryTime = 0.5f;
+constexpr float kDefaultAbsorptionDrift = 0.3f;
+constexpr float kDefaultNonlinearity = 0.3f;
+constexpr float kDefaultImpossibilityDegree = 0.3f;
+constexpr float kDefaultPitchEvolutionRate = 0.3f;
+constexpr float kDefaultParadoxResonance = 0.5f;
+constexpr float kDefaultParadoxGain = 0.3f;
+constexpr float kDefaultSafetyClipDrive = 0.25f;
+
+float sanitizeRange(float value, float fallback, float minValue, float maxValue) noexcept
+{
+    if (!std::isfinite(value))
+        return fallback;
+    return juce::jlimit(minValue, maxValue, value);
+}
+
+float sanitizeUnit(float value, float fallback) noexcept
+{
+    return sanitizeRange(value, fallback, 0.0f, 1.0f);
+}
+
+int sanitizeChoice(float value, int minValue, int maxValue, int fallback) noexcept
+{
+    if (!std::isfinite(value))
+        return fallback;
+    const int index = static_cast<int>(std::lround(value));
+    return juce::jlimit(minValue, maxValue, index);
+}
 
 #if defined(MONUMENT_MEMORY_PROVE)
 #ifndef MONUMENT_MEMORY_PROVE_STAGE
@@ -162,10 +226,26 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     gravitySmoother.reset(sampleRate, smoothingRampSeconds);
     pillarShapeSmoother.reset(sampleRate, smoothingRampSeconds);
 
-    const float initialMix = parameters.getRawParameterValue("mix")->load(std::memory_order_relaxed);
-    mixSmoother.setCurrentAndTargetValue(initialMix);
+    auto loadParam = [&](const char* paramId)
+    {
+        return parameters.getRawParameterValue(paramId)->load(std::memory_order_relaxed);
+    };
 
-    // Physical modeling parameter smoothers (50ms smoothing)
+    mixSmoother.setCurrentAndTargetValue(
+        sanitizeRange(loadParam("mix"), kDefaultMixPercent, 0.0f, 100.0f));
+    timeSmoother.setCurrentAndTargetValue(sanitizeUnit(loadParam("time"), kDefaultTime));
+    massSmoother.setCurrentAndTargetValue(sanitizeUnit(loadParam("mass"), kDefaultMass));
+    densitySmoother.setCurrentAndTargetValue(sanitizeUnit(loadParam("density"), kDefaultDensity));
+    bloomSmoother.setCurrentAndTargetValue(sanitizeUnit(loadParam("bloom"), kDefaultBloom));
+    airSmoother.setCurrentAndTargetValue(sanitizeUnit(loadParam("air"), kDefaultAir));
+    widthSmoother.setCurrentAndTargetValue(sanitizeUnit(loadParam("width"), kDefaultWidth));
+    warpSmoother.setCurrentAndTargetValue(sanitizeUnit(loadParam("warp"), kDefaultWarp));
+    driftSmoother.setCurrentAndTargetValue(sanitizeUnit(loadParam("drift"), kDefaultDrift));
+    gravitySmoother.setCurrentAndTargetValue(sanitizeUnit(loadParam("gravity"), kDefaultGravity));
+    pillarShapeSmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("pillarShape"), kDefaultPillarShape));
+
+    // Physical modeling parameter smoothers (500ms smoothing)
     tubeCountSmoother.reset(sampleRate, smoothingRampSeconds);
     radiusVariationSmoother.reset(sampleRate, smoothingRampSeconds);
     metallicResonanceSmoother.reset(sampleRate, smoothingRampSeconds);
@@ -178,6 +258,31 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     pitchEvolutionRateSmoother.reset(sampleRate, smoothingRampSeconds);
     paradoxResonanceFreqSmoother.reset(sampleRate, smoothingRampSeconds);
     paradoxGainSmoother.reset(sampleRate, smoothingRampSeconds);
+
+    tubeCountSmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("tubeCount"), kDefaultTubeCount));
+    radiusVariationSmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("radiusVariation"), kDefaultRadiusVariation));
+    metallicResonanceSmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("metallicResonance"), kDefaultMetallicResonance));
+    couplingStrengthSmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("couplingStrength"), kDefaultCouplingStrength));
+    elasticitySmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("elasticity"), kDefaultElasticity));
+    recoveryTimeSmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("recoveryTime"), kDefaultRecoveryTime));
+    absorptionDriftSmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("absorptionDrift"), kDefaultAbsorptionDrift));
+    nonlinearitySmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("nonlinearity"), kDefaultNonlinearity));
+    impossibilityDegreeSmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("impossibilityDegree"), kDefaultImpossibilityDegree));
+    pitchEvolutionRateSmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("pitchEvolutionRate"), kDefaultPitchEvolutionRate));
+    paradoxResonanceFreqSmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("paradoxResonanceFreq"), kDefaultParadoxResonance));
+    paradoxGainSmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("paradoxGain"), kDefaultParadoxGain));
 
     // Initialize processing mode transition gain (starts at 1.0 for no fade)
     modeTransitionGain.reset(sampleRate, 0.05);  // 50ms fade time
@@ -308,7 +413,8 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     paramCache.timelineEnabled = parameters.getRawParameterValue("timelineEnabled")->load(std::memory_order_relaxed) > 0.5f;
     paramCache.timelinePreset = parameters.getRawParameterValue("timelinePreset")->load(std::memory_order_relaxed);
 
-    const int timelinePreset = static_cast<int>(paramCache.timelinePreset);
+    const int maxTimelinePreset = juce::jmax(0, monument::dsp::SequencePresets::getNumPresets() - 1);
+    const int timelinePreset = sanitizeChoice(paramCache.timelinePreset, 0, maxTimelinePreset, 0);
     if (timelinePreset != lastTimelinePreset)
     {
         sequenceScheduler.loadSequence(monument::dsp::SequencePresets::getPreset(timelinePreset));
@@ -359,55 +465,59 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     #undef APPLY_SEQUENCED_PARAM
 
     // Use cached values (no more atomic loads)
-    const auto mixPercentRaw = paramCache.mix;
-    const auto time = paramCache.time;
-    const auto mass = paramCache.mass;
-    const auto density = paramCache.density;
-    const auto bloom = paramCache.bloom;
-    const auto air = paramCache.air;
-    const auto width = paramCache.width;
-    const auto warp = paramCache.warp;
-    const auto drift = paramCache.drift;
-    const auto gravity = paramCache.gravity;
-    const auto pillarShape = paramCache.pillarShape;
-    const auto pillarModeRaw = paramCache.pillarMode;
-    const auto memory = paramCache.memory;
-    const auto memoryDepth = paramCache.memoryDepth;
-    const auto memoryDecay = paramCache.memoryDecay;
-    const auto memoryDrift = paramCache.memoryDrift;
-    const auto freeze = paramCache.freeze;
-    const auto material = paramCache.material;
-    const auto topology = paramCache.topology;
-    const auto viscosity = paramCache.viscosity;
-    const auto evolution = paramCache.evolution;
-    const auto chaosIntensity = paramCache.chaosIntensity;
-    const auto elasticityDecay = paramCache.elasticityDecay;
-    const auto patina = paramCache.patina;
-    const auto abyss = paramCache.abyss;
-    const auto corona = paramCache.corona;
-    const auto breath = paramCache.breath;
+    const float mixPercentRaw = sanitizeRange(paramCache.mix, kDefaultMixPercent, 0.0f, 100.0f);
+    const float time = sanitizeUnit(paramCache.time, kDefaultTime);
+    const float mass = sanitizeUnit(paramCache.mass, kDefaultMass);
+    const float density = sanitizeUnit(paramCache.density, kDefaultDensity);
+    const float bloom = sanitizeUnit(paramCache.bloom, kDefaultBloom);
+    const float air = sanitizeUnit(paramCache.air, kDefaultAir);
+    const float width = sanitizeUnit(paramCache.width, kDefaultWidth);
+    const float warp = sanitizeUnit(paramCache.warp, kDefaultWarp);
+    const float drift = sanitizeUnit(paramCache.drift, kDefaultDrift);
+    const float gravity = sanitizeUnit(paramCache.gravity, kDefaultGravity);
+    const float pillarShape = sanitizeUnit(paramCache.pillarShape, kDefaultPillarShape);
+    const float pillarModeRaw = static_cast<float>(sanitizeChoice(paramCache.pillarMode, 0, 2, 0));
+    const float memory = sanitizeUnit(paramCache.memory, kDefaultMemory);
+    const float memoryDepth = sanitizeUnit(paramCache.memoryDepth, kDefaultMemoryDepth);
+    const float memoryDecay = sanitizeUnit(paramCache.memoryDecay, kDefaultMemoryDecay);
+    const float memoryDrift = sanitizeUnit(paramCache.memoryDrift, kDefaultMemoryDrift);
+    const bool freeze = paramCache.freeze;
+    const float material = sanitizeUnit(paramCache.material, kDefaultMaterial);
+    const float topology = sanitizeUnit(paramCache.topology, kDefaultTopology);
+    const float viscosity = sanitizeUnit(paramCache.viscosity, kDefaultViscosity);
+    const float evolution = sanitizeUnit(paramCache.evolution, kDefaultEvolution);
+    const float chaosIntensity = sanitizeUnit(paramCache.chaosIntensity, kDefaultChaosIntensity);
+    const float elasticityDecay = sanitizeUnit(paramCache.elasticityDecay, kDefaultElasticityDecay);
+    const float patina = sanitizeUnit(paramCache.patina, kDefaultPatina);
+    const float abyss = sanitizeUnit(paramCache.abyss, kDefaultAbyss);
+    const float corona = sanitizeUnit(paramCache.corona, kDefaultCorona);
+    const float breath = sanitizeUnit(paramCache.breath, kDefaultBreath);
 
     // Physical modeling parameters (Phase 5)
-    const auto tubeCount = paramCache.tubeCount;
-    const auto radiusVariation = paramCache.radiusVariation;
-    const auto metallicResonance = paramCache.metallicResonance;
-    const auto couplingStrength = paramCache.couplingStrength;
-    const auto elasticity = paramCache.elasticity;
-    const auto recoveryTime = paramCache.recoveryTime;
-    const auto absorptionDrift = paramCache.absorptionDrift;
-    const auto nonlinearity = paramCache.nonlinearity;
-    const auto impossibilityDegree = paramCache.impossibilityDegree;
-    const auto pitchEvolutionRate = paramCache.pitchEvolutionRate;
-    const auto paradoxResonanceFreq = paramCache.paradoxResonanceFreq;
-    const auto paradoxGain = paramCache.paradoxGain;
-    const auto character = paramCache.character;
-    const auto spaceType = paramCache.spaceType;
-    const auto energy = paramCache.energy;
-    const auto motion = paramCache.motion;
-    const auto color = paramCache.color;
-    const auto dimension = paramCache.dimension;
+    const float tubeCount = sanitizeUnit(paramCache.tubeCount, kDefaultTubeCount);
+    const float radiusVariation = sanitizeUnit(paramCache.radiusVariation, kDefaultRadiusVariation);
+    const float metallicResonance = sanitizeUnit(paramCache.metallicResonance, kDefaultMetallicResonance);
+    const float couplingStrength = sanitizeUnit(paramCache.couplingStrength, kDefaultCouplingStrength);
+    const float elasticity = sanitizeUnit(paramCache.elasticity, kDefaultElasticity);
+    const float recoveryTime = sanitizeUnit(paramCache.recoveryTime, kDefaultRecoveryTime);
+    const float absorptionDrift = sanitizeUnit(paramCache.absorptionDrift, kDefaultAbsorptionDrift);
+    const float nonlinearity = sanitizeUnit(paramCache.nonlinearity, kDefaultNonlinearity);
+    const float impossibilityDegree = sanitizeUnit(paramCache.impossibilityDegree, kDefaultImpossibilityDegree);
+    const float pitchEvolutionRate = sanitizeUnit(paramCache.pitchEvolutionRate, kDefaultPitchEvolutionRate);
+    const float paradoxResonanceFreq = sanitizeUnit(paramCache.paradoxResonanceFreq, kDefaultParadoxResonance);
+    const float paradoxGain = sanitizeUnit(paramCache.paradoxGain, kDefaultParadoxGain);
+    const float character = sanitizeUnit(paramCache.character, kDefaultCharacter);
+    const float spaceType = sanitizeUnit(paramCache.spaceType, kDefaultSpaceType);
+    const float energy = sanitizeUnit(paramCache.energy, kDefaultEnergy);
+    const float motion = sanitizeUnit(paramCache.motion, kDefaultMotion);
+    const float color = sanitizeUnit(paramCache.color, kDefaultColor);
+    const float dimension = sanitizeUnit(paramCache.dimension, kDefaultDimension);
+    const float safetyClipDrive = sanitizeUnit(paramCache.safetyClipDrive, kDefaultSafetyClipDrive);
+    const int routingPreset = sanitizeChoice(paramCache.routingPreset, 0,
+        static_cast<int>(monument::dsp::RoutingPresetType::MinimalSparse), 0);
+    const int macroModeIndex = sanitizeChoice(paramCache.macroMode, 0, 1, 0);
 
-    const bool useExpressive = paramCache.macroMode >= 0.5f;
+    const bool useExpressive = macroModeIndex == 1;
 
     struct MacroTargets
     {
@@ -509,7 +619,7 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
         macroTargets.gravity = ancientTargets.gravity;
         macroTargets.pillarShape = ancientTargets.pillarShape;
         macroTargets.routingPreset = static_cast<monument::dsp::RoutingPresetType>(
-            static_cast<int>(paramCache.routingPreset));
+            routingPreset);
 
         // Ancient Monuments Phase 5 - 10 macro defaults:
         // stone=0.5, labyrinth=0.5, mist=0.5, bloom=0.5, tempest=0.0, echo=0.0
@@ -535,9 +645,11 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     // Process modulation matrix (stub sources for Phase 2, returns 0 for all destinations)
     modulationMatrix.process(buffer, buffer.getNumSamples());
 
-    const int targetRoutingPreset = useExpressive
-        ? static_cast<int>(macroTargets.routingPreset)
-        : static_cast<int>(paramCache.routingPreset);
+    const int maxRoutingPreset = static_cast<int>(monument::dsp::RoutingPresetType::MinimalSparse);
+    const int targetRoutingPreset = juce::jlimit(
+        0,
+        maxRoutingPreset,
+        useExpressive ? static_cast<int>(macroTargets.routingPreset) : routingPreset);
     if (targetRoutingPreset != lastRoutingPreset)
     {
         routingGraph.loadRoutingPreset(
@@ -790,7 +902,7 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 #endif
     const bool injectToBuffer = bypassChambers && !routeMemoryToOutput;
 
-    const float mixPercent = std::isfinite(mixPercentRaw) ? mixPercentRaw : 0.0f;
+    const float mixPercent = mixPercentRaw;
     const float mixPercentEffective = forceWet ? 100.0f : mixPercent;
     const bool freezeEffective = forceFreezeOff ? false : freeze;
     mixSmoother.setTargetValue(juce::jlimit(0.0f, 100.0f, mixPercentEffective));
@@ -798,7 +910,7 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const float warpEffective = allowModulation ? warpModulated : 0.0f;
     const float driftEffective = allowModulation ? driftModulated : 0.0f;
     const float bloomEffective = allowModulation ? bloomModulated : 0.0f;
-    float pillarModeSafe = std::isfinite(pillarModeRaw) ? pillarModeRaw : 0.0f;
+    float pillarModeSafe = pillarModeRaw;
     pillarModeSafe = juce::jlimit(0.0f, 2.0f, pillarModeSafe);
 
     if (presetResetRequested.exchange(false, std::memory_order_acq_rel))
@@ -1060,7 +1172,7 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     if (paramCache.safetyClip)
     {
         const float drive = juce::jmap(
-            juce::jlimit(0.0f, 1.0f, paramCache.safetyClipDrive),
+            safetyClipDrive,
             1.0f,
             2.5f);
         const float norm = juce::dsp::FastMathApproximations::tanh(drive);

@@ -56,6 +56,8 @@ void Foundation::process(juce::AudioBuffer<float>& buffer)
 
 void Foundation::setInputGainDb(float gainDb)
 {
+    if (!std::isfinite(gainDb))
+        return;
     inputGain.setGainDecibels(gainDb);
 }
 
@@ -81,6 +83,10 @@ void Pillars::prepare(double sampleRate, int blockSize, int numChannels)
 
     updateModeTuning();
     updateTapLayout();
+    lastShapeValue = pillarShapeBuffer.numSamples > 0
+        ? juce::jlimit(0.0f, 1.0f, pillarShapeBuffer[0])
+        : 0.5f;
+    lastShapeValid = true;
 
     // Initialize tap coefficient/gain/position smoothers
     // Gains/coeffs: 15ms = responsive but click-free
@@ -107,6 +113,8 @@ void Pillars::reset()
     mutationIntervalSamples = 0;
     mutationSeed = 0;
     tapsDirty = true;
+    lastShapeValue = 0.5f;
+    lastShapeValid = false;
 }
 
 void Pillars::process(juce::AudioBuffer<float>& buffer)
@@ -168,13 +176,32 @@ void Pillars::process(juce::AudioBuffer<float>& buffer)
         tapsDirty = false;
     }
 
+    std::array<float, kMaxTaps> smoothedCoeffs{};
+    std::array<float, kMaxTaps> smoothedGains{};
+    std::array<float, kMaxTaps> smoothedPositions{};
+
+    static constexpr int kMaxChannels = 2;
+    jassert(numChannels <= kMaxChannels);
+
+    std::array<float*, kMaxChannels> channelDataPtrs{};
+    std::array<float*, kMaxChannels> delayDataPtrs{};
+    std::array<float*, kMaxChannels> apStatePtrs{};
+    std::array<float, kMaxChannels> lowStates{};
+    std::array<float, kMaxChannels> highStates{};
+
+    for (int channel = 0; channel < numChannels; ++channel)
+    {
+        channelDataPtrs[channel] = buffer.getWritePointer(channel);
+        delayDataPtrs[channel] = delayBuffer.getWritePointer(channel);
+        apStatePtrs[channel] = tapAllpassState.getWritePointer(channel);
+        lowStates[channel] = modeLowState.getSample(channel, 0);
+        highStates[channel] = modeHighState.getSample(channel, 0);
+    }
+
     for (int sample = 0; sample < numSamples; ++sample)
     {
         // Advance smoothers once per sample (not per channel) to avoid fast ramps
         // Phase 5: Now includes position smoothing for zipper-free tap changes
-        std::array<float, kMaxTaps> smoothedCoeffs;
-        std::array<float, kMaxTaps> smoothedGains;
-        std::array<float, kMaxTaps> smoothedPositions;
         for (int tap = 0; tap < tapCount; ++tap)
         {
             const auto tapIndex = static_cast<size_t>(tap);
@@ -185,11 +212,11 @@ void Pillars::process(juce::AudioBuffer<float>& buffer)
 
         for (int channel = 0; channel < numChannels; ++channel)
         {
-            auto* channelData = buffer.getWritePointer(channel);
-            auto* delayData = delayBuffer.getWritePointer(channel);
-            auto* apState = tapAllpassState.getWritePointer(channel);
-            float lowState = modeLowState.getSample(channel, 0);
-            float highState = modeHighState.getSample(channel, 0);
+            auto* channelData = channelDataPtrs[channel];
+            auto* delayData = delayDataPtrs[channel];
+            auto* apState = apStatePtrs[channel];
+            float lowState = lowStates[channel];
+            float highState = highStates[channel];
             const float input = channelData[sample];
             float acc = input;
 
@@ -224,13 +251,19 @@ void Pillars::process(juce::AudioBuffer<float>& buffer)
             filtered = juce::jlimit(-kPillarsOutputCeiling, kPillarsOutputCeiling, filtered);
 
             channelData[sample] = filtered;
-            modeLowState.setSample(channel, 0, lowState);
-            modeHighState.setSample(channel, 0, highState);
+            lowStates[channel] = lowState;
+            highStates[channel] = highState;
         }
 
         ++writePosition;
         if (writePosition >= delayBufferLength)
             writePosition = 0;
+    }
+
+    for (int channel = 0; channel < numChannels; ++channel)
+    {
+        modeLowState.setSample(channel, 0, lowStates[channel]);
+        modeHighState.setSample(channel, 0, highStates[channel]);
     }
 }
 
@@ -249,8 +282,19 @@ void Pillars::setDensity(float density)
 void Pillars::setShape(const ParameterBuffer& shape)
 {
     pillarShapeBuffer = shape;
-    // Mark taps dirty on buffer update - updateTapLayout() will sample from buffer when needed
-    tapsDirty = true;
+    float shapeValue = lastShapeValid ? lastShapeValue : 0.5f;
+    if (pillarShapeBuffer.numSamples > 0)
+        shapeValue = pillarShapeBuffer[0];
+    if (!std::isfinite(shapeValue))
+        shapeValue = lastShapeValid ? lastShapeValue : 0.5f;
+    shapeValue = juce::jlimit(0.0f, 1.0f, shapeValue);
+
+    if (!lastShapeValid || std::abs(shapeValue - lastShapeValue) > 1.0e-3f)
+    {
+        tapsDirty = true;
+        lastShapeValue = shapeValue;
+        lastShapeValid = true;
+    }
 }
 
 void Pillars::setMode(int modeIndex)
@@ -762,6 +806,8 @@ void Facade::setAir(float airAmount)
 
 void Facade::setOutputGain(float gainLinear)
 {
+    if (!std::isfinite(gainLinear))
+        return;
     outputGain = juce::jmax(0.0f, gainLinear);
     outputGainSmoother.setTargetValue(outputGain);  // Smooth transitions for feedback safety
 }
