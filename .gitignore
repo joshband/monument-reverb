@@ -56,6 +56,16 @@ test-results/*
 test-results/.*
 !test-results/README.md
 
+# Heavy local artifacts and traces (not for version control)
+artifacts/
+monument_profile.trace/
+monument_reaper_profile.trace/
+monument_profile_export.xml
+monument_reaper_profile_export.xml
+MonumentUI_Demo/
+UI Mockup/
+assets/codex/
+
 # UI design references (large, local-only)
 docs/ui/design-references/**/*.png
 docs/ui/design-references/**/*.jpg
