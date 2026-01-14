@@ -563,7 +563,10 @@ void DspRoutingGraph::setChambersParams(const ParameterBuffer& time,
                                          const ParameterBuffer& gravity,
                                          float warp,
                                          float drift,
-                                         bool freeze)
+                                         bool freeze,
+                                         float adaptiveMatrixAmount,
+                                         float feedbackSaturationAmount,
+                                         float delayJitterAmount)
 {
     // Store per-sample parameter buffers for use in process()
     chambersTimeBuffer = time;
@@ -603,6 +606,9 @@ void DspRoutingGraph::setChambersParams(const ParameterBuffer& time,
         chambers->setWarp(warp);
         chambers->setDrift(drift);
         chambers->setFreeze(freeze);
+        chambers->setAdaptiveMatrixAmount(adaptiveMatrixAmount);
+        chambers->setFeedbackSaturation(feedbackSaturationAmount);
+        chambers->setDelayJitter(delayJitterAmount);
     }
 }
 

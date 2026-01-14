@@ -16,6 +16,7 @@ This directory contains formal JSON Schema specifications for all test output fo
 | [capture_metadata.schema.json](capture_metadata.schema.json) | Audio capture parameters | `monument_plugin_analyzer` | Documentation, debugging |
 | [regression_report.schema.json](regression_report.schema.json) | Baseline comparison results | `compare_baseline.py` | CI, visualization |
 | [cpu_profile.schema.json](cpu_profile.schema.json) | CPU bottleneck analysis | `analyze_profile.py` | Performance analysis |
+| [spatial_metrics.schema.json](spatial_metrics.schema.json) | Spatial cue metrics (ITD/ILD/IACC) | `spatial_metrics.py` | Analysis, CI |
 
 ## Usage
 

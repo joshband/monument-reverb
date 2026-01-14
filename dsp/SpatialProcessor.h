@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_basics/juce_audio_basics.h>
+#include <juce_core/juce_core.h>
 #include <array>
 #include <cmath>
 
@@ -31,6 +32,20 @@ namespace dsp
 class SpatialProcessor final
 {
 public:
+    enum class Mode
+    {
+        StereoApprox = 0,
+        HrtfConvolution
+    };
+
+    enum class MotionPath
+    {
+        Static = 0,
+        Circle,
+        Figure8,
+        RandomWalk
+    };
+
     SpatialProcessor() = default;
     ~SpatialProcessor() = default;
 
@@ -57,9 +72,10 @@ public:
      * Updates spatial calculations for the current block.
      * Call once per block before getting per-line attenuation/Doppler values.
      *
+     * @param numSamples Current block size for motion-path timing.
      * Thread safety: Must be called from audio thread only.
      */
-    void process() noexcept;
+    void process(int numSamples) noexcept;
 
     /**
      * Gets the distance attenuation gain for a specific delay line.
@@ -79,6 +95,22 @@ public:
      * @return Doppler shift in samples, range depends on dopplerScale
      */
     float getDopplerShift(int lineIndex) const noexcept;
+
+    /**
+     * Gets stereo pan gains for a delay line (constant-power).
+     */
+    void getStereoGains(int lineIndex, float& left, float& right) const noexcept;
+
+    /**
+     * Gets internal FOA coefficients (ACN/SN3D) for a delay line.
+     * Note: This is internal-only; plugin output remains stereo.
+     */
+    void getAmbisonicCoeffs(int lineIndex, float& w, float& x, float& y, float& z) const noexcept;
+
+    /**
+     * Gets air absorption gain (distance-based attenuation multiplier).
+     */
+    float getAirAbsorptionGain(int lineIndex) const noexcept;
 
     //==========================================================================
     // Parameter setters (thread-safe, use atomic writes if needed in future)
@@ -127,11 +159,21 @@ public:
      */
     void setDopplerScale(float scale) noexcept;
 
+    void setMode(Mode mode) noexcept { mode_ = mode; }
+    void setCrossfeedAmount(float amount) noexcept { crossfeedAmount_ = juce::jlimit(0.0f, 1.0f, amount); }
+    void setAirAbsorption(float amount) noexcept { airAbsorption_ = juce::jlimit(0.0f, 1.0f, amount); }
+
+    void setMotionPath(MotionPath path) noexcept { motionPath_ = path; }
+    void setMotionRate(float rateHz) noexcept { motionRateHz_ = juce::jlimit(0.0f, 5.0f, rateHz); }
+    void setMotionRadius(float radius) noexcept { motionRadius_ = juce::jlimit(0.0f, 1.0f, radius); }
+    void setMotionDepth(float depth) noexcept { motionDepth_ = juce::jlimit(0.0f, 1.0f, depth); }
+
 private:
     static constexpr int kMaxLines = 8;              // Maximum delay lines (Chambers FDN)
     static constexpr float kReferenceDistance = 1.0f; // Reference distance for 0dB attenuation
     static constexpr float kEpsilon = 0.01f;          // Prevents division by zero at origin
     static constexpr float kMaxDopplerShiftSamples = 2400.0f; // ±50ms @ 48kHz
+    static constexpr float kFOAW = 0.70710678f;       // SN3D normalization
 
     double sampleRate_ = 48000.0;
     int numLines_ = 8;
@@ -144,9 +186,28 @@ private:
     std::array<float, kMaxLines> velocitiesX_{};  // [-1, +1]
     std::array<float, kMaxLines> distances_{};    // Computed distance from listener
     std::array<float, kMaxLines> attenuationGains_{}; // Cached attenuation coefficients
+    std::array<float, kMaxLines> panLeft_{};       // Constant-power pan gains
+    std::array<float, kMaxLines> panRight_{};      // Constant-power pan gains
+    std::array<float, kMaxLines> airAbsorptionGains_{}; // Distance-based air absorption
+    std::array<float, kMaxLines> ambisonicW_{};    // FOA W
+    std::array<float, kMaxLines> ambisonicX_{};    // FOA X
+    std::array<float, kMaxLines> ambisonicY_{};    // FOA Y
+    std::array<float, kMaxLines> ambisonicZ_{};    // FOA Z
+    std::array<float, kMaxLines> motionPhase_{};   // 0..1 phase per line
+    std::array<float, kMaxLines> motionOffsetX_{};
+    std::array<float, kMaxLines> motionOffsetY_{};
+    std::array<float, kMaxLines> motionOffsetZ_{};
 
     float distanceScale_ = 1.0f;
     float dopplerScale_ = 0.5f; // Default: moderate Doppler effect
+    Mode mode_{Mode::StereoApprox};
+    MotionPath motionPath_{MotionPath::Static};
+    float crossfeedAmount_ = 0.0f;
+    float airAbsorption_ = 0.0f;
+    float motionRateHz_ = 0.0f;
+    float motionRadius_ = 0.0f;
+    float motionDepth_ = 0.0f;
+    juce::Random motionRng_;
 
     // Computes Euclidean distance from listener (origin) to 3D position
     float computeDistance(float x, float y, float z) const noexcept;

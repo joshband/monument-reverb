@@ -98,6 +98,8 @@ def detect_schema_type(data: dict, file_path: Path) -> Optional[str]:
         return 'rt60_metrics'
     elif 'freq' in filename or 'frequency' in filename or filename == 'frequency_response.json':
         return 'frequency_response'
+    elif 'spatial' in filename or filename == 'spatial_metrics.json':
+        return 'spatial_metrics'
     elif 'capture' in filename or filename == 'capture_metadata.json' or filename == 'metadata.json':
         return 'capture_metadata'
     elif 'regression' in filename or filename == 'regression_report.json':
@@ -111,6 +113,8 @@ def detect_schema_type(data: dict, file_path: Path) -> Optional[str]:
             return 'rt60_metrics'
         elif 'flatness_db' in data.get('broadband', {}):
             return 'frequency_response'
+        elif 'itd_seconds' in data.get('broadband', {}):
+            return 'spatial_metrics'
 
     if 'plugin_path' in data and 'test_type' in data and 'block_size' in data:
         return 'capture_metadata'

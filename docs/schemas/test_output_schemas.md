@@ -18,6 +18,7 @@ All Monument Reverb testing tools output JSON for machine-readable analysis and 
 - **[schemas/README.md](schemas/README.md)** - Schema validation guide and usage examples
 - **[schemas/rt60_metrics.schema.json](schemas/rt60_metrics.schema.json)** - RT60 decay time schema
 - **[schemas/frequency_response.schema.json](schemas/frequency_response.schema.json)** - Frequency analysis schema
+- **[schemas/spatial_metrics.schema.json](schemas/spatial_metrics.schema.json)** - Spatial metrics schema
 - **[schemas/capture_metadata.schema.json](schemas/capture_metadata.schema.json)** - Capture parameters schema
 - **[schemas/regression_report.schema.json](schemas/regression_report.schema.json)** - Regression report schema
 - **[schemas/cpu_profile.schema.json](schemas/cpu_profile.schema.json)** - CPU profiling schema
@@ -28,6 +29,7 @@ All Monument Reverb testing tools output JSON for machine-readable analysis and 
 |--------|----------|----------|---------|
 | [RT60 Metrics](#rt60-metrics-schema) | `rt60_analysis_robust.py` | `compare_baseline.py`, CI | RT60 decay time measurements |
 | [Frequency Response Metrics](#frequency-response-metrics-schema) | `frequency_response.py` | `compare_baseline.py`, CI | Spectral analysis results |
+| [Spatial Metrics](#spatial-metrics-schema) | `spatial_metrics.py` | Analysis, CI | ITD/ILD/IACC spatial cues |
 | [Capture Metadata](#capture-metadata-schema) | `monument_plugin_analyzer` | Documentation, debugging | Audio capture parameters |
 | [Regression Report](#regression-report-schema) | `compare_baseline.py` | CI, visualization | Baseline comparison results |
 | [CPU Profile Summary](#cpu-profile-summary-schema) | `analyze_profile.py` | Performance analysis | CPU bottleneck analysis |
@@ -311,6 +313,110 @@ Spectral analysis via FFT, measuring magnitude response, flatness, and quality r
 | **Good** | ±3-6dB | Slight coloration, acceptable |
 | **Fair** | ±6-10dB | Noticeable coloration |
 | **Colored** | >±10dB | Heavy coloration, intentional or problematic |
+
+---
+
+## Spatial Metrics Schema
+
+### Producer
+`tools/plugin-analyzer/python/spatial_metrics.py`
+
+### Purpose
+Interaural cue analysis (ITD/ILD/IACC) for spatialization checks.
+
+### Schema Definition
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["version", "timestamp", "input_file", "sample_rate", "num_channels", "analysis_window", "broadband", "octave_bands"],
+  "properties": {
+    "version": {"type": "string"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "input_file": {"type": "string"},
+    "sample_rate": {"type": "integer"},
+    "num_channels": {"type": "integer"},
+    "analysis_window": {
+      "type": "object",
+      "required": ["start_sample", "length_samples", "length_ms", "requested_length_samples", "max_lag_samples", "max_lag_ms"],
+      "properties": {
+        "start_sample": {"type": "integer"},
+        "length_samples": {"type": "integer"},
+        "length_ms": {"type": "number"},
+        "requested_length_samples": {"type": "integer"},
+        "max_lag_samples": {"type": "integer"},
+        "max_lag_ms": {"type": "number"}
+      }
+    },
+    "broadband": {
+      "type": "object",
+      "required": ["itd_seconds", "itd_samples", "ild_db", "iacc", "iacc_signed", "iacc_lag_samples", "corr_zero_lag", "rms_left", "rms_right"],
+      "properties": {
+        "itd_seconds": {"type": "number"},
+        "itd_samples": {"type": "integer"},
+        "ild_db": {"type": "number"},
+        "iacc": {"type": "number"},
+        "iacc_signed": {"type": "number"},
+        "iacc_lag_samples": {"type": "integer"},
+        "corr_zero_lag": {"type": "number"},
+        "rms_left": {"type": "number"},
+        "rms_right": {"type": "number"}
+      }
+    },
+    "octave_bands": {
+      "type": "object",
+      "patternProperties": {
+        "^[0-9]+$": {
+          "type": "object",
+          "required": ["ild_db"],
+          "properties": {
+            "ild_db": {"type": "number"}
+          }
+        }
+      }
+    },
+    "analysis_notes": {"type": "string"},
+    "_metadata": {"type": "object"}
+  }
+}
+```
+
+### Example Output
+
+```json
+{
+  "version": "1.0.0",
+  "timestamp": "2026-01-10T12:00:00Z",
+  "input_file": "./test-results/preset_07/wet.wav",
+  "sample_rate": 48000,
+  "num_channels": 2,
+  "analysis_window": {
+    "start_sample": 0,
+    "length_samples": 3840,
+    "length_ms": 80.0,
+    "requested_length_samples": 3840,
+    "max_lag_samples": 48,
+    "max_lag_ms": 1.0
+  },
+  "broadband": {
+    "itd_seconds": 0.00012,
+    "itd_samples": 6,
+    "ild_db": -2.1,
+    "iacc": 0.74,
+    "iacc_signed": 0.74,
+    "iacc_lag_samples": 2,
+    "corr_zero_lag": 0.71,
+    "rms_left": 0.051,
+    "rms_right": 0.063
+  },
+  "octave_bands": {
+    "125": {"ild_db": -0.8},
+    "1000": {"ild_db": -2.3},
+    "4000": {"ild_db": -3.1}
+  }
+}
+```
 
 ---
 

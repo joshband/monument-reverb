@@ -3,7 +3,7 @@
 Generated outputs from automated QA, regression, and profiling runs.
 
 Common contents:
-- `preset-baseline/` - Per-preset IRs + metrics (RT60/frequency).
+- `preset-baseline/` - Per-preset IRs + metrics (RT60/frequency/spatial).
 - `comparisons/` - Aggregate plots and summary stats.
 - `ui-baseline/` + `ui-current/` - UI regression images and reports.
 - `experimental-analysis/` - Experimental preset analysis outputs.

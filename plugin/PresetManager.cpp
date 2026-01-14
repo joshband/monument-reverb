@@ -4,7 +4,7 @@
 
 namespace
 {
-constexpr int kPresetVersion = 4;  // v4: Added 4 new Ancient Monuments macros (patina, abyss, corona, breath)
+constexpr int kPresetVersion = 5;  // v5: Added modulation curve metadata
 
 template <typename T>
 float readFloatProperty(const juce::DynamicObject* object, const juce::String& key, T fallback)
@@ -415,6 +415,8 @@ void PresetManager::saveUserPreset(const juce::File& targetFile,
             connObj->setProperty("sourceAxis", conn.sourceAxis);
             connObj->setProperty("depth", conn.depth);
             connObj->setProperty("smoothingMs", conn.smoothingMs);
+            connObj->setProperty("curveType", curveTypeToString(conn.curveType));
+            connObj->setProperty("curveAmount", conn.curveAmount);
             connObj->setProperty("enabled", conn.enabled);
 
             modulationArray.add(juce::var(connObj.release()));
@@ -490,6 +492,10 @@ bool PresetManager::loadUserPreset(const juce::File& sourceFile)
             conn.sourceAxis = static_cast<int>(connObj->getProperty("sourceAxis"));
             conn.depth = static_cast<float>(connObj->getProperty("depth"));
             conn.smoothingMs = static_cast<float>(connObj->getProperty("smoothingMs"));
+            if (connObj->hasProperty("curveType"))
+                conn.curveType = stringToCurveType(connObj->getProperty("curveType").toString());
+            if (connObj->hasProperty("curveAmount"))
+                conn.curveAmount = static_cast<float>(connObj->getProperty("curveAmount"));
             conn.enabled = static_cast<bool>(connObj->getProperty("enabled"));
 
             values.modulationConnections.push_back(conn);
@@ -631,6 +637,15 @@ juce::String PresetManager::sourceTypeToString(monument::dsp::ModulationMatrix::
         case SourceType::AudioFollower:   return "AudioFollower";
         case SourceType::BrownianMotion:  return "BrownianMotion";
         case SourceType::EnvelopeTracker: return "EnvelopeTracker";
+        case SourceType::Lfo1:            return "Lfo1";
+        case SourceType::Lfo2:            return "Lfo2";
+        case SourceType::Lfo3:            return "Lfo3";
+        case SourceType::Lfo4:            return "Lfo4";
+        case SourceType::Lfo5:            return "Lfo5";
+        case SourceType::Lfo6:            return "Lfo6";
+        case SourceType::MidiCC:          return "MidiCC";
+        case SourceType::MidiPitchBend:   return "MidiPitchBend";
+        case SourceType::MidiChannelPressure: return "MidiChannelPressure";
         default:                          return "Unknown";
     }
 }
@@ -681,6 +696,15 @@ monument::dsp::ModulationMatrix::SourceType PresetManager::stringToSourceType(co
     if (str == "AudioFollower")   return SourceType::AudioFollower;
     if (str == "BrownianMotion")  return SourceType::BrownianMotion;
     if (str == "EnvelopeTracker") return SourceType::EnvelopeTracker;
+    if (str == "Lfo1")            return SourceType::Lfo1;
+    if (str == "Lfo2")            return SourceType::Lfo2;
+    if (str == "Lfo3")            return SourceType::Lfo3;
+    if (str == "Lfo4")            return SourceType::Lfo4;
+    if (str == "Lfo5")            return SourceType::Lfo5;
+    if (str == "Lfo6")            return SourceType::Lfo6;
+    if (str == "MidiCC")          return SourceType::MidiCC;
+    if (str == "MidiPitchBend")   return SourceType::MidiPitchBend;
+    if (str == "MidiChannelPressure") return SourceType::MidiChannelPressure;
     return SourceType::ChaosAttractor;  // Default fallback
 }
 
@@ -718,4 +742,31 @@ monument::dsp::ModulationMatrix::DestinationType PresetManager::stringToDestinat
     if (str == "Distance")              return DestinationType::Distance;
     if (str == "VelocityX")             return DestinationType::VelocityX;
     return DestinationType::Warp;  // Default fallback
+}
+
+juce::String PresetManager::curveTypeToString(monument::dsp::ModulationMatrix::CurveType type)
+{
+    using CurveType = monument::dsp::ModulationMatrix::CurveType;
+    switch (type)
+    {
+        case CurveType::Linear:  return "Linear";
+        case CurveType::EaseIn:  return "EaseIn";
+        case CurveType::EaseOut: return "EaseOut";
+        case CurveType::Sine:    return "Sine";
+        case CurveType::SCurve:  return "SCurve";
+        case CurveType::Steps:   return "Steps";
+        default:                 return "Linear";
+    }
+}
+
+monument::dsp::ModulationMatrix::CurveType PresetManager::stringToCurveType(const juce::String& str)
+{
+    using CurveType = monument::dsp::ModulationMatrix::CurveType;
+    if (str == "Linear")  return CurveType::Linear;
+    if (str == "EaseIn")  return CurveType::EaseIn;
+    if (str == "EaseOut") return CurveType::EaseOut;
+    if (str == "Sine")    return CurveType::Sine;
+    if (str == "SCurve")  return CurveType::SCurve;
+    if (str == "Steps")   return CurveType::Steps;
+    return CurveType::Linear;
 }

@@ -318,7 +318,7 @@ test-results/preset-baseline/
 
 ### analyze_all_presets.sh
 
-**Purpose:** Batch RT60 and frequency response analysis for all captured presets.
+**Purpose:** Batch RT60, frequency response, and spatial metrics analysis for all captured presets.
 
 **Usage:**
 ```bash
@@ -343,8 +343,11 @@ PARALLEL_JOBS=1 ./scripts/analyze_all_presets.sh
 test-results/preset-baseline/preset_XX/
 ├── rt60_metrics.json          # RT60 per frequency band
 ├── freq_metrics.json          # Frequency response metrics
+├── spatial_metrics.json       # ITD/ILD/IACC metrics
 ├── frequency_response.png     # Magnitude response plot
-└── rt60_analysis.log          # Analysis log
+├── rt60_analysis.log          # Analysis log
+├── freq_analysis.log          # Analysis log
+└── spatial_analysis.log       # Analysis log
 ```
 
 **Execution Time:**
@@ -355,6 +358,7 @@ test-results/preset-baseline/preset_XX/
 - Parallel execution
 - RT60 analysis via `rt60_analysis_robust.py` (with fallbacks)
 - Frequency response analysis via `frequency_response.py`
+- Spatial metrics via `spatial_metrics.py` (ITD/ILD/IACC)
 - Automatic plot generation
 
 **Requirements:**
@@ -964,6 +968,36 @@ python3 tools/compare_baseline.py \
 python3 tools/plot_preset_comparison.py \
   test-results/preset-baseline \
   --output test-results/comparisons
+```
+
+### Drift/Chaos Sweep Workflow
+
+```bash
+# Sweep Drift/Chaos across a subset of presets
+python3 scripts/sweep_drift_chaos.py \
+  --presets 0-7 \
+  --drift 0,0.5,1.0 \
+  --chaos 0,0.5,1.0 \
+  --duration 30
+
+# Run a quick smoke sweep on preset 0
+python3 scripts/sweep_drift_chaos.py \
+  --presets 0 \
+  --drift 0,1.0 \
+  --chaos 0,1.0 \
+  --duration 10 \
+  --output test-results/drift-chaos-sweep-smoke
+```
+
+#### CI Integration (opt-in)
+
+```bash
+ENABLE_DRIFT_CHAOS_SWEEP=1 \
+SWEEP_PRESETS=0-7 \
+SWEEP_DRIFT=0,0.5,1.0 \
+SWEEP_CHAOS=0,0.5,1.0 \
+SWEEP_DURATION=30 \
+./scripts/run_ci_tests.sh
 ```
 
 ### Performance Optimization Workflow

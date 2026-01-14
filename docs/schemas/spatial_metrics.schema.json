@@ -1,0 +1,143 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://monument-reverb.org/schemas/spatial_metrics.schema.json",
+  "title": "Spatial Metrics",
+  "description": "Interaural cues (ITD, ILD, IACC) derived from stereo output",
+  "type": "object",
+  "required": ["version", "timestamp", "input_file", "sample_rate", "num_channels", "analysis_window", "broadband", "octave_bands"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version (semver)",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "example": "1.0.0"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Analysis timestamp (ISO 8601)",
+      "example": "2026-01-10T12:00:00Z"
+    },
+    "input_file": {
+      "type": "string",
+      "description": "Path to analyzed WAV file",
+      "example": "./test-results/preset_07/wet.wav"
+    },
+    "sample_rate": {
+      "type": "integer",
+      "description": "Audio sample rate (Hz)",
+      "minimum": 44100,
+      "maximum": 192000,
+      "example": 48000
+    },
+    "num_channels": {
+      "type": "integer",
+      "description": "Number of channels analyzed",
+      "minimum": 1,
+      "maximum": 2,
+      "example": 2
+    },
+    "analysis_window": {
+      "type": "object",
+      "required": ["start_sample", "length_samples", "length_ms", "requested_length_samples", "max_lag_samples", "max_lag_ms"],
+      "properties": {
+        "start_sample": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "length_samples": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "length_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "requested_length_samples": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_lag_samples": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_lag_ms": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "broadband": {
+      "type": "object",
+      "required": ["itd_seconds", "itd_samples", "ild_db", "iacc", "iacc_signed", "iacc_lag_samples", "corr_zero_lag", "rms_left", "rms_right"],
+      "properties": {
+        "itd_seconds": {
+          "type": "number",
+          "description": "Estimated ITD in seconds (sign based on left vs right ordering)"
+        },
+        "itd_samples": {
+          "type": "integer",
+          "description": "Estimated ITD in samples"
+        },
+        "ild_db": {
+          "type": "number",
+          "description": "Broadband interaural level difference in dB"
+        },
+        "iacc": {
+          "type": "number",
+          "description": "Interaural cross-correlation magnitude",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "iacc_signed": {
+          "type": "number",
+          "description": "Signed interaural cross-correlation",
+          "minimum": -1.0,
+          "maximum": 1.0
+        },
+        "iacc_lag_samples": {
+          "type": "integer",
+          "description": "Lag at IACC peak (samples)"
+        },
+        "corr_zero_lag": {
+          "type": "number",
+          "description": "Zero-lag correlation coefficient",
+          "minimum": -1.0,
+          "maximum": 1.0
+        },
+        "rms_left": {
+          "type": "number",
+          "description": "RMS level of left channel"
+        },
+        "rms_right": {
+          "type": "number",
+          "description": "RMS level of right channel"
+        }
+      }
+    },
+    "octave_bands": {
+      "type": "object",
+      "description": "Interaural level difference per octave band (Hz: {ild_db})",
+      "patternProperties": {
+        "^[0-9]+$": {
+          "type": "object",
+          "required": ["ild_db"],
+          "properties": {
+            "ild_db": {
+              "type": "number",
+              "description": "ILD in this band (dB)"
+            }
+          }
+        }
+      }
+    },
+    "analysis_notes": {
+      "type": "string",
+      "description": "Optional analysis warnings or notes"
+    },
+    "_metadata": {
+      "type": "object",
+      "description": "Optional metadata (methods, window strategy)"
+    }
+  }
+}

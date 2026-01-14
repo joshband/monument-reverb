@@ -31,6 +31,9 @@ public:
     void setWarp(float warp);
     void setDrift(float drift);
     void setFreeze(bool shouldFreeze);
+    void setAdaptiveMatrixAmount(float amount);
+    void setFeedbackSaturation(float amount);
+    void setDelayJitter(float amount);
 
     /// FIXED: Documented lifetime guarantees for external injection pointer
     /// Sets an external audio buffer for memory injection into the reverb network.
@@ -89,19 +92,28 @@ private:
     // Per-sample smoothing for diffuser coefficients to prevent clicks
     std::array<juce::SmoothedValue<float>, 2> inputDiffuserCoeffSmoothers;
     std::array<juce::SmoothedValue<float>, kNumLines> lateDiffuserCoeffSmoothers;
+    std::array<juce::SmoothedValue<float>, kNumLines> feedbackDiffuserCoeffSmoothers;
     float lastInputCoeffTarget = 0.0f;
     float lastLateCoeffBase = 0.0f;
+    float lastFeedbackCoeffBase = 0.0f;
 
     // Target values are no longer needed for per-sample parameters (stored in ParameterBuffer)
     // Kept for block-rate parameters only
     float warpTarget = 0.0f;
     float driftTarget = 0.0f;
     float warpSmoothed = 0.0f;
+    float adaptiveMatrixAmount = 0.0f;
+    float feedbackSaturationAmount = 0.0f;
+    float delayJitterAmount = 0.0f;
+    juce::SmoothedValue<float> adaptiveWarpOffsetSmoother;
+    juce::Random jitterRandom;
     float lastMatrixBlend = 1.0f;
     float driftDepthMaxSamples = 1.0f;
     float gravityCoeffMin = 1.0f;
     float gravityCoeffMax = 1.0f;
     float dcBlockerCoeff = 1.0f;  // DC blocker coefficient (5Hz cutoff)
+    std::array<juce::SmoothedValue<float>, kNumLines> jitterSmoothers;
+    std::array<float, kNumLines> jitterTargets{};
     bool smoothersPrimed = false;
     bool isFrozen = false;
     bool wasFrozen = false;
@@ -120,11 +132,15 @@ private:
 
     std::array<AllpassDiffuser, 2> inputDiffusers;
     std::array<AllpassDiffuser, kNumLines> lateDiffusers;
+    std::array<AllpassDiffuser, kNumLines> feedbackDiffusers;
     std::array<float, kNumLines> driftPhase{};
     std::array<float, kNumLines> driftRateHz{};
-    std::array<std::array<float, kNumLines>, kNumLines> warpMatrix{};
-    std::array<std::array<float, kNumLines>, kNumLines> warpMatrixFrozen{};
-    std::array<std::array<float, kNumLines>, kNumLines> feedbackMatrix{};
+    alignas(juce::dsp::SIMDRegister<float>::SIMDRegisterSize)
+        std::array<std::array<float, kNumLines>, kNumLines> warpMatrix{};
+    alignas(juce::dsp::SIMDRegister<float>::SIMDRegisterSize)
+        std::array<std::array<float, kNumLines>, kNumLines> warpMatrixFrozen{};
+    alignas(juce::dsp::SIMDRegister<float>::SIMDRegisterSize)
+        std::array<std::array<float, kNumLines>, kNumLines> feedbackMatrix{};
 
     // Spatial positioning system (Phase 1: Ancient Monuments Three-System Plan)
     std::unique_ptr<SpatialProcessor> spatialProcessor;

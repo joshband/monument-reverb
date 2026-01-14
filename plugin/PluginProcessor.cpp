@@ -137,7 +137,7 @@ const juce::String MonumentAudioProcessor::getName() const
 
 bool MonumentAudioProcessor::acceptsMidi() const
 {
-    return false;
+    return true;
 }
 
 bool MonumentAudioProcessor::producesMidi() const
@@ -324,7 +324,7 @@ bool MonumentAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) 
     return true;
 }
 
-void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
 
@@ -518,6 +518,7 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const int macroModeIndex = sanitizeChoice(paramCache.macroMode, 0, 1, 0);
 
     const bool useExpressive = macroModeIndex == 1;
+    const float chaosDriver = useExpressive ? motion : chaosIntensity;
 
     struct MacroTargets
     {
@@ -642,7 +643,9 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
              patinaDelta + abyssDelta + coronaDelta + breathDelta) * (2.0f * 6.0f / 10.0f));
     }
 
-    // Process modulation matrix (stub sources for Phase 2, returns 0 for all destinations)
+    modulationMatrix.processMidi(midiMessages);
+
+    // Process modulation matrix (block-rate sources + MIDI)
     modulationMatrix.process(buffer, buffer.getNumSamples());
 
     const int maxRoutingPreset = static_cast<int>(monument::dsp::RoutingPresetType::MinimalSparse);
@@ -939,6 +942,10 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     );
 
     // Chambers: time, mass, density, bloom, gravity all per-sample
+    const float adaptiveMatrixAmount = chaosDriver;
+    const float feedbackSaturationAmount = juce::jlimit(0.0f, 1.0f, chaosDriver * 0.8f);
+    const float delayJitterAmount = juce::jlimit(0.0f, 1.0f,
+        driftEffective * (0.3f + 0.7f * chaosDriver));
     routingGraph.setChambersParams(
         makeModulatedView(timeBuffer, modTime),
         makeModulatedView(massBuffer, modMass),
@@ -947,7 +954,10 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
         makeModulatedView(gravityBuffer, modGravity),
         warpEffective,
         driftEffective,
-        freezeEffective
+        freezeEffective,
+        adaptiveMatrixAmount,
+        feedbackSaturationAmount,
+        delayJitterAmount
     );
 
     // Weathering: warp and drift are per-sample
@@ -983,6 +993,27 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     {
         if (auto* spatialProcessor = chambers->getSpatialProcessor())
         {
+            using SpatialMode = monument::dsp::SpatialProcessor::Mode;
+            using MotionPath = monument::dsp::SpatialProcessor::MotionPath;
+            spatialProcessor->setMode(SpatialMode::StereoApprox);
+            spatialProcessor->setCrossfeedAmount(juce::jlimit(0.0f, 0.6f, (1.0f - widthModulated) * 0.4f));
+            spatialProcessor->setAirAbsorption(juce::jlimit(0.0f, 1.0f, (1.0f - airModulated) * 0.9f));
+
+            const float motionAmount = driftEffective;
+            MotionPath motionPath = MotionPath::Static;
+            if (chaosDriver > 0.8f)
+                motionPath = MotionPath::RandomWalk;
+            else if (motionAmount > 0.6f)
+                motionPath = MotionPath::Figure8;
+            else if (motionAmount > 0.2f)
+                motionPath = MotionPath::Circle;
+
+            spatialProcessor->setMotionPath(motionPath);
+            spatialProcessor->setMotionRate(juce::jmap(motionAmount, 0.02f, 0.4f));
+            spatialProcessor->setMotionRadius(motionAmount * 0.35f);
+            spatialProcessor->setMotionDepth(motionAmount * 0.2f);
+            spatialProcessor->setDopplerScale(juce::jlimit(0.0f, 1.0f, motionAmount * 0.8f));
+
             // Modulation values are bipolar [-1, +1], map directly to position ranges
             spatialProcessor->setPosition(0, modPositionX, modPositionY,
                                          juce::jlimit(0.0f, 1.0f, 0.5f + modPositionZ * 0.5f));
@@ -1184,7 +1215,8 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
             for (int sample = 0; sample < numSamples; ++sample)
             {
                 const float driven = data[sample] * drive;
-                data[sample] = juce::dsp::FastMathApproximations::tanh(driven) / normSafe;
+                const float clipped = juce::dsp::FastMathApproximations::tanh(driven) / normSafe;
+                data[sample] = juce::jlimit(-1.0f, 1.0f, clipped);
             }
         }
     }

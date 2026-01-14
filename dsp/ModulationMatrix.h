@@ -34,7 +34,47 @@ public:
         AudioFollower,       // Input signal envelope tracking
         BrownianMotion,      // Smooth random walk (1/f noise)
         EnvelopeTracker,     // Multi-stage envelope detection
+        Lfo1,                // User LFO 1 (shape/rate configurable)
+        Lfo2,                // User LFO 2
+        Lfo3,                // User LFO 3
+        Lfo4,                // User LFO 4
+        Lfo5,                // User LFO 5
+        Lfo6,                // User LFO 6
+        MidiCC,              // MIDI CC source (axis = controller number)
+        MidiPitchBend,       // MIDI pitch bend (bipolar)
+        MidiChannelPressure, // MIDI channel pressure (aftertouch)
         Count                // Total number of sources
+    };
+
+    enum class LfoShape
+    {
+        Sine = 0,
+        Triangle,
+        SawUp,
+        SawDown,
+        Square,
+        RandomHold,
+        SmoothRandom,
+        SkewedTriangle
+    };
+
+    enum class CurveType
+    {
+        Linear = 0,
+        EaseIn,
+        EaseOut,
+        Sine,
+        SCurve,
+        Steps
+    };
+
+    struct LfoConfig
+    {
+        float rateHz{0.1f};
+        LfoShape shape{LfoShape::Sine};
+        float pulseWidth{0.5f};   // Square duty cycle (0.05..0.95)
+        float skew{0.5f};         // Skewed triangle pivot (0.05..0.95)
+        float phaseOffset{0.0f};  // 0..1 offset applied to phase
     };
 
     /**
@@ -87,6 +127,8 @@ public:
         float depth{0.0f};             // Modulation amount: -1 to +1 (bipolar)
         float smoothingMs{200.0f};     // Lag filter time constant (20-1000ms)
         float probability{1.0f};       // Probability gate: 0.0 = never, 1.0 = always (intermittent modulation)
+        CurveType curveType{CurveType::Linear}; // Optional curve shaping
+        float curveAmount{0.0f};       // 0..1 curve intensity (ignored for Linear)
         bool enabled{false};           // Connection active/inactive
 
         Connection() = default;
@@ -124,6 +166,11 @@ public:
     void process(const juce::AudioBuffer<float>& audioBuffer, int numSamples);
 
     /**
+     * @brief Process incoming MIDI for MIDI modulation sources.
+     */
+    void processMidi(const juce::MidiBuffer& midiMessages);
+
+    /**
      * @brief Get current modulation value for a specific destination.
      *
      * Returns the smoothed, accumulated modulation from all active connections
@@ -143,7 +190,8 @@ public:
      * @param probability Probability gate (0.0-1.0). 1.0 = always active, 0.5 = active 50% of time
      */
     void setConnection(SourceType source, DestinationType destination,
-                      int sourceAxis, float depth, float smoothingMs, float probability = 1.0f);
+                      int sourceAxis, float depth, float smoothingMs, float probability = 1.0f,
+                      CurveType curveType = CurveType::Linear, float curveAmount = 0.0f);
 
     /**
      * @brief Remove a modulation connection.
@@ -202,12 +250,40 @@ public:
      */
     float getSourceValue(SourceType source, int axis = 0) const noexcept;
 
+    /**
+     * @brief Configure one of the 6 user LFOs.
+     */
+    void setLfoConfig(int index, const LfoConfig& config);
+    LfoConfig getLfoConfig(int index) const noexcept;
+
 private:
     // Forward declarations for modulation sources (implemented in Phase 2)
     class ChaosAttractor;
     class AudioFollower;
     class BrownianMotion;
     class EnvelopeTracker;
+    class Lfo
+    {
+    public:
+        void prepare(double sampleRate);
+        void reset();
+        void setConfig(const LfoConfig& config);
+        void process(int numSamples);
+        float getValue() const noexcept { return currentValue; }
+
+    private:
+        double sampleRateHz{48000.0};
+        LfoConfig config{};
+        float phase{0.0f};
+        float currentValue{0.0f};
+        float randomStart{0.0f};
+        float randomTarget{0.0f};
+        juce::Random rng;
+
+        float nextRandom();
+    };
+
+    static constexpr int kNumLfos = 6;
 
     double sampleRateHz{48000.0};
     int maxBlockSizeInternal{2048};
@@ -218,6 +294,8 @@ private:
     std::unique_ptr<AudioFollower> audioFollower;
     std::unique_ptr<BrownianMotion> brownianGen;
     std::unique_ptr<EnvelopeTracker> envTracker;
+    std::array<LfoConfig, kNumLfos> lfoConfigs{};
+    std::array<Lfo, kNumLfos> lfos;
 
     // Active modulation connections (fixed-size array to prevent real-time allocations)
     // IMPORTANT: Only modify these from the message thread (JUCE guarantees single-threaded)
@@ -241,9 +319,15 @@ private:
     mutable std::mt19937 probabilityRng;
     mutable std::uniform_real_distribution<float> probabilityDist{0.0f, 1.0f};
 
+    // MIDI modulation sources (0..1 except pitch bend which is bipolar)
+    std::array<float, 128> midiCCValues{};
+    float midiPitchBend{0.0f};
+    float midiChannelPressure{0.0f};
+
     // Helper: find existing connection index, or -1 if not found
     int findConnectionIndex(SourceType source, DestinationType destination, int axis) const noexcept;
     void publishConnectionsSnapshot() noexcept;
+    static float applyCurve(float value, CurveType curveType, float curveAmount);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulationMatrix)
 };

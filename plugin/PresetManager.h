@@ -94,4 +94,6 @@ private:
     static juce::String destinationTypeToString(monument::dsp::ModulationMatrix::DestinationType type);
     static monument::dsp::ModulationMatrix::SourceType stringToSourceType(const juce::String& str);
     static monument::dsp::ModulationMatrix::DestinationType stringToDestinationType(const juce::String& str);
+    static juce::String curveTypeToString(monument::dsp::ModulationMatrix::CurveType type);
+    static monument::dsp::ModulationMatrix::CurveType stringToCurveType(const juce::String& str);
 };

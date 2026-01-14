@@ -1,7 +1,8 @@
 #include "ModulationMatrix.h"
 #include <algorithm>
-#include <random>
 #include <chrono>
+#include <cmath>
+#include <random>
 
 namespace monument
 {
@@ -9,7 +10,7 @@ namespace dsp
 {
 
 // ============================================================================
-// STUB MODULATION SOURCES (Phase 2 will implement these fully)
+// MODULATION SOURCES
 // ============================================================================
 
 /**
@@ -366,6 +367,108 @@ private:
     Stage currentStage{Stage::Release};
 };
 
+/**
+ * @brief User-configurable LFO (block-rate).
+ *
+ * Produces bipolar [-1, 1] modulation values with multiple shapes.
+ */
+void ModulationMatrix::Lfo::prepare(double sampleRate)
+{
+    sampleRateHz = sampleRate;
+    reset();
+}
+
+void ModulationMatrix::Lfo::reset()
+{
+    phase = 0.0f;
+    currentValue = 0.0f;
+    randomStart = nextRandom();
+    randomTarget = nextRandom();
+}
+
+float ModulationMatrix::Lfo::nextRandom()
+{
+    return rng.nextFloat() * 2.0f - 1.0f;
+}
+
+void ModulationMatrix::Lfo::setConfig(const LfoConfig& newConfig)
+{
+    config = newConfig;
+    config.rateHz = juce::jlimit(0.01f, 20.0f, config.rateHz);
+    config.pulseWidth = juce::jlimit(0.05f, 0.95f, config.pulseWidth);
+    config.skew = juce::jlimit(0.05f, 0.95f, config.skew);
+    config.phaseOffset = juce::jlimit(0.0f, 1.0f, config.phaseOffset);
+}
+
+void ModulationMatrix::Lfo::process(int numSamples)
+{
+    if (sampleRateHz <= 0.0 || numSamples <= 0)
+        return;
+
+    const float increment = config.rateHz > 0.0f
+        ? static_cast<float>(config.rateHz * numSamples / sampleRateHz)
+        : 0.0f;
+
+    float newPhase = phase + increment;
+    bool wrapped = false;
+    if (newPhase >= 1.0f)
+    {
+        newPhase -= std::floor(newPhase);
+        wrapped = true;
+    }
+    phase = newPhase;
+
+    if (wrapped && (config.shape == LfoShape::RandomHold || config.shape == LfoShape::SmoothRandom))
+    {
+        randomStart = randomTarget;
+        randomTarget = nextRandom();
+    }
+
+    float phaseValue = phase + config.phaseOffset;
+    if (phaseValue >= 1.0f)
+        phaseValue -= std::floor(phaseValue);
+
+    switch (config.shape)
+    {
+        case LfoShape::Sine:
+            currentValue = std::sin(phaseValue * juce::MathConstants<float>::twoPi);
+            break;
+        case LfoShape::Triangle:
+        {
+            const float tri = 2.0f * std::abs(2.0f * phaseValue - 1.0f) - 1.0f;
+            currentValue = tri;
+            break;
+        }
+        case LfoShape::SawUp:
+            currentValue = 2.0f * phaseValue - 1.0f;
+            break;
+        case LfoShape::SawDown:
+            currentValue = 1.0f - 2.0f * phaseValue;
+            break;
+        case LfoShape::Square:
+            currentValue = (phaseValue < config.pulseWidth) ? 1.0f : -1.0f;
+            break;
+        case LfoShape::RandomHold:
+            currentValue = randomTarget;
+            break;
+        case LfoShape::SmoothRandom:
+            currentValue = juce::jmap(phaseValue, randomStart, randomTarget);
+            break;
+        case LfoShape::SkewedTriangle:
+        {
+            const float skew = config.skew;
+            if (phaseValue < skew)
+                currentValue = (phaseValue / skew) * 2.0f - 1.0f;
+            else
+                currentValue = (1.0f - (phaseValue - skew) / (1.0f - skew)) * 2.0f - 1.0f;
+            break;
+        }
+        default:
+            currentValue = 0.0f;
+            break;
+    }
+}
+
 // ============================================================================
 // MODULATION MATRIX IMPLEMENTATION
 // ============================================================================
@@ -381,9 +484,21 @@ ModulationMatrix::ModulationMatrix()
 
     modulationValues.fill(0.0f);
 
+    // Default LFO configurations (disabled until connections are made)
+    lfoConfigs[0] = {0.05f, LfoShape::Sine, 0.5f, 0.5f, 0.0f};
+    lfoConfigs[1] = {0.10f, LfoShape::Triangle, 0.5f, 0.5f, 0.0f};
+    lfoConfigs[2] = {0.20f, LfoShape::SawUp, 0.5f, 0.5f, 0.0f};
+    lfoConfigs[3] = {0.35f, LfoShape::SawDown, 0.5f, 0.5f, 0.0f};
+    lfoConfigs[4] = {0.60f, LfoShape::Square, 0.5f, 0.5f, 0.0f};
+    lfoConfigs[5] = {0.15f, LfoShape::SmoothRandom, 0.5f, 0.5f, 0.0f};
+
     // Initialize RNG for probability gating
     std::random_device rd;
     probabilityRng.seed(rd());
+
+    midiCCValues.fill(0.0f);
+    midiPitchBend = 0.0f;
+    midiChannelPressure = 0.0f;
 
     snapshotCounts.fill(0);
     activeSnapshotIndex.store(0, std::memory_order_relaxed);
@@ -410,6 +525,12 @@ void ModulationMatrix::prepare(double sampleRate, int maxBlockSize, int numChann
     brownianGen->prepare(sampleRate, maxBlockSize);
     envTracker->prepare(sampleRate, maxBlockSize);
 
+    for (size_t i = 0; i < lfos.size(); ++i)
+    {
+        lfos[i].prepare(sampleRate);
+        lfos[i].setConfig(lfoConfigs[i]);
+    }
+
     // Re-initialize smoothers with correct sample rate
     for (auto& smoother : smoothers)
     {
@@ -418,6 +539,9 @@ void ModulationMatrix::prepare(double sampleRate, int maxBlockSize, int numChann
     }
 
     modulationValues.fill(0.0f);
+    midiCCValues.fill(0.0f);
+    midiPitchBend = 0.0f;
+    midiChannelPressure = 0.0f;
 }
 
 void ModulationMatrix::reset()
@@ -426,11 +550,39 @@ void ModulationMatrix::reset()
     if (audioFollower) audioFollower->reset();
     if (brownianGen) brownianGen->reset();
     if (envTracker) envTracker->reset();
+    for (auto& lfo : lfos)
+        lfo.reset();
 
     for (auto& smoother : smoothers)
         smoother.setCurrentAndTargetValue(0.0f);
 
     modulationValues.fill(0.0f);
+    midiCCValues.fill(0.0f);
+    midiPitchBend = 0.0f;
+    midiChannelPressure = 0.0f;
+}
+
+void ModulationMatrix::processMidi(const juce::MidiBuffer& midiMessages)
+{
+    for (const auto metadata : midiMessages)
+    {
+        const auto msg = metadata.getMessage();
+        if (msg.isController())
+        {
+            const int cc = msg.getControllerNumber();
+            if (cc >= 0 && cc < static_cast<int>(midiCCValues.size()))
+                midiCCValues[static_cast<size_t>(cc)] = msg.getControllerValue() / 127.0f;
+        }
+        else if (msg.isPitchWheel())
+        {
+            const int value = msg.getPitchWheelValue(); // 0..16383
+            midiPitchBend = juce::jlimit(-1.0f, 1.0f, (value - 8192) / 8192.0f);
+        }
+        else if (msg.isChannelPressure())
+        {
+            midiChannelPressure = msg.getChannelPressureValue() / 127.0f;
+        }
+    }
 }
 
 void ModulationMatrix::publishConnectionsSnapshot() noexcept
@@ -464,6 +616,9 @@ void ModulationMatrix::process(const juce::AudioBuffer<float>& audioBuffer, int 
 
     if (envTracker)
         envTracker->process(audioBuffer, numSamples);
+
+    for (auto& lfo : lfos)
+        lfo.process(numSamples);
 
     // Initialize per-destination accumulators
     std::array<float, static_cast<size_t>(DestinationType::Count)> destinationSums{};
@@ -514,12 +669,37 @@ void ModulationMatrix::process(const juce::AudioBuffer<float>& audioBuffer, int 
             case SourceType::EnvelopeTracker:
                 sourceValue = envTracker ? envTracker->getValue() : 0.0f;
                 break;
+            case SourceType::Lfo1:
+            case SourceType::Lfo2:
+            case SourceType::Lfo3:
+            case SourceType::Lfo4:
+            case SourceType::Lfo5:
+            case SourceType::Lfo6:
+            {
+                const int index = static_cast<int>(conn.source) - static_cast<int>(SourceType::Lfo1);
+                if (index >= 0 && index < static_cast<int>(lfos.size()))
+                    sourceValue = lfos[static_cast<size_t>(index)].getValue();
+                break;
+            }
+            case SourceType::MidiCC:
+            {
+                const int cc = juce::jlimit(0, 127, conn.sourceAxis);
+                sourceValue = midiCCValues[static_cast<size_t>(cc)];
+                break;
+            }
+            case SourceType::MidiPitchBend:
+                sourceValue = midiPitchBend;
+                break;
+            case SourceType::MidiChannelPressure:
+                sourceValue = midiChannelPressure;
+                break;
             default:
                 break;
         }
 
+        const float shaped = applyCurve(sourceValue, conn.curveType, conn.curveAmount);
         // Scale by connection depth (bipolar: -1 to +1)
-        const float modulation = sourceValue * conn.depth;
+        const float modulation = shaped * conn.depth;
 
         // Accumulate to destination
         const size_t destIdx = static_cast<size_t>(conn.destination);
@@ -553,12 +733,15 @@ void ModulationMatrix::setConnection(
     int sourceAxis,
     float depth,
     float smoothingMs,
-    float probability)
+    float probability,
+    CurveType curveType,
+    float curveAmount)
 {
     // Sanitize inputs
     depth = juce::jlimit(-1.0f, 1.0f, depth);
     smoothingMs = juce::jlimit(20.0f, 1000.0f, smoothingMs);
     probability = juce::jlimit(0.0f, 1.0f, probability);
+    curveAmount = juce::jlimit(0.0f, 1.0f, curveAmount);
 
     // Thread-safe: Only called from message thread (JUCE serialization)
     bool connectionChanged = false;
@@ -573,6 +756,8 @@ void ModulationMatrix::setConnection(
         conn.depth = depth;
         conn.smoothingMs = smoothingMs;
         conn.probability = probability;
+        conn.curveType = curveType;
+        conn.curveAmount = curveAmount;
         conn.enabled = true;
         connectionChanged = true;
     }
@@ -586,6 +771,8 @@ void ModulationMatrix::setConnection(
         conn.depth = depth;
         conn.smoothingMs = smoothingMs;
         conn.probability = probability;
+        conn.curveType = curveType;
+        conn.curveAmount = curveAmount;
         conn.enabled = true;
         ++connectionCount;
         connectionChanged = true;
@@ -685,9 +872,46 @@ float ModulationMatrix::getSourceValue(SourceType source, int axis) const noexce
             return brownianGen ? brownianGen->getValue() : 0.0f;
         case SourceType::EnvelopeTracker:
             return envTracker ? envTracker->getValue() : 0.0f;
+        case SourceType::Lfo1:
+        case SourceType::Lfo2:
+        case SourceType::Lfo3:
+        case SourceType::Lfo4:
+        case SourceType::Lfo5:
+        case SourceType::Lfo6:
+        {
+            const int index = static_cast<int>(source) - static_cast<int>(SourceType::Lfo1);
+            if (index >= 0 && index < static_cast<int>(lfos.size()))
+                return lfos[static_cast<size_t>(index)].getValue();
+            return 0.0f;
+        }
+        case SourceType::MidiCC:
+        {
+            const int cc = juce::jlimit(0, 127, axis);
+            return midiCCValues[static_cast<size_t>(cc)];
+        }
+        case SourceType::MidiPitchBend:
+            return midiPitchBend;
+        case SourceType::MidiChannelPressure:
+            return midiChannelPressure;
         default:
             return 0.0f;
     }
+}
+
+void ModulationMatrix::setLfoConfig(int index, const LfoConfig& config)
+{
+    if (index < 0 || index >= static_cast<int>(lfos.size()))
+        return;
+
+    lfoConfigs[static_cast<size_t>(index)] = config;
+    lfos[static_cast<size_t>(index)].setConfig(config);
+}
+
+ModulationMatrix::LfoConfig ModulationMatrix::getLfoConfig(int index) const noexcept
+{
+    if (index < 0 || index >= static_cast<int>(lfoConfigs.size()))
+        return {};
+    return lfoConfigs[static_cast<size_t>(index)];
 }
 
 int ModulationMatrix::findConnectionIndex(
@@ -708,6 +932,54 @@ int ModulationMatrix::findConnectionIndex(
     return -1;
 }
 
+float ModulationMatrix::applyCurve(float value, CurveType curveType, float curveAmount)
+{
+    curveAmount = juce::jlimit(0.0f, 1.0f, curveAmount);
+    if (curveType == CurveType::Linear || curveAmount <= 0.0f)
+        return value;
+
+    const float sign = value >= 0.0f ? 1.0f : -1.0f;
+    float x = std::abs(value);
+
+    switch (curveType)
+    {
+        case CurveType::EaseIn:
+        {
+            const float exponent = juce::jmap(curveAmount, 1.0f, 4.0f);
+            x = std::pow(x, exponent);
+            break;
+        }
+        case CurveType::EaseOut:
+        {
+            const float exponent = juce::jmap(curveAmount, 1.0f, 4.0f);
+            x = 1.0f - std::pow(1.0f - x, exponent);
+            break;
+        }
+        case CurveType::Sine:
+            x = std::sin(x * juce::MathConstants<float>::halfPi);
+            break;
+        case CurveType::SCurve:
+        {
+            const float k = juce::jmap(curveAmount, 0.5f, 3.5f);
+            x = std::tanh(k * (x * 2.0f - 1.0f));
+            x = (x + 1.0f) * 0.5f;
+            break;
+        }
+        case CurveType::Steps:
+        {
+            const int steps = juce::jlimit(2, 16, 2 + static_cast<int>(curveAmount * 14.0f));
+            const float stepped = std::round(x * static_cast<float>(steps - 1))
+                / static_cast<float>(steps - 1);
+            x = stepped;
+            break;
+        }
+        default:
+            break;
+    }
+
+    return sign * x;
+}
+
 // Helper function for randomization with configurable parameters
 namespace {
     void randomizeConnectionsHelper(
@@ -722,12 +994,25 @@ namespace {
         std::random_device rd;
         std::mt19937 rng(rd());
 
+        const std::array<ModulationMatrix::SourceType, 10> kRandomSources{
+            ModulationMatrix::SourceType::ChaosAttractor,
+            ModulationMatrix::SourceType::AudioFollower,
+            ModulationMatrix::SourceType::BrownianMotion,
+            ModulationMatrix::SourceType::EnvelopeTracker,
+            ModulationMatrix::SourceType::Lfo1,
+            ModulationMatrix::SourceType::Lfo2,
+            ModulationMatrix::SourceType::Lfo3,
+            ModulationMatrix::SourceType::Lfo4,
+            ModulationMatrix::SourceType::Lfo5,
+            ModulationMatrix::SourceType::Lfo6
+        };
+
         // Distribution for number of connections
         std::uniform_int_distribution<int> numConnectionsDist(minConnections, maxConnections);
         const int targetConnections = numConnectionsDist(rng);
 
         // Distributions for random parameters
-        std::uniform_int_distribution<int> sourceDist(0, static_cast<int>(ModulationMatrix::SourceType::Count) - 1);
+        std::uniform_int_distribution<int> sourceDist(0, static_cast<int>(kRandomSources.size()) - 1);
         std::uniform_int_distribution<int> destDist(0, static_cast<int>(ModulationMatrix::DestinationType::Count) - 1);
         std::uniform_real_distribution<float> depthDist(minDepth, maxDepth);
         std::uniform_int_distribution<int> smoothingDist(100, 500);   // 100-500ms smoothing
@@ -745,7 +1030,7 @@ namespace {
             attempts++;
 
             // Generate random source and destination
-            auto source = static_cast<ModulationMatrix::SourceType>(sourceDist(rng));
+            auto source = kRandomSources[static_cast<size_t>(sourceDist(rng))];
             auto dest = static_cast<ModulationMatrix::DestinationType>(destDist(rng));
 
             // Determine source axis (chaos has 3 axes X/Y/Z, others have 1)

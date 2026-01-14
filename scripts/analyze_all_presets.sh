@@ -1,6 +1,6 @@
 #!/bin/bash
 # Monument Reverb - Batch Preset Analysis Script
-# Analyzes RT60 and frequency response for all captured presets
+# Analyzes RT60, frequency response, and spatial metrics for all captured presets
 # Supports parallel execution for faster processing
 
 set -e  # Exit on error
@@ -13,6 +13,7 @@ if [[ "$INPUT_BASE" != /* ]]; then
 fi
 PYTHON_RT60="$PROJECT_ROOT/tools/plugin-analyzer/python/rt60_analysis_robust.py"
 PYTHON_FREQ="$PROJECT_ROOT/tools/plugin-analyzer/python/frequency_response.py"
+PYTHON_SPATIAL="$PROJECT_ROOT/tools/plugin-analyzer/python/spatial_metrics.py"
 NUM_PRESETS=37
 
 PYTHON_BIN="${PYTHON_BIN:-}"
@@ -62,6 +63,11 @@ fi
 
 if [ ! -f "$PYTHON_FREQ" ]; then
     echo -e "${RED}Error: Frequency response script not found at $PYTHON_FREQ${NC}"
+    exit 1
+fi
+
+if [ ! -f "$PYTHON_SPATIAL" ]; then
+    echo -e "${RED}Error: Spatial metrics script not found at $PYTHON_SPATIAL${NC}"
     exit 1
 fi
 
@@ -147,12 +153,21 @@ analyze_preset() {
         echo "[Preset ${i}] ⚠ Frequency response failed (see freq_analysis.log)"
     fi
 
+    # Run spatial metrics analysis
+    if "$PYTHON_BIN" "$PYTHON_SPATIAL" "$WET_WAV" \
+        --output "${PRESET_DIR}/spatial_metrics.json" \
+        > "${PRESET_DIR}/spatial_analysis.log" 2>&1; then
+        echo "[Preset ${i}] ✓ Spatial metrics complete"
+    else
+        echo "[Preset ${i}] ⚠ Spatial metrics failed (see spatial_analysis.log)"
+    fi
+
     return 0
 }
 
 # Export function and variables for parallel execution
 export -f analyze_preset
-export INPUT_BASE PYTHON_RT60 PYTHON_FREQ PYTHON_BIN
+export INPUT_BASE PYTHON_RT60 PYTHON_FREQ PYTHON_SPATIAL PYTHON_BIN
 
 # Track statistics
 START_TIME=$(date +%s)
@@ -179,10 +194,12 @@ SECONDS=$((ELAPSED % 60))
 # Count successes
 RT60_SUCCESS=0
 FREQ_SUCCESS=0
+SPATIAL_SUCCESS=0
 for i in $(seq 0 36); do
     PRESET_DIR="${INPUT_BASE}/preset_$(printf "%02d" $i)"
     [ -f "${PRESET_DIR}/rt60_metrics.json" ] && RT60_SUCCESS=$((RT60_SUCCESS + 1))
     [ -f "${PRESET_DIR}/freq_metrics.json" ] && FREQ_SUCCESS=$((FREQ_SUCCESS + 1))
+    [ -f "${PRESET_DIR}/spatial_metrics.json" ] && SPATIAL_SUCCESS=$((SPATIAL_SUCCESS + 1))
 done
 
 # Print summary
@@ -193,10 +210,11 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo -e "RT60 Analysis:       ${GREEN}${RT60_SUCCESS}/${VALID_COUNT}${NC}"
 echo -e "Freq Analysis:       ${GREEN}${FREQ_SUCCESS}/${VALID_COUNT}${NC}"
+echo -e "Spatial Analysis:    ${GREEN}${SPATIAL_SUCCESS}/${VALID_COUNT}${NC}"
 echo -e "Time:                ${YELLOW}${MINUTES}m ${SECONDS}s${NC}"
 echo ""
 
-if [ $RT60_SUCCESS -eq $VALID_COUNT ] && [ $FREQ_SUCCESS -eq $VALID_COUNT ]; then
+if [ $RT60_SUCCESS -eq $VALID_COUNT ] && [ $FREQ_SUCCESS -eq $VALID_COUNT ] && [ $SPATIAL_SUCCESS -eq $VALID_COUNT ]; then
     echo -e "${GREEN}✓ All presets analyzed successfully!${NC}"
     echo ""
     echo -e "Results saved to:"

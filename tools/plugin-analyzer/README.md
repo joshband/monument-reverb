@@ -62,6 +62,10 @@ Optional:
   --duration <seconds>    Test duration (default: 5.0)
   --samplerate <hz>       Sample rate (default: 48000)
   --channels <num>        Number of channels (default: 2)
+  --blocksize <samples>   Block size (default: 512)
+  --preset <index>        Factory preset index (0-based)
+  --param <id=value>      Set parameter (normalized 0-1)
+  --param-raw <id=value>  Set parameter (raw units)
 ```
 
 ### Examples
@@ -85,6 +89,15 @@ monument_plugin_analyzer \
   --plugin Monument.vst3 \
   --test noise \
   --duration 5
+```
+
+#### Override Parameters
+```bash
+monument_plugin_analyzer \
+  --plugin Monument.vst3 \
+  --preset 0 \
+  --param drift=0.5 \
+  --param chaosIntensity=0.3
 ```
 
 #### Custom Sample Rate and Channels

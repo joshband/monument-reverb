@@ -14,10 +14,14 @@
  *   --duration <seconds>    Test duration in seconds (default: 5.0)
  *   --samplerate <hz>       Sample rate (default: 48000)
  *   --channels <num>        Number of channels (default: 2)
+ *   --blocksize <samples>   Block size (default: 512)
+ *   --param <id=value>      Set parameter (normalized 0-1)
+ *   --param-raw <id=value>  Set parameter (raw units)
  */
 
 #include <JuceHeader.h>
 #include <iostream>
+#include <vector>
 #include "PluginLoader.h"
 #include "TestSignalGenerator.h"
 #include "AudioCapture.h"
@@ -35,6 +39,13 @@ struct AnalyzerConfig
     int blockSize = 512;
     int presetIndex = -1;  // -1 = don't change preset, use plugin default
     bool runAnalysis = false;  // Run Python analysis scripts after capture
+    struct ParameterOverride
+    {
+        juce::String id;
+        float value = 0.0f;
+        bool isNormalized = true;
+    };
+    std::vector<ParameterOverride> parameterOverrides;
 };
 
 void printUsage()
@@ -51,6 +62,9 @@ void printUsage()
     std::cout << "  --duration <seconds>    Test duration (default: 5.0)\n";
     std::cout << "  --samplerate <hz>       Sample rate (default: 48000)\n";
     std::cout << "  --channels <num>        Number of channels (default: 2)\n";
+    std::cout << "  --blocksize <samples>   Block size (default: 512)\n";
+    std::cout << "  --param <id=value>      Set parameter (normalized 0-1)\n";
+    std::cout << "  --param-raw <id=value>  Set parameter (raw units)\n";
     std::cout << "  --analyze               Run Python analysis (RT60 + frequency) after capture\n\n";
     std::cout << "Examples:\n";
     std::cout << "  # Capture impulse response from Monument\n";
@@ -58,7 +72,41 @@ void printUsage()
     std::cout << "  # Capture preset 7 with analysis\n";
     std::cout << "  monument_plugin_analyzer --plugin Monument.vst3 --preset 7 --analyze\n\n";
     std::cout << "  # Capture with custom duration\n";
-    std::cout << "  monument_plugin_analyzer --plugin Monument.vst3 --preset 7 --duration 10\n";
+    std::cout << "  monument_plugin_analyzer --plugin Monument.vst3 --preset 7 --duration 10\n\n";
+    std::cout << "  # Override parameters\n";
+    std::cout << "  monument_plugin_analyzer --plugin Monument.vst3 --preset 0 --param drift=0.5 --param chaosIntensity=0.3\n";
+}
+
+bool parseParamOverride(const juce::String& text, AnalyzerConfig::ParameterOverride& paramOverride)
+{
+    const int separator = text.indexOfChar('=');
+    if (separator <= 0 || separator >= text.length() - 1)
+        return false;
+
+    paramOverride.id = text.substring(0, separator).trim();
+    const juce::String valueText = text.substring(separator + 1).trim();
+    if (paramOverride.id.isEmpty() || valueText.isEmpty())
+        return false;
+
+    paramOverride.value = static_cast<float>(valueText.getDoubleValue());
+    return true;
+}
+
+juce::AudioProcessorParameter* findParameter(juce::AudioProcessor& plugin, const juce::String& id)
+{
+    for (auto* param : plugin.getParameters())
+    {
+        if (param == nullptr)
+            continue;
+        if (auto* withId = dynamic_cast<juce::AudioProcessorParameterWithID*>(param))
+        {
+            if (withId->getParameterID().equalsIgnoreCase(id))
+                return param;
+        }
+        if (param->getName(128).equalsIgnoreCase(id))
+            return param;
+    }
+    return nullptr;
 }
 
 bool parseArguments(const juce::ArgumentList& args, AnalyzerConfig& config)
@@ -133,8 +181,21 @@ bool parseArguments(const juce::ArgumentList& args, AnalyzerConfig& config)
                 config.sampleRate = args[i + 1].text.getDoubleValue();
             else if (args[i].text == "--channels")
                 config.numChannels = args[i + 1].text.getIntValue();
+            else if (args[i].text == "--blocksize")
+                config.blockSize = args[i + 1].text.getIntValue();
             else if (args[i].text == "--preset")
                 config.presetIndex = args[i + 1].text.getIntValue();
+            else if (args[i].text == "--param" || args[i].text == "--param-raw")
+            {
+                AnalyzerConfig::ParameterOverride paramOverride;
+                if (!parseParamOverride(args[i + 1].text, paramOverride))
+                {
+                    std::cerr << "Error: Invalid parameter override '" << args[i + 1].text << "'\n";
+                    return false;
+                }
+                paramOverride.isNormalized = (args[i].text == "--param");
+                config.parameterOverrides.push_back(paramOverride);
+            }
         }
     }
 
@@ -274,6 +335,35 @@ int runAnalysis(const AnalyzerConfig& config)
                 std::cout << "  ✓ Set Mix parameter to 100%\n";
                 break;
             }
+        }
+    }
+
+    // Apply parameter overrides after preset + mix setup
+    if (plugin && !config.parameterOverrides.empty())
+    {
+        std::cout << "\n▸ Applying parameter overrides...\n";
+        for (const auto& paramOverride : config.parameterOverrides)
+        {
+            auto* param = findParameter(*plugin, paramOverride.id);
+            if (param == nullptr)
+            {
+                std::cout << "  ⚠ Parameter not found: " << paramOverride.id.toStdString() << "\n";
+                continue;
+            }
+
+            float normalizedValue = paramOverride.value;
+            if (!paramOverride.isNormalized)
+            {
+                if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param))
+                    normalizedValue = ranged->convertTo0to1(paramOverride.value);
+            }
+            normalizedValue = juce::jlimit(0.0f, 1.0f, normalizedValue);
+
+            param->setValue(normalizedValue);
+            std::cout << "  ✓ " << param->getName(64).toStdString()
+                      << " (" << paramOverride.id.toStdString()
+                      << ") = " << paramOverride.value
+                      << (paramOverride.isNormalized ? " (norm)" : "") << "\n";
         }
     }
 

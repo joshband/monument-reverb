@@ -6,11 +6,12 @@ namespace
 {
 constexpr float kInvSqrt8 = 0.3535533905932738f;
 using Matrix8 = std::array<std::array<float, 8>, 8>;
+constexpr size_t kSimdAlignment = juce::dsp::SIMDRegister<float>::SIMDRegisterSize;
 
 constexpr float kHouseholderDiag = 0.75f;
 constexpr float kHouseholderOff = -0.25f;
 
-constexpr Matrix8 kMatrixHadamard{{
+alignas(kSimdAlignment) constexpr Matrix8 kMatrixHadamard{{
     {{ kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8 }},
     {{ kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8 }},
     {{ kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8 }},
@@ -21,7 +22,7 @@ constexpr Matrix8 kMatrixHadamard{{
     {{ kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8,  kInvSqrt8,  kInvSqrt8, -kInvSqrt8 }}
 }};
 
-constexpr Matrix8 kMatrixHouseholder{{
+alignas(kSimdAlignment) constexpr Matrix8 kMatrixHouseholder{{
     {{ kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
     {{ kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
     {{ kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
@@ -47,12 +48,21 @@ constexpr std::array<int, 8> kLateDiffuserSamples48k{
     157, 173, 197, 223, 251, 281, 313, 347
 };
 
+// Feedback diffusion delays (48 kHz), short taps for extra density inside the loop.
+constexpr std::array<int, 8> kFeedbackDiffuserSamples48k{
+    59, 73, 89, 97, 113, 131, 149, 167
+};
+
 constexpr std::array<float, 8> kDampingOffsets{
     -0.035f, -0.025f, -0.015f, -0.005f, 0.005f, 0.015f, 0.025f, 0.035f
 };
 
 constexpr std::array<float, 8> kLateDiffuserCoeffOffsets{
     -0.06f, -0.045f, -0.03f, -0.015f, 0.015f, 0.03f, 0.045f, 0.06f
+};
+
+constexpr std::array<float, 8> kFeedbackDiffuserCoeffOffsets{
+    -0.04f, -0.03f, -0.02f, -0.01f, 0.01f, 0.02f, 0.03f, 0.04f
 };
 
 constexpr std::array<float, 8> kInputMid{
@@ -92,10 +102,14 @@ constexpr float kMinFeedback = 0.35f;
 constexpr float kBloomSmoothingMs = 40.0f;
 constexpr float kWarpSmoothingMs = 1200.0f;
 constexpr float kDriftSmoothingMs = 1500.0f;
+constexpr float kAdaptiveWarpSmoothingMs = 400.0f;
 constexpr float kDriftRateMinHz = 0.05f;
 constexpr float kDriftRateMaxHz = 0.2f;
 // Drift depth stays within +/-1.0 sample to avoid audible pitch wobble.
 constexpr float kDriftDepthMaxSamples = 1.0f;
+constexpr float kJitterDepthMaxSamples = 0.6f;
+constexpr float kJitterSmoothingMs = 500.0f;
+constexpr float kFeedbackSaturationMaxDrive = 3.0f;
 constexpr float kEnvelopeMinTimeSeconds = 1.0f;
 constexpr float kEnvelopeMaxTimeSeconds = 12.0f;
 constexpr float kBloomPeakGain = 0.5f; // Up to 1.5x at Bloom=1.
@@ -177,12 +191,38 @@ inline void computeWarpMatrix(float warp, Matrix8& dest)
 
 inline void applyMatrix(const Matrix8& matrix, const float* input, float* output)
 {
-    for (size_t row = 0; row < 8; ++row)
+    using Vec = juce::dsp::SIMDRegister<float>;
+    constexpr size_t simdWidth = Vec::SIMDNumElements;
+
+    if constexpr (simdWidth == 8)
     {
-        float sum = 0.0f;
-        for (size_t col = 0; col < 8; ++col)
-            sum += matrix[row][col] * input[col];
-        output[row] = sum;
+        const Vec in = Vec::fromRawArray(input);
+        for (size_t row = 0; row < 8; ++row)
+        {
+            const Vec rowVec = Vec::fromRawArray(matrix[row].data());
+            output[row] = (rowVec * in).sum();
+        }
+    }
+    else if constexpr (simdWidth == 4)
+    {
+        const Vec in0 = Vec::fromRawArray(input);
+        const Vec in1 = Vec::fromRawArray(input + simdWidth);
+        for (size_t row = 0; row < 8; ++row)
+        {
+            const Vec row0 = Vec::fromRawArray(matrix[row].data());
+            const Vec row1 = Vec::fromRawArray(matrix[row].data() + simdWidth);
+            output[row] = (row0 * in0 + row1 * in1).sum();
+        }
+    }
+    else
+    {
+        for (size_t row = 0; row < 8; ++row)
+        {
+            float sum = 0.0f;
+            for (size_t col = 0; col < 8; ++col)
+                sum += matrix[row][col] * input[col];
+            output[row] = sum;
+        }
     }
 }
 
@@ -256,6 +296,15 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
         lateDiffusers[i].prepare();
     }
 
+    // Feedback diffusion: subtle allpass inside feedback loop for extra density.
+    for (size_t i = 0; i < kNumLines; ++i)
+    {
+        const int diffuserDelaySamples = juce::jmax(
+            1, static_cast<int>(std::round(kFeedbackDiffuserSamples48k[i] * scale)));
+        feedbackDiffusers[i].setDelaySamples(diffuserDelaySamples);
+        feedbackDiffusers[i].prepare();
+    }
+
     driftDepthMaxSamples = kDriftDepthMaxSamples;
     {
         juce::Random random;
@@ -291,11 +340,20 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
     driftSmoother.setSmoothingTimeMs(kDriftSmoothingMs); // Drift stays gentle and motion-safe.
     driftSmoother.setTarget(driftTarget);
 
+    adaptiveWarpOffsetSmoother.reset(sampleRateHz, kAdaptiveWarpSmoothingMs / 1000.0f);
+    adaptiveWarpOffsetSmoother.setCurrentAndTargetValue(0.0f);
+
     // Initialize diffuser coefficient smoothers (8ms = fast but click-free)
     for (auto& smoother : inputDiffuserCoeffSmoothers)
         smoother.reset(sampleRateHz, 0.008);
     for (auto& smoother : lateDiffuserCoeffSmoothers)
         smoother.reset(sampleRateHz, 0.008);
+    for (auto& smoother : feedbackDiffuserCoeffSmoothers)
+        smoother.reset(sampleRateHz, 0.012);
+
+    for (auto& smoother : jitterSmoothers)
+        smoother.reset(sampleRateHz, kJitterSmoothingMs / 1000.0f);
+    jitterTargets.fill(0.0f);
 
     warpSmoothed = warpTarget;
     computeWarpMatrix(warpSmoothed, warpMatrix);
@@ -329,6 +387,8 @@ void Chambers::reset()
         diffuser.reset();
     for (auto& diffuser : lateDiffusers)
         diffuser.reset();
+    for (auto& diffuser : feedbackDiffusers)
+        diffuser.reset();
     smoothersPrimed = false;
     freezeRampRemaining = 0;
     freezeBlend = 1.0f;
@@ -340,6 +400,10 @@ void Chambers::reset()
     envelopeValue = 1.0f;
     envelopeTriggerArmed = true;
     warpSmoothed = warpTarget;
+    adaptiveWarpOffsetSmoother.setCurrentAndTargetValue(0.0f);
+    for (auto& smoother : jitterSmoothers)
+        smoother.setCurrentAndTargetValue(0.0f);
+    jitterTargets.fill(0.0f);
 
     // Reset spatial processor
     if (spatialProcessor)
@@ -358,7 +422,7 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
 
     // Update spatial attenuation coefficients (block-rate, Phase 1: Three-System Plan)
     if (spatialProcessor)
-        spatialProcessor->process();
+        spatialProcessor->process(numSamples);
 
     const float outputScale = kOutputGain; // Normalizes constant-power output mix to unity.
 
@@ -375,6 +439,63 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
     for (size_t i = 0; i < kNumLines; ++i)
         lineData[i] = delayLines.getWritePointer(static_cast<int>(i));
 
+    std::array<float, kNumLines> outputLeftGains{};
+    std::array<float, kNumLines> outputRightGains{};
+    std::array<float, kNumLines> airAbsorptionGains{};
+    if (spatialProcessor)
+    {
+        for (size_t i = 0; i < kNumLines; ++i)
+        {
+            float leftGain = 0.0f;
+            float rightGain = 0.0f;
+            spatialProcessor->getStereoGains(static_cast<int>(i), leftGain, rightGain);
+            outputLeftGains[i] = leftGain;
+            outputRightGains[i] = rightGain;
+            airAbsorptionGains[i] = spatialProcessor->getAirAbsorptionGain(static_cast<int>(i));
+        }
+    }
+    else
+    {
+        outputLeftGains = kOutputLeft;
+        outputRightGains = kOutputRight;
+        airAbsorptionGains.fill(1.0f);
+    }
+
+    if (adaptiveMatrixAmount > 0.0f)
+    {
+        float sumSquares = 0.0f;
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            const float inL = left[sample];
+            const float inR = right != nullptr ? right[sample] : inL;
+            sumSquares += 0.5f * (inL * inL + inR * inR);
+        }
+        const float rms = std::sqrt(sumSquares / static_cast<float>(juce::jmax(1, numSamples)));
+        const float adaptiveTarget = adaptiveMatrixAmount * juce::jlimit(0.0f, 1.0f, rms * 2.0f);
+        adaptiveWarpOffsetSmoother.setTargetValue(adaptiveTarget);
+    }
+    else
+    {
+        adaptiveWarpOffsetSmoother.setTargetValue(0.0f);
+    }
+
+    if (delayJitterAmount > 0.0f)
+    {
+        const float jitterStep = 0.15f * delayJitterAmount;
+        for (size_t i = 0; i < kNumLines; ++i)
+        {
+            jitterTargets[i] = juce::jlimit(-1.0f, 1.0f,
+                jitterTargets[i] + (jitterRandom.nextFloat() * 2.0f - 1.0f) * jitterStep);
+            const float jitterSamples = jitterTargets[i] * delayJitterAmount * kJitterDepthMaxSamples;
+            jitterSmoothers[i].setTargetValue(jitterSamples);
+        }
+    }
+    else
+    {
+        for (auto& smoother : jitterSmoothers)
+            smoother.setTargetValue(0.0f);
+    }
+
     if (!smoothersPrimed)
     {
         // Phase 4: Per-sample parameters no longer need priming (smoothed upstream)
@@ -389,15 +510,20 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         const float initialDensityShaped = juce::jmap(initialDensityNorm, 0.05f, 1.0f);
         const float initialInputCoeff = juce::jmap(initialDensityShaped, 0.12f, 0.6f);
         const float initialLateCoeffBase = juce::jmap(initialDensityShaped, 0.18f, 0.7f);
+        const float initialFeedbackCoeffBase = juce::jmap(initialDensityShaped, 0.08f, 0.35f);
         for (auto& smoother : inputDiffuserCoeffSmoothers)
             smoother.setCurrentAndTargetValue(initialInputCoeff);
         for (size_t i = 0; i < kNumLines; ++i)
         {
             const float initialCoeff = initialLateCoeffBase * (1.0f + kLateDiffuserCoeffOffsets[i]);
             lateDiffuserCoeffSmoothers[i].setCurrentAndTargetValue(juce::jlimit(0.05f, 0.74f, initialCoeff));
+            const float initialFeedbackCoeff = initialFeedbackCoeffBase * (1.0f + kFeedbackDiffuserCoeffOffsets[i]);
+            feedbackDiffuserCoeffSmoothers[i].setCurrentAndTargetValue(juce::jlimit(0.05f, 0.6f, initialFeedbackCoeff));
+            jitterSmoothers[i].setCurrentAndTargetValue(0.0f);
         }
         lastInputCoeffTarget = initialInputCoeff;
         lastLateCoeffBase = initialLateCoeffBase;
+        lastFeedbackCoeffBase = initialFeedbackCoeffBase;
 
         warpSmoothed = warpTarget;
         computeWarpMatrix(warpSmoothed, warpMatrix);
@@ -434,7 +560,8 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         bool warpMatrixDirty = false;
         if (!freezeActive)
         {
-            const float warpNext = juce::jlimit(0.0f, 1.0f, warpSmoother.getNextValue());
+            const float adaptiveOffset = adaptiveWarpOffsetSmoother.getNextValue();
+            const float warpNext = juce::jlimit(0.0f, 1.0f, warpSmoother.getNextValue() + adaptiveOffset);
             if (std::abs(warpNext - warpSmoothed) > kWarpMatrixEpsilon)
             {
                 warpSmoothed = warpNext;
@@ -508,12 +635,14 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         const float densityShaped = juce::jmap(densityNorm, 0.05f, 1.0f);
         const float densityInputGain = juce::jmap(densityShaped, 0.18f, 0.32f);
         const float densityEarlyMix = juce::jmap(densityShaped, 0.45f, 0.25f);
+        const float feedbackDiffusionMix = juce::jmap(densityShaped, 0.0f, 0.6f);
 
         // Density drives diffusion strength; coefficients stay below 0.75 for stability.
         // Per-sample smoothing prevents clicks in feedback path.
         // Only update targets when they change significantly to avoid constant ramp interruption.
         const float inputCoeffTarget = juce::jmap(densityShaped, 0.12f, 0.6f);
         const float lateCoeffBase = juce::jmap(densityShaped, 0.18f, 0.7f);
+        const float feedbackCoeffBase = juce::jmap(densityShaped, 0.08f, 0.35f);
 
         constexpr float kCoeffTargetEpsilon = 0.001f;
         if (std::abs(inputCoeffTarget - lastInputCoeffTarget) > kCoeffTargetEpsilon)
@@ -536,6 +665,18 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         }
         for (size_t i = 0; i < kNumLines; ++i)
             lateDiffusers[i].setCoefficient(lateDiffuserCoeffSmoothers[i].getNextValue());
+
+        if (std::abs(feedbackCoeffBase - lastFeedbackCoeffBase) > kCoeffTargetEpsilon)
+        {
+            for (size_t i = 0; i < kNumLines; ++i)
+            {
+                const float coeffTarget = feedbackCoeffBase * (1.0f + kFeedbackDiffuserCoeffOffsets[i]);
+                feedbackDiffuserCoeffSmoothers[i].setTargetValue(juce::jlimit(0.05f, 0.6f, coeffTarget));
+            }
+            lastFeedbackCoeffBase = feedbackCoeffBase;
+        }
+        for (size_t i = 0; i < kNumLines; ++i)
+            feedbackDiffusers[i].setCoefficient(feedbackDiffuserCoeffSmoothers[i].getNextValue());
 
         // Freeze feedback below unity for stability (compensates for allpass gain and matrix non-idealities)
         // Reduced to 0.85 to prevent energy accumulation from numerical precision in diffusers/matrix
@@ -614,8 +755,8 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         }
 
         const float outputBlend = freezeBlend;
-        float outLive[kNumLines];
-        float outFrozen[kNumLines];
+        alignas(kSimdAlignment) float outLive[kNumLines];
+        alignas(kSimdAlignment) float outFrozen[kNumLines];
         for (size_t i = 0; i < kNumLines; ++i)
         {
             const int readPos = writePositions[i];
@@ -628,7 +769,8 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             const float modOffset = driftDepth != 0.0f
                 ? std::sin(driftPhase[i]) * driftDepth
                 : 0.0f;
-            const float driftedDelay = juce::jmax(1.0f, delaySamples[i] + modOffset);
+            const float jitterOffset = jitterSmoothers[i].getNextValue();
+            const float driftedDelay = juce::jmax(1.0f, delaySamples[i] + modOffset + jitterOffset);
 
             // Apply Doppler shift to delay time (Phase 3: Three-System Plan)
             float finalDelay = driftedDelay;
@@ -659,10 +801,10 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             }
         }
 
-        float feedback[kNumLines];
+        alignas(kSimdAlignment) float feedback[kNumLines];
         applyMatrix(feedbackMatrix, outLive, feedback);
 
-        float lateOutLive[kNumLines];
+        alignas(kSimdAlignment) float lateOutLive[kNumLines];
         for (size_t i = 0; i < kNumLines; ++i)
         {
             // Late diffusion is post-read and pre-output mix to increase density
@@ -694,10 +836,11 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         float wetFrozenR = 0.0f;
         for (size_t i = 0; i < kNumLines; ++i)
         {
-            wetLiveL += lateOutLive[i] * kOutputLeft[i];
-            wetLiveR += lateOutLive[i] * kOutputRight[i];
-            wetFrozenL += outFrozen[i] * kOutputLeft[i];
-            wetFrozenR += outFrozen[i] * kOutputRight[i];
+            const float airGain = airAbsorptionGains[i];
+            wetLiveL += (lateOutLive[i] * airGain) * outputLeftGains[i];
+            wetLiveR += (lateOutLive[i] * airGain) * outputRightGains[i];
+            wetFrozenL += (outFrozen[i] * airGain) * outputLeftGains[i];
+            wetFrozenR += (outFrozen[i] * airGain) * outputRightGains[i];
         }
         wetLiveL *= outputScale * envelopeValue;
         wetLiveR *= outputScale * envelopeValue;
@@ -718,7 +861,20 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
                 ? (memoryMid * kInputMid[i] + memorySide * kInputSide[i])
                     * kInvSqrt8 * kMemoryInjectionGain * freezeBlend
                 : 0.0f;
-            const float writeValue = injection + memoryInjection + feedback[i] * feedbackLocal;
+            float feedbackSample = feedback[i] * feedbackLocal;
+            if (feedbackDiffusionMix > 0.0f)
+            {
+                const float diffused = feedbackDiffusers[i].processSample(feedbackSample);
+                feedbackSample += feedbackDiffusionMix * (diffused - feedbackSample);
+            }
+            if (feedbackSaturationAmount > 0.0f)
+            {
+                const float drive = 1.0f + feedbackSaturationAmount * (kFeedbackSaturationMaxDrive - 1.0f);
+                const float norm = juce::dsp::FastMathApproximations::tanh(drive);
+                feedbackSample = juce::dsp::FastMathApproximations::tanh(feedbackSample * drive)
+                    / (norm > 0.0f ? norm : 1.0f);
+            }
+            const float writeValue = injection + memoryInjection + feedbackSample;
             const int writePos = writePositions[i];
             const float damped = lowpassState[i] + dampingCoefficients[i] * (writeValue - lowpassState[i]);
             lowpassState[i] = damped;
@@ -837,6 +993,21 @@ void Chambers::setFreeze(bool shouldFreeze)
         freezeRampStep = 1.0f / static_cast<float>(freezeRampRemaining);
     }
 
+}
+
+void Chambers::setAdaptiveMatrixAmount(float amount)
+{
+    adaptiveMatrixAmount = juce::jlimit(0.0f, 1.0f, amount);
+}
+
+void Chambers::setFeedbackSaturation(float amount)
+{
+    feedbackSaturationAmount = juce::jlimit(0.0f, 1.0f, amount);
+}
+
+void Chambers::setDelayJitter(float amount)
+{
+    delayJitterAmount = juce::jlimit(0.0f, 1.0f, amount);
 }
 
 } // namespace dsp

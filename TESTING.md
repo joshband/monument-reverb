@@ -60,7 +60,7 @@ Set `BUILD_DIR=build-ninja` (or another build folder) to point the harness at a 
 
 **Audio regression pipeline:**
 - `scripts/capture_all_presets.sh` - Render IRs for all presets.
-- `scripts/analyze_all_presets.sh` - RT60 + frequency response analysis.
+- `scripts/analyze_all_presets.sh` - RT60 + frequency response + spatial metrics.
 - `tools/compare_baseline.py` - Baseline regression report.
 - `tools/plot_preset_comparison.py` - Aggregate plots for RT60/frequency stats.
 - `tools/plugin-analyzer/` - Analyzer sources + Python tooling (`python/requirements.txt`).
@@ -126,12 +126,13 @@ ctest -C Release --output-on-failure
 
 **Tools:**
 - `scripts/capture_all_presets.sh` - Capture audio for all 37 presets
-- `scripts/analyze_all_presets.sh` - Analyze RT60, frequency response
+- `scripts/analyze_all_presets.sh` - Analyze RT60, frequency response, spatial metrics
 - `tools/compare_baseline.py` - Compare against baseline
 
 **Metrics Captured:**
 - RT60 decay time (4.85s to 29.85s across presets)
 - Frequency response (plus or minus 8.8 dB flatness)
+- Spatial metrics (ITD/ILD/IACC, early-window)
 - Audio regression detection
 
 **Baseline:** `test-results/preset-baseline/`
@@ -203,7 +204,7 @@ BUILD_DIR=build CONFIG=Release \
 
 - `build/Testing/Temporary/LastTest.log` - Last CTest run log (local).
 - `test-results/README.md` - Generated artifacts map and expectations.
-- `test-results/preset-baseline/` - Per-preset IRs + metrics (RT60/frequency).
+- `test-results/preset-baseline/` - Per-preset IRs + metrics (RT60/frequency/spatial).
 - `test-results/comparisons/` - Aggregate plots and statistics.
 - `test-results/ui-baseline/` + `test-results/ui-current/` - UI screenshot baselines + reports.
 - `test-results/experimental-analysis/` - Experimental preset analysis outputs.
@@ -286,6 +287,7 @@ CTest list:
 - `frequency_response.schema.json` - Frequency response analysis
 - `regression_report.schema.json` - Regression test results
 - `rt60_metrics.schema.json` - RT60 decay measurements
+- `spatial_metrics.schema.json` - Spatial metrics (ITD/ILD/IACC)
 - `test_output_schemas.md` - Complete schema documentation
 
 ## Continuous Integration

@@ -26,8 +26,13 @@ except ImportError as e:
     sys.exit(1)
 
 
+DEFAULT_SPATIAL_ITD_MS = 0.2
+DEFAULT_SPATIAL_ILD_DB = 1.0
+DEFAULT_SPATIAL_IACC_DELTA = 0.05
+
+
 def load_metrics(preset_dir: Path) -> Dict:
-    """Load RT60 and frequency response metrics for a preset."""
+    """Load RT60, frequency response, and spatial metrics for a preset."""
     metrics = {}
 
     rt60_file = preset_dir / "rt60_metrics.json"
@@ -39,6 +44,11 @@ def load_metrics(preset_dir: Path) -> Dict:
     if freq_file.exists():
         with open(freq_file) as f:
             metrics['freq_response'] = json.load(f)
+
+    spatial_file = preset_dir / "spatial_metrics.json"
+    if spatial_file.exists():
+        with open(spatial_file) as f:
+            metrics['spatial'] = json.load(f)
 
     return metrics
 
@@ -107,8 +117,13 @@ def compare_rt60(baseline: Dict, current: Dict, threshold: float) -> Tuple[bool,
 
 def compare_frequency_response(baseline: Dict, current: Dict, threshold: float) -> Tuple[bool, str, float]:
     """Compare frequency response between baseline and current."""
-    baseline_flatness = baseline.get('overall', {}).get('flatness_std_db')
-    current_flatness = current.get('overall', {}).get('flatness_std_db')
+    baseline_flatness = baseline.get('broadband', {}).get('flatness_db')
+    current_flatness = current.get('broadband', {}).get('flatness_db')
+
+    if baseline_flatness is None:
+        baseline_flatness = baseline.get('overall', {}).get('flatness_std_db')
+    if current_flatness is None:
+        current_flatness = current.get('overall', {}).get('flatness_std_db')
 
     if baseline_flatness is None or current_flatness is None:
         return False, "Missing frequency response data", 0.0
@@ -121,8 +136,62 @@ def compare_frequency_response(baseline: Dict, current: Dict, threshold: float) 
         return True, f"Frequency response within threshold ({diff:.2f}dB change)", diff
 
 
-def compare_preset(preset_idx: int, baseline_dir: Path, current_dir: Path,
-                  threshold: float) -> Dict:
+def compare_spatial_metrics(
+    baseline: Dict,
+    current: Dict,
+    itd_ms_threshold: float,
+    ild_db_threshold: float,
+    iacc_threshold: float
+) -> Tuple[bool, List[str], Dict[str, float]]:
+    """Compare spatial metrics (ITD/ILD/IACC) between baseline and current."""
+    issues = []
+    metrics = {}
+
+    baseline_bb = baseline.get('broadband', {})
+    current_bb = current.get('broadband', {})
+
+    baseline_itd = baseline_bb.get('itd_seconds')
+    current_itd = current_bb.get('itd_seconds')
+    if baseline_itd is not None and current_itd is not None:
+        itd_delta_ms = abs(baseline_itd - current_itd) * 1000.0
+        metrics['itd_delta_ms'] = itd_delta_ms
+        if itd_delta_ms > itd_ms_threshold:
+            issues.append(
+                f"ITD changed by {itd_delta_ms:.3f}ms ({baseline_itd * 1000.0:.3f}ms → {current_itd * 1000.0:.3f}ms)"
+            )
+
+    baseline_ild = baseline_bb.get('ild_db')
+    current_ild = current_bb.get('ild_db')
+    if baseline_ild is not None and current_ild is not None:
+        ild_delta_db = abs(baseline_ild - current_ild)
+        metrics['ild_db_delta'] = ild_delta_db
+        if ild_delta_db > ild_db_threshold:
+            issues.append(
+                f"ILD changed by {ild_delta_db:.2f}dB ({baseline_ild:.2f}dB → {current_ild:.2f}dB)"
+            )
+
+    baseline_iacc = baseline_bb.get('iacc')
+    current_iacc = current_bb.get('iacc')
+    if baseline_iacc is not None and current_iacc is not None:
+        iacc_delta = abs(baseline_iacc - current_iacc)
+        metrics['iacc_delta'] = iacc_delta
+        if iacc_delta > iacc_threshold:
+            issues.append(
+                f"IACC changed by {iacc_delta:.3f} ({baseline_iacc:.3f} → {current_iacc:.3f})"
+            )
+
+    return len(issues) == 0, issues, metrics
+
+
+def compare_preset(
+    preset_idx: int,
+    baseline_dir: Path,
+    current_dir: Path,
+    threshold: float,
+    itd_ms_threshold: float,
+    ild_db_threshold: float,
+    iacc_threshold: float
+) -> Dict:
     """Compare a single preset between baseline and current."""
     baseline_preset = baseline_dir / f"preset_{preset_idx:02d}"
     current_preset = current_dir / f"preset_{preset_idx:02d}"
@@ -173,6 +242,22 @@ def compare_preset(preset_idx: int, baseline_dir: Path, current_dir: Path,
             result['pass'] = False
             result['issues'].append(f"Frequency: {msg}")
 
+    # Compare spatial metrics
+    if baseline_metrics.get('spatial') and current_metrics.get('spatial'):
+        pass_spatial, issues, spatial_metrics = compare_spatial_metrics(
+            baseline_metrics['spatial'],
+            current_metrics['spatial'],
+            itd_ms_threshold,
+            ild_db_threshold,
+            iacc_threshold
+        )
+        if spatial_metrics:
+            result['metrics']['spatial'] = spatial_metrics
+        if not pass_spatial:
+            result['pass'] = False
+            for issue in issues:
+                result['issues'].append(f"Spatial: {issue}")
+
     # Compare waveforms
     baseline_wav = baseline_preset / "wet.wav"
     current_wav = current_preset / "wet.wav"
@@ -212,6 +297,12 @@ def main():
                        help='Current preset directory to compare')
     parser.add_argument('--threshold', '-t', type=float, default=0.05,
                        help='Difference threshold (0.05 = 5%% change, default: 0.05)')
+    parser.add_argument('--spatial-itd-ms', type=float, default=DEFAULT_SPATIAL_ITD_MS,
+                       help=f'Spatial ITD threshold in ms (default: {DEFAULT_SPATIAL_ITD_MS})')
+    parser.add_argument('--spatial-ild-db', type=float, default=DEFAULT_SPATIAL_ILD_DB,
+                       help=f'Spatial ILD threshold in dB (default: {DEFAULT_SPATIAL_ILD_DB})')
+    parser.add_argument('--spatial-iacc', type=float, default=DEFAULT_SPATIAL_IACC_DELTA,
+                       help=f'Spatial IACC threshold (default: {DEFAULT_SPATIAL_IACC_DELTA})')
     parser.add_argument('--output', '-o', type=Path,
                        help='Output JSON report file (optional)')
     parser.add_argument('--preset', '-p', type=int, nargs='+',
@@ -233,6 +324,11 @@ def main():
     print(f"Baseline: {args.baseline_dir}")
     print(f"Current:  {args.current_dir}")
     print(f"Threshold: {args.threshold * 100:.1f}%\n")
+    print(
+        f"Spatial thresholds: ITD {args.spatial_itd_ms:.3f}ms, "
+        f"ILD {args.spatial_ild_db:.2f}dB, "
+        f"IACC {args.spatial_iacc:.3f}\n"
+    )
 
     # Determine which presets to compare
     if args.preset:
@@ -246,7 +342,15 @@ def main():
     fail_count = 0
 
     for i in preset_indices:
-        result = compare_preset(i, args.baseline_dir, args.current_dir, args.threshold)
+        result = compare_preset(
+            i,
+            args.baseline_dir,
+            args.current_dir,
+            args.threshold,
+            args.spatial_itd_ms,
+            args.spatial_ild_db,
+            args.spatial_iacc
+        )
         results.append(result)
 
         if result['pass']:
@@ -270,6 +374,14 @@ def main():
                 metrics_summary.append(f"RT60: {result['metrics']['rt60_diff_pct']:.1f}%")
             if 'freq_flatness_diff_db' in result['metrics']:
                 metrics_summary.append(f"Flatness: {result['metrics']['freq_flatness_diff_db']:.2f}dB")
+            if 'spatial' in result['metrics']:
+                spatial = result['metrics']['spatial']
+                itd_delta = spatial.get('itd_delta_ms', 0.0)
+                ild_delta = spatial.get('ild_db_delta', 0.0)
+                iacc_delta = spatial.get('iacc_delta', 0.0)
+                metrics_summary.append(
+                    f"Spatial: ITD {itd_delta:.2f}ms, ILD {ild_delta:.2f}dB, IACC {iacc_delta:.3f}"
+                )
             if metrics_summary:
                 print(f" ({', '.join(metrics_summary)})")
             else:

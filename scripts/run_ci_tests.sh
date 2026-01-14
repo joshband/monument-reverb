@@ -698,6 +698,43 @@ else
     echo -e "${YELLOW}⚠ Skipping baseline regression (preset capture failed)${NC}"
 fi
 
+# Optional Drift/Chaos sweep (opt-in)
+if [ "${ENABLE_DRIFT_CHAOS_SWEEP:-0}" = "1" ]; then
+    echo ""
+    echo "Running Drift/Chaos sweep..."
+
+    SWEEP_PRESETS="${SWEEP_PRESETS:-0-7}"
+    SWEEP_DRIFT="${SWEEP_DRIFT:-0,0.5,1.0}"
+    SWEEP_CHAOS="${SWEEP_CHAOS:-0,0.5,1.0}"
+    SWEEP_DURATION="${SWEEP_DURATION:-30}"
+    SWEEP_OUTPUT="${SWEEP_OUTPUT:-$TEST_RESULTS_DIR/drift-chaos-sweep}"
+
+    SWEEP_ARGS=(
+        "$PYTHON_BIN" "$PROJECT_ROOT/scripts/sweep_drift_chaos.py"
+        --presets "$SWEEP_PRESETS"
+        --drift "$SWEEP_DRIFT"
+        --chaos "$SWEEP_CHAOS"
+        --duration "$SWEEP_DURATION"
+        --output "$SWEEP_OUTPUT"
+        --config "$TEST_CONFIG"
+    )
+
+    if [ -n "${SWEEP_PLUGIN_PATH:-}" ]; then
+        SWEEP_ARGS+=(--plugin "$SWEEP_PLUGIN_PATH")
+    fi
+
+    if [ "${ENABLE_DRIFT_CHAOS_SWEEP_PLOTS:-0}" = "1" ]; then
+        SWEEP_ARGS+=(--plots)
+    fi
+
+    if [ "${ENABLE_DRIFT_CHAOS_SWEEP_NO_ANALYSIS:-0}" = "1" ]; then
+        SWEEP_ARGS+=(--no-analysis)
+    fi
+
+    "${SWEEP_ARGS[@]}"
+    echo -e "${GREEN}✓ Drift/Chaos sweep complete${NC}"
+fi
+
 # Run UI visual regression tests (optional)
 if [ "${ENABLE_UI_TESTS:-0}" = "1" ]; then
     echo ""

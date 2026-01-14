@@ -242,7 +242,10 @@ public:
                            const ParameterBuffer& gravity,
                            float warp,
                            float drift,
-                           bool freeze);
+                           bool freeze,
+                           float adaptiveMatrixAmount,
+                           float feedbackSaturationAmount,
+                           float delayJitterAmount);
     void setWeatheringParams(const ParameterBuffer& warp, const ParameterBuffer& drift);
     void setTubeRayTracerParams(float tubeCount, float radiusVariation,
                                  float metallicResonance, float couplingStrength);

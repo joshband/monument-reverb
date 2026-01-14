@@ -48,6 +48,8 @@ int main()
 {
     std::cout << COLOR_BLUE << "\nMonument - Output Safety Clip Test" << COLOR_RESET << "\n\n";
 
+    juce::ScopedJuceInitialiser_GUI juceGui;
+
     MonumentAudioProcessor processor;
     processor.prepareToPlay(kSampleRate, kBlockSize);
 

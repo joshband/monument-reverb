@@ -84,12 +84,13 @@ ctest --test-dir build -C Release
 ### 2. Analyze Audio Quality
 
 ```bash
-# Analyze RT60 + frequency response for all presets (~30 seconds)
+# Analyze RT60 + frequency response + spatial metrics for all presets (~30 seconds)
 ./scripts/analyze_all_presets.sh
 
 # Output: test-results/preset-baseline/preset_XX/
 #   - rt60_metrics.json (decay time)
 #   - freq_metrics.json (frequency response)
+#   - spatial_metrics.json (ITD/ILD/IACC)
 #   - frequency_response.png (spectrum plot)
 ```
 
@@ -210,6 +211,7 @@ jobs:
 - ✅ L2 norm difference calculation
 - ✅ Waveform RMS comparison
 - ✅ RT60 drift detection
+- ✅ Spatial cue delta checks (ITD/ILD/IACC)
 
 **Success Criteria:** <0.1% L2 norm difference
 
@@ -271,6 +273,7 @@ test-results/
 │   │   ├── dry.wav               # Input signal
 │   │   ├── rt60_metrics.json     # Decay time
 │   │   ├── freq_metrics.json     # Frequency response
+│   │   ├── spatial_metrics.json  # ITD/ILD/IACC
 │   │   ├── frequency_response.png # Spectrum plot
 │   │   └── metadata.json         # Capture info
 │   └── ... (37 total)

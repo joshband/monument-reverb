@@ -10,7 +10,7 @@ Note: The canonical testing hub is `TESTING.md` in the repo root. This file focu
 # 1. Capture all presets (15 seconds each, parallelized)
 ./scripts/capture_all_presets.sh
 
-# 2. Analyze all captures (RT60 + frequency response, parallelized)
+# 2. Analyze all captures (RT60 + frequency response + spatial metrics, parallelized)
 ./scripts/analyze_all_presets.sh
 
 # 3. Generate comparison visualizations
@@ -44,6 +44,11 @@ cat test-results/comparisons/summary_statistics.txt
 - Overall flatness rating (±dB std deviation)
 - JSON output: `test-results/preset-baseline/preset_XX/freq_metrics.json`
 - PNG plot: `test-results/preset-baseline/preset_XX/frequency_response.png`
+
+**Spatial Metrics** ([tools/plugin-analyzer/python/spatial_metrics.py](tools/plugin-analyzer/python/spatial_metrics.py))
+- ITD (GCC-PHAT), ILD (RMS + band energy), IACC (normalized cross-correlation)
+- Early-window analysis for spatial cues
+- JSON output: `test-results/preset-baseline/preset_XX/spatial_metrics.json`
 
 ### 📈 Visualization Tools
 
@@ -84,6 +89,7 @@ python3 tools/compare_baseline.py \
 **Comparison Metrics:**
 - RT60 change (% difference)
 - Frequency flatness change (dB difference)
+- Spatial metrics deltas (ITD ms, ILD dB, IACC)
 - Waveform correlation (should be > 0.95)
 - RMS waveform difference
 - Spectral difference (dB)
@@ -102,11 +108,13 @@ test-results/
     │   ├── dry.wav                    # Dry input signal
     │   ├── rt60_metrics.json          # Decay time metrics
     │   ├── freq_metrics.json          # Frequency response data
+    │   ├── spatial_metrics.json       # ITD/ILD/IACC metrics
     │   ├── frequency_response.png     # Spectrum plot
     │   ├── metadata.json              # Capture info
     │   ├── capture.log                # Analyzer output
     │   ├── rt60_analysis.log          # RT60 analysis log
-    │   └── freq_analysis.log          # Frequency analysis log
+    │   ├── freq_analysis.log          # Frequency analysis log
+    │   └── spatial_analysis.log       # Spatial analysis log
     ├── preset_01/
     │   └── ...
     └── preset_36/
@@ -131,6 +139,7 @@ test-results/comparisons/
 - **Frequency Range:** 20 Hz - 20 kHz
 - **FFT Window:** Hann window, 4096 samples
 - **Octave Bands:** 7 bands (Sub to Brilliance)
+- **Spatial Window:** 80 ms (early), max lag 1.0 ms
 
 ### Regression Thresholds
 - **RT60:** ±5% change (default)
