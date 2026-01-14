@@ -284,6 +284,7 @@ private:
     };
 
     static constexpr int kNumLfos = 6;
+    static constexpr float kDefaultSmoothingMs = 200.0f;
 
     double sampleRateHz{48000.0};
     int maxBlockSizeInternal{2048};
@@ -296,6 +297,9 @@ private:
     std::unique_ptr<EnvelopeTracker> envTracker;
     std::array<LfoConfig, kNumLfos> lfoConfigs{};
     std::array<Lfo, kNumLfos> lfos;
+    std::array<std::array<LfoConfig, kNumLfos>, 2> lfoConfigSnapshots{};
+    std::atomic<int> activeLfoConfigIndex{0};
+    int appliedLfoConfigIndex{-1};
 
     // Active modulation connections (fixed-size array to prevent real-time allocations)
     // IMPORTANT: Only modify these from the message thread (JUCE guarantees single-threaded)
@@ -308,6 +312,8 @@ private:
     std::array<std::array<Connection, kMaxConnections>, 2> connectionSnapshots{};
     std::array<int, 2> snapshotCounts{};
     std::atomic<int> activeSnapshotIndex{0};
+    std::array<std::array<float, static_cast<size_t>(DestinationType::Count)>, 2> smoothingSnapshots{};
+    int appliedSmoothingSnapshotIndex{-1};
 
     // Per-destination modulation accumulators (smoothed output values)
     std::array<float, static_cast<size_t>(DestinationType::Count)> modulationValues{};
@@ -323,10 +329,14 @@ private:
     std::array<float, 128> midiCCValues{};
     float midiPitchBend{0.0f};
     float midiChannelPressure{0.0f};
+    std::atomic<bool> resetPending{false};
 
     // Helper: find existing connection index, or -1 if not found
     int findConnectionIndex(SourceType source, DestinationType destination, int axis) const noexcept;
     void publishConnectionsSnapshot() noexcept;
+    void publishLfoConfigSnapshot() noexcept;
+    void applySmootherSnapshot(int snapshotIndex) noexcept;
+    void applyLfoConfigSnapshot(int snapshotIndex) noexcept;
     static float applyCurve(float value, CurveType curveType, float curveAmount);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulationMatrix)
