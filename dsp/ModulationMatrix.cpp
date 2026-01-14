@@ -478,7 +478,7 @@ ModulationMatrix::ModulationMatrix()
     // Initialize smoothers with default time constants
     for (auto& smoother : smoothers)
     {
-        smoother.reset(48000.0, 200.0);  // 200ms default smoothing
+        smoother.reset(48000.0, kDefaultSmoothingMs);  // 200ms default smoothing
         smoother.setCurrentAndTargetValue(0.0f);
     }
 
@@ -500,9 +500,15 @@ ModulationMatrix::ModulationMatrix()
     midiPitchBend = 0.0f;
     midiChannelPressure = 0.0f;
 
+    for (auto& snapshot : smoothingSnapshots)
+        snapshot.fill(kDefaultSmoothingMs);
+
     snapshotCounts.fill(0);
     activeSnapshotIndex.store(0, std::memory_order_relaxed);
     publishConnectionsSnapshot();
+
+    activeLfoConfigIndex.store(0, std::memory_order_relaxed);
+    publishLfoConfigSnapshot();
 }
 
 ModulationMatrix::~ModulationMatrix() = default;
@@ -528,15 +534,25 @@ void ModulationMatrix::prepare(double sampleRate, int maxBlockSize, int numChann
     for (size_t i = 0; i < lfos.size(); ++i)
     {
         lfos[i].prepare(sampleRate);
-        lfos[i].setConfig(lfoConfigs[i]);
     }
 
     // Re-initialize smoothers with correct sample rate
     for (auto& smoother : smoothers)
     {
-        smoother.reset(sampleRate, 200.0);  // 200ms default
+        smoother.reset(sampleRate, kDefaultSmoothingMs);  // 200ms default
         smoother.setCurrentAndTargetValue(0.0f);
     }
+
+    appliedSmoothingSnapshotIndex = -1;
+    appliedLfoConfigIndex = -1;
+
+    const int smoothingSnapshotIndex =
+        activeSnapshotIndex.load(std::memory_order_acquire);
+    applySmootherSnapshot(smoothingSnapshotIndex);
+
+    const int lfoConfigIndex =
+        activeLfoConfigIndex.load(std::memory_order_acquire);
+    applyLfoConfigSnapshot(lfoConfigIndex);
 
     modulationValues.fill(0.0f);
     midiCCValues.fill(0.0f);
@@ -594,7 +610,52 @@ void ModulationMatrix::publishConnectionsSnapshot() noexcept
     for (int i = 0; i < connectionCount; ++i)
         connectionSnapshots[nextIndex][i] = connections[i];
 
+    auto& smoothingSnapshot = smoothingSnapshots[nextIndex];
+    smoothingSnapshot.fill(kDefaultSmoothingMs);
+    for (int i = 0; i < connectionCount; ++i)
+    {
+        const auto& conn = connections[i];
+        if (!conn.enabled)
+            continue;
+        const size_t destIdx = static_cast<size_t>(conn.destination);
+        if (destIdx < smoothingSnapshot.size())
+            smoothingSnapshot[destIdx] = conn.smoothingMs;
+    }
+
     activeSnapshotIndex.store(nextIndex, std::memory_order_release);
+}
+
+void ModulationMatrix::publishLfoConfigSnapshot() noexcept
+{
+    const int nextIndex =
+        1 - activeLfoConfigIndex.load(std::memory_order_relaxed);
+
+    lfoConfigSnapshots[nextIndex] = lfoConfigs;
+    activeLfoConfigIndex.store(nextIndex, std::memory_order_release);
+}
+
+void ModulationMatrix::applySmootherSnapshot(int snapshotIndex) noexcept
+{
+    if (snapshotIndex < 0 || snapshotIndex >= static_cast<int>(smoothingSnapshots.size()))
+        return;
+
+    const auto& smoothingSnapshot = smoothingSnapshots[snapshotIndex];
+    for (size_t i = 0; i < smoothers.size(); ++i)
+        smoothers[i].reset(sampleRateHz, smoothingSnapshot[i]);
+
+    appliedSmoothingSnapshotIndex = snapshotIndex;
+}
+
+void ModulationMatrix::applyLfoConfigSnapshot(int snapshotIndex) noexcept
+{
+    if (snapshotIndex < 0 || snapshotIndex >= static_cast<int>(lfoConfigSnapshots.size()))
+        return;
+
+    const auto& configSnapshot = lfoConfigSnapshots[snapshotIndex];
+    for (size_t i = 0; i < lfos.size(); ++i)
+        lfos[i].setConfig(configSnapshot[i]);
+
+    appliedLfoConfigIndex = snapshotIndex;
 }
 
 void ModulationMatrix::process(const juce::AudioBuffer<float>& audioBuffer, int numSamples)
@@ -603,6 +664,23 @@ void ModulationMatrix::process(const juce::AudioBuffer<float>& audioBuffer, int 
     // 1. Update all modulation sources
     // 2. Compute per-destination modulation sums from active connections
     // 3. Apply smoothing and store in modulationValues[]
+
+    if (resetPending.exchange(false, std::memory_order_acq_rel))
+    {
+        for (size_t i = 0; i < smoothers.size(); ++i)
+        {
+            smoothers[i].setCurrentAndTargetValue(0.0f);
+            modulationValues[i] = 0.0f;
+        }
+    }
+
+    const int snapshotIndex = activeSnapshotIndex.load(std::memory_order_acquire);
+    if (snapshotIndex != appliedSmoothingSnapshotIndex)
+        applySmootherSnapshot(snapshotIndex);
+
+    const int lfoConfigIndex = activeLfoConfigIndex.load(std::memory_order_acquire);
+    if (lfoConfigIndex != appliedLfoConfigIndex)
+        applyLfoConfigSnapshot(lfoConfigIndex);
 
     // Update modulation sources (block-rate)
     if (chaosGen)
@@ -623,7 +701,6 @@ void ModulationMatrix::process(const juce::AudioBuffer<float>& audioBuffer, int 
     // Initialize per-destination accumulators
     std::array<float, static_cast<size_t>(DestinationType::Count)> destinationSums{};
 
-    const int snapshotIndex = activeSnapshotIndex.load(std::memory_order_acquire);
     const int snapshotCount = snapshotCounts[snapshotIndex];
 
     // Early exit optimization: no connections = no processing needed
@@ -781,11 +858,6 @@ void ModulationMatrix::setConnection(
 
     if (connectionChanged)
         publishConnectionsSnapshot();
-
-    // Update smoother time constant for this destination
-    const size_t destIdx = static_cast<size_t>(destination);
-    if (destIdx < smoothers.size())
-        smoothers[destIdx].reset(sampleRateHz, smoothingMs);
 }
 
 void ModulationMatrix::removeConnection(
@@ -810,13 +882,7 @@ void ModulationMatrix::clearConnections()
     // Thread-safe: Only called from message thread (JUCE serialization)
     connectionCount = 0;  // No allocation, just reset counter
     publishConnectionsSnapshot();
-
-    // Reset all modulation values and smoothers
-    for (size_t i = 0; i < modulationValues.size(); ++i)
-    {
-        modulationValues[i] = 0.0f;
-        smoothers[i].setCurrentAndTargetValue(0.0f);
-    }
+    resetPending.store(true, std::memory_order_release);
 }
 
 void ModulationMatrix::setConnections(const std::vector<Connection>& newConnections)
@@ -828,18 +894,6 @@ void ModulationMatrix::setConnections(const std::vector<Connection>& newConnecti
         connections[i] = newConnections[i];
 
     publishConnectionsSnapshot();
-
-    // Update smoother time constants based on connections
-    for (int i = 0; i < connectionCount; ++i)
-    {
-        const auto& conn = connections[i];
-        if (conn.enabled)
-        {
-            const size_t destIdx = static_cast<size_t>(conn.destination);
-            if (destIdx < smoothers.size())
-                smoothers[destIdx].reset(sampleRateHz, conn.smoothingMs);
-        }
-    }
 }
 
 std::vector<ModulationMatrix::Connection> ModulationMatrix::getConnections() const noexcept
@@ -904,7 +958,7 @@ void ModulationMatrix::setLfoConfig(int index, const LfoConfig& config)
         return;
 
     lfoConfigs[static_cast<size_t>(index)] = config;
-    lfos[static_cast<size_t>(index)].setConfig(config);
+    publishLfoConfigSnapshot();
 }
 
 ModulationMatrix::LfoConfig ModulationMatrix::getLfoConfig(int index) const noexcept

@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include <array>
+#include <cstdint>
 #include <vector>
 #include <memory>
 #include <unordered_map>
@@ -196,7 +197,7 @@ public:
     /**
      * @brief Get current routing connections (for save/load)
      */
-    const std::vector<RoutingConnection>& getRouting() const noexcept { return routingConnections; }
+    const std::vector<RoutingConnection>& getRouting() const noexcept;
 
     /**
      * @brief Get active preset index (lock-free, audio-thread safe)
@@ -216,7 +217,10 @@ public:
     /**
      * @brief Get current routing preset type
      */
-    RoutingPresetType getCurrentPreset() const noexcept { return currentPreset; }
+    RoutingPresetType getCurrentPreset() const noexcept
+    {
+        return static_cast<RoutingPresetType>(getActivePresetIndex());
+    }
 
     /**
      * @brief Set module parameters (forwarded to individual modules)
@@ -273,8 +277,8 @@ private:
     std::unique_ptr<Buttress> buttress;
     std::unique_ptr<Facade> facade;
 
-    // Module bypass states
-    std::array<bool, static_cast<size_t>(ModuleType::Count)> moduleBypassed{};
+    // Module bypass states (lock-free)
+    std::atomic<uint32_t> bypassMask{0};
 
     // Routing preset cache (avoid allocations on preset swaps)
     static constexpr size_t kMaxRoutingConnections = 16;
@@ -286,14 +290,15 @@ private:
         std::array<RoutingConnection, kMaxRoutingConnections> connections{};
         size_t connectionCount{0};
         std::array<bool, static_cast<size_t>(ModuleType::Count)> bypass{};
+        uint32_t bypassMask{0};
     };
 
     std::array<PresetRoutingData, kRoutingPresetCount> presetData{};
     std::atomic<size_t> activePresetIndex{0};  // Lock-free preset switching
 
     // Current routing (kept for backward compatibility with setRouting/getRouting)
-    std::vector<RoutingConnection> routingConnections;
-    RoutingPresetType currentPreset{RoutingPresetType::TraditionalCathedral};
+    mutable std::vector<RoutingConnection> routingConnections;
+    mutable size_t routingCachePresetIndex{static_cast<size_t>(-1)};
 
     // Temp buffers for parallel processing (pre-allocated in prepare())
     std::array<juce::AudioBuffer<float>, static_cast<size_t>(ModuleType::Count)> tempBuffers;
@@ -328,7 +333,7 @@ private:
     ParameterBuffer weatheringDriftBuffer;
 
     // Helper: Get module processor by type
-    void processModule(ModuleType module, juce::AudioBuffer<float>& buffer);
+    void processModule(ModuleType module, juce::AudioBuffer<float>& buffer, uint32_t bypassMask);
 
     // Helper: Blend two buffers for parallel modes
     void blendBuffers(juce::AudioBuffer<float>& destination,
@@ -343,7 +348,15 @@ private:
 
     // Helper: Build/apply preset routing data
     void buildPresetData();
-    void applyPresetData(RoutingPresetType preset);
+    void updateRoutingCache(size_t presetIndex) const;
+
+    static constexpr uint32_t moduleBit(ModuleType module) noexcept
+    {
+        return 1u << static_cast<uint32_t>(module);
+    }
+
+    static uint32_t computeBypassMask(
+        const std::array<bool, static_cast<size_t>(ModuleType::Count)>& bypass) noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DspRoutingGraph)
 };

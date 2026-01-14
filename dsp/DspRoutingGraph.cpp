@@ -27,12 +27,9 @@ DspRoutingGraph::DspRoutingGraph()
     buttress = std::make_unique<Buttress>();
     facade = std::make_unique<Facade>();
 
-    // Initialize bypass states (all enabled by default)
-    moduleBypassed.fill(false);
-
     routingConnections.reserve(kMaxRoutingConnections);
     buildPresetData();
-    loadRoutingPreset(currentPreset);
+    loadRoutingPreset(RoutingPresetType::TraditionalCathedral);
 }
 
 DspRoutingGraph::~DspRoutingGraph() = default;
@@ -148,8 +145,14 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
     // Lock-free preset read: Load current preset index atomically
     const size_t presetIdx = activePresetIndex.load(std::memory_order_acquire);
     const auto& currentPresetData = presetData[presetIdx];
+    const uint32_t bypassMaskValue = bypassMask.load(std::memory_order_acquire);
 
     std::array<bool, static_cast<size_t>(ModuleType::Count)> moduleHasOutput{};
+
+    auto isBypassed = [bypassMaskValue](ModuleType module)
+    {
+        return (bypassMaskValue & moduleBit(module)) != 0;
+    };
 
     auto copyBuffer = [numChannels, numSamples](juce::AudioBuffer<float>& dest,
                                                 const juce::AudioBuffer<float>& src)
@@ -166,8 +169,8 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
         if (!moduleHasOutput[idx])
         {
             copyBuffer(outBuf, input);
-            if (!currentPresetData.bypass[idx])
-                processModule(module, outBuf);
+            if (!isBypassed(module))
+                processModule(module, outBuf, bypassMaskValue);
             moduleHasOutput[idx] = true;
         }
         return outBuf;
@@ -196,7 +199,7 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
             case RoutingMode::Parallel:
             {
                 // Skip if destination module is bypassed (early exit before buffer ops)
-                if (currentPresetData.bypass[static_cast<size_t>(conn.destination)])
+                if (isBypassed(conn.destination))
                 {
                     ensureModuleOutput(conn.destination, sourceBuf);
                     break;
@@ -207,7 +210,7 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
 
                 copyBuffer(parallelBuf, sourceBuf);
 
-                processModule(conn.destination, parallelBuf);
+                processModule(conn.destination, parallelBuf, bypassMaskValue);
                 copyBuffer(moduleOutputBuffers[static_cast<size_t>(conn.destination)], parallelBuf);
                 moduleHasOutput[static_cast<size_t>(conn.destination)] = true;
 
@@ -220,7 +223,7 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
             case RoutingMode::ParallelMix:
             {
                 // Skip if destination module is bypassed
-                if (currentPresetData.bypass[static_cast<size_t>(conn.destination)])
+                if (isBypassed(conn.destination))
                 {
                     ensureModuleOutput(conn.destination, sourceBuf);
                     break;
@@ -231,7 +234,7 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
 
                 copyBuffer(parallelBuf, sourceBuf);
 
-                processModule(conn.destination, parallelBuf);
+                processModule(conn.destination, parallelBuf, bypassMaskValue);
                 copyBuffer(moduleOutputBuffers[static_cast<size_t>(conn.destination)], parallelBuf);
                 moduleHasOutput[static_cast<size_t>(conn.destination)] = true;
 
@@ -250,7 +253,7 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
 
             case RoutingMode::Feedback:
             {
-                if (currentPresetData.bypass[static_cast<size_t>(conn.destination)])
+                if (isBypassed(conn.destination))
                 {
                     copyBuffer(feedbackBuffer, sourceBuf);
                     if (numChannels >= 1)
@@ -287,7 +290,7 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
                 }
 
                 // Process module
-                processModule(conn.destination, buffer);
+                processModule(conn.destination, buffer, bypassMaskValue);
                 copyBuffer(moduleOutputBuffers[static_cast<size_t>(conn.destination)], buffer);
                 moduleHasOutput[static_cast<size_t>(conn.destination)] = true;
 
@@ -370,6 +373,8 @@ void DspRoutingGraph::buildPresetData()
 
         for (const auto module : bypassed)
             data.bypass[static_cast<size_t>(module)] = true;
+
+        data.bypassMask = computeBypassMask(data.bypass);
     };
 
     // Foundation → Pillars → Chambers → Weathering → Facade
@@ -458,37 +463,50 @@ void DspRoutingGraph::buildPresetData()
     fillPreset(RoutingPresetType::Custom, {});
 }
 
-void DspRoutingGraph::applyPresetData(RoutingPresetType preset)
+uint32_t DspRoutingGraph::computeBypassMask(
+    const std::array<bool, static_cast<size_t>(ModuleType::Count)>& bypass) noexcept
 {
-    const auto presetIndex = static_cast<size_t>(preset);
+    uint32_t mask = 0;
+    for (size_t i = 0; i < bypass.size(); ++i)
+    {
+        if (bypass[i])
+            mask |= (1u << static_cast<uint32_t>(i));
+    }
+    return mask;
+}
+
+void DspRoutingGraph::updateRoutingCache(size_t presetIndex) const
+{
     if (presetIndex >= presetData.size())
         return;
 
     const auto& data = presetData[presetIndex];
-    moduleBypassed = data.bypass;
 
     // Update vector for backward compatibility (not used in audio thread)
     routingConnections.assign(data.connections.begin(),
                               data.connections.begin() + data.connectionCount);
+    routingCachePresetIndex = presetIndex;
+}
+
+const std::vector<RoutingConnection>& DspRoutingGraph::getRouting() const noexcept
+{
+    const size_t presetIndex = activePresetIndex.load(std::memory_order_acquire);
+    if (presetIndex != routingCachePresetIndex)
+        updateRoutingCache(presetIndex);
+
+    return routingConnections;
 }
 
 void DspRoutingGraph::loadRoutingPreset(RoutingPresetType preset)
 {
-    currentPreset = preset;
-
-    // Lock-free preset switch: Just update the atomic index
-    // The audio thread will read from presetData[activePresetIndex] directly
+    // Lock-free preset switch: update the atomic index and bypass mask only.
+    // The audio thread reads presetData[activePresetIndex] directly.
     const auto presetIndex = static_cast<size_t>(preset);
-    if (presetIndex < presetData.size())
-    {
-        activePresetIndex.store(presetIndex, std::memory_order_release);
+    if (presetIndex >= presetData.size())
+        return;
 
-        // Also update bypass states and legacy vector (for non-audio thread access)
-        const auto& data = presetData[presetIndex];
-        moduleBypassed = data.bypass;
-        routingConnections.assign(data.connections.begin(),
-                                  data.connections.begin() + data.connectionCount);
-    }
+    activePresetIndex.store(presetIndex, std::memory_order_release);
+    bypassMask.store(presetData[presetIndex].bypassMask, std::memory_order_release);
 }
 
 bool DspRoutingGraph::setRouting(const std::vector<RoutingConnection>& connections)
@@ -498,10 +516,13 @@ bool DspRoutingGraph::setRouting(const std::vector<RoutingConnection>& connectio
         return false;
 
     routingConnections = connections;
-    currentPreset = RoutingPresetType::Custom;
+    routingCachePresetIndex = static_cast<size_t>(RoutingPresetType::Custom);
     auto& data = presetData[static_cast<size_t>(RoutingPresetType::Custom)];
     data.connectionCount = 0;
-    data.bypass = moduleBypassed;
+    const uint32_t currentBypassMask = bypassMask.load(std::memory_order_acquire);
+    for (size_t i = 0; i < data.bypass.size(); ++i)
+        data.bypass[i] = (currentBypassMask & moduleBit(static_cast<ModuleType>(i))) != 0;
+    data.bypassMask = currentBypassMask;
 
     for (const auto& connection : connections)
     {
@@ -524,12 +545,16 @@ bool DspRoutingGraph::setRouting(const std::vector<RoutingConnection>& connectio
 
 void DspRoutingGraph::setModuleBypass(ModuleType module, bool bypass)
 {
-    moduleBypassed[static_cast<size_t>(module)] = bypass;
+    const uint32_t bit = moduleBit(module);
+    if (bypass)
+        bypassMask.fetch_or(bit, std::memory_order_release);
+    else
+        bypassMask.fetch_and(~bit, std::memory_order_release);
 }
 
 bool DspRoutingGraph::isModuleBypassed(ModuleType module) const noexcept
 {
-    return moduleBypassed[static_cast<size_t>(module)];
+    return (bypassMask.load(std::memory_order_acquire) & moduleBit(module)) != 0;
 }
 
 //==============================================================================
@@ -690,10 +715,11 @@ void DspRoutingGraph::setFacadeParams(float air, float width, float mix)
 // Helper Methods
 //==============================================================================
 
-void DspRoutingGraph::processModule(ModuleType module, juce::AudioBuffer<float>& buffer)
+void DspRoutingGraph::processModule(ModuleType module, juce::AudioBuffer<float>& buffer,
+                                    uint32_t bypassMaskValue)
 {
     // Skip bypassed modules
-    if (moduleBypassed[static_cast<size_t>(module)])
+    if ((bypassMaskValue & moduleBit(module)) != 0)
         return;
 
     switch (module)
@@ -772,11 +798,13 @@ void DspRoutingGraph::processAncientWay(juce::AudioBuffer<float>& buffer)
         return;
     }
 
+    const uint32_t bypassMaskValue = bypassMask.load(std::memory_order_acquire);
+
     // Traditional routing: Foundation → Pillars → Chambers → Weathering →
     //                      TubeRayTracer → ElasticHallway → AlienAmplification →
     //                      Buttress → Facade
-    processModule(ModuleType::Foundation, buffer);
-    processModule(ModuleType::Pillars, buffer);
+    processModule(ModuleType::Foundation, buffer, bypassMaskValue);
+    processModule(ModuleType::Pillars, buffer, bypassMaskValue);
 
 #if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
     // DEBUG: Check signal before Chambers
@@ -785,7 +813,7 @@ void DspRoutingGraph::processAncientWay(juce::AudioBuffer<float>& buffer)
         preChambersRMS = juce::jmax(preChambersRMS, buffer.getRMSLevel(ch, 0, buffer.getNumSamples()));
 #endif
 
-    processModule(ModuleType::Chambers, buffer);
+    processModule(ModuleType::Chambers, buffer, bypassMaskValue);
 
 #if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
     // DEBUG: Check signal after Chambers
@@ -793,18 +821,19 @@ void DspRoutingGraph::processAncientWay(juce::AudioBuffer<float>& buffer)
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
         postChambersRMS = juce::jmax(postChambersRMS, buffer.getRMSLevel(ch, 0, buffer.getNumSamples()));
 
-    const bool chambersBypassed = moduleBypassed[static_cast<size_t>(ModuleType::Chambers)];
+    const bool chambersBypassed =
+        (bypassMaskValue & moduleBit(ModuleType::Chambers)) != 0;
     juce::Logger::writeToLog("Monument DEBUG: Chambers bypassed=" + juce::String(chambersBypassed ? "YES" : "NO") +
                              " preRMS=" + juce::String(preChambersRMS, 6) +
                              " postRMS=" + juce::String(postChambersRMS, 6));
 #endif
 
-    processModule(ModuleType::Weathering, buffer);
-    processModule(ModuleType::TubeRayTracer, buffer);
-    processModule(ModuleType::ElasticHallway, buffer);
-    processModule(ModuleType::AlienAmplification, buffer);
-    processModule(ModuleType::Buttress, buffer);
-    processModule(ModuleType::Facade, buffer);
+    processModule(ModuleType::Weathering, buffer, bypassMaskValue);
+    processModule(ModuleType::TubeRayTracer, buffer, bypassMaskValue);
+    processModule(ModuleType::ElasticHallway, buffer, bypassMaskValue);
+    processModule(ModuleType::AlienAmplification, buffer, bypassMaskValue);
+    processModule(ModuleType::Buttress, buffer, bypassMaskValue);
+    processModule(ModuleType::Facade, buffer, bypassMaskValue);
 }
 
 void DspRoutingGraph::processResonantHalls(juce::AudioBuffer<float>& buffer)
@@ -816,20 +845,22 @@ void DspRoutingGraph::processResonantHalls(juce::AudioBuffer<float>& buffer)
         return;
     }
 
+    const uint32_t bypassMaskValue = bypassMask.load(std::memory_order_acquire);
+
     // Metallic First routing: Foundation → Pillars → TubeRayTracer → Chambers →
     //                         Weathering → ElasticHallway → AlienAmplification →
     //                         Buttress → Facade
     //
     // Bright metallic tube resonances BEFORE reverb diffusion for focused character
-    processModule(ModuleType::Foundation, buffer);
-    processModule(ModuleType::Pillars, buffer);
-    processModule(ModuleType::TubeRayTracer, buffer);
-    processModule(ModuleType::Chambers, buffer);
-    processModule(ModuleType::Weathering, buffer);
-    processModule(ModuleType::ElasticHallway, buffer);
-    processModule(ModuleType::AlienAmplification, buffer);
-    processModule(ModuleType::Buttress, buffer);
-    processModule(ModuleType::Facade, buffer);
+    processModule(ModuleType::Foundation, buffer, bypassMaskValue);
+    processModule(ModuleType::Pillars, buffer, bypassMaskValue);
+    processModule(ModuleType::TubeRayTracer, buffer, bypassMaskValue);
+    processModule(ModuleType::Chambers, buffer, bypassMaskValue);
+    processModule(ModuleType::Weathering, buffer, bypassMaskValue);
+    processModule(ModuleType::ElasticHallway, buffer, bypassMaskValue);
+    processModule(ModuleType::AlienAmplification, buffer, bypassMaskValue);
+    processModule(ModuleType::Buttress, buffer, bypassMaskValue);
+    processModule(ModuleType::Facade, buffer, bypassMaskValue);
 }
 
 void DspRoutingGraph::processBreathingStone(juce::AudioBuffer<float>& buffer)
@@ -841,16 +872,18 @@ void DspRoutingGraph::processBreathingStone(juce::AudioBuffer<float>& buffer)
         return;
     }
 
+    const uint32_t bypassMaskValue = bypassMask.load(std::memory_order_acquire);
+
     // Elastic Core routing: Foundation → Pillars → ElasticHallway → Chambers →
     //                       ElasticHallway → Weathering → TubeRayTracer →
     //                       AlienAmplification → Buttress → Facade
     //
     // Chambers sandwiched between elastic walls for organic breathing reverb
-    processModule(ModuleType::Foundation, buffer);
-    processModule(ModuleType::Pillars, buffer);
+    processModule(ModuleType::Foundation, buffer, bypassMaskValue);
+    processModule(ModuleType::Pillars, buffer, bypassMaskValue);
 
     // First elastic pass
-    processModule(ModuleType::ElasticHallway, buffer);
+    processModule(ModuleType::ElasticHallway, buffer, bypassMaskValue);
 
     // CRITICAL: Soft clip before Chambers to prevent energy accumulation
     // This prevents feedback runaway when ElasticHallway wraps around Chambers
@@ -861,19 +894,19 @@ void DspRoutingGraph::processBreathingStone(juce::AudioBuffer<float>& buffer)
             data[i] = std::tanh(data[i] * 0.7f);  // Gentle saturation
     }
 
-    processModule(ModuleType::Chambers, buffer);
+    processModule(ModuleType::Chambers, buffer, bypassMaskValue);
 
     // Second elastic pass (creates the "breathing" effect)
-    processModule(ModuleType::ElasticHallway, buffer);
+    processModule(ModuleType::ElasticHallway, buffer, bypassMaskValue);
 
     // CRITICAL: Hard limit before continuing (safety net)
     buffer.applyGain(0.95f);  // Headroom reduction
 
-    processModule(ModuleType::Weathering, buffer);
-    processModule(ModuleType::TubeRayTracer, buffer);
-    processModule(ModuleType::AlienAmplification, buffer);
-    processModule(ModuleType::Buttress, buffer);  // Final safety limiting
-    processModule(ModuleType::Facade, buffer);
+    processModule(ModuleType::Weathering, buffer, bypassMaskValue);
+    processModule(ModuleType::TubeRayTracer, buffer, bypassMaskValue);
+    processModule(ModuleType::AlienAmplification, buffer, bypassMaskValue);
+    processModule(ModuleType::Buttress, buffer, bypassMaskValue);  // Final safety limiting
+    processModule(ModuleType::Facade, buffer, bypassMaskValue);
 }
 
 } // namespace dsp
