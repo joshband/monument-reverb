@@ -14,7 +14,7 @@ Monument Reverb has been successfully migrated to the audio-dsp-qa-harness frame
 **19 scenarios** validate the plugin's core reverb behavior, preset variations, parameter
 sweeps, spatial characteristics, parameter automation, and performance profile.
 
-**Final Result**: 18 PASS, 1 WARN, 0 FAIL
+**Final Result**: 19 PASS, 0 WARN, 0 FAIL
 
 ---
 
@@ -39,25 +39,10 @@ sweeps, spatial characteristics, parameter automation, and performance profile.
 | reverb_modulation | PASS | 6.0s | Automation |
 | reverb_air_envelope | PASS | 6.0s | Automation |
 | reverb_time_ramp | PASS | 4.0s | Automation |
-| frequency_response_air | WARN | 2.0s | Frequency |
+| frequency_response_air | PASS | 6.0s | Frequency |
 | performance_profile | PASS | 16.0s | Performance |
 
 **Total runtime**: ~80s (19 scenarios)
-
----
-
-## Known Limitation
-
-### frequency_response_air (WARN)
-
-The sweep stimulus produces silent output (-180 dBFS) through the in-process runner.
-This is because the logarithmic sweep stimulus doesn't properly interact with Monument's
-internal processing at 48kHz/512 block size, or the render duration (2s) is too short
-for the sweep energy to propagate through the reverb's delay network.
-
-**Severity**: soft_warn (non-blocking)
-**Impact**: Frequency response validation is not functional for this plugin via in-process runner.
-A standalone binary runner with longer render times may resolve this.
 
 ---
 

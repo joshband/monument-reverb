@@ -25,7 +25,7 @@
 - [x] 3 time sweep scenarios (short, medium, long)
 - [x] 3 mass sweep scenarios (bright, neutral, dark)
 - [x] 3 automation scenarios (LFO on warp, envelope on air, ramp on time)
-- [x] frequency_response_air (WARN — known limitation)
+- [x] frequency_response_air (PASS — transfer function baseline)
 - [x] performance_profile (perf_metrics)
 - [x] 2 suite files (monument_suite.json, monument_critical_suite.json)
 
@@ -52,7 +52,7 @@
 - [x] Performance metrics (perf_metrics)
 
 ## Phase 5: Validation
-- [x] Full suite: 18 PASS, 1 WARN, 0 FAIL
+- [x] Full suite: 19 PASS, 0 WARN, 0 FAIL
 - [x] CTest coexistence: 19/26 passing (same as baseline — no regressions)
 - [x] SAF fix verified: monument_qa links without manual libsaf.a workaround
 - [x] Validation report: `docs/MONUMENT_VALIDATION_REPORT.md`
@@ -78,8 +78,8 @@
 | Metric | Value |
 |--------|-------|
 | Total scenarios | 19 |
-| PASS | 18 |
-| WARN | 1 (known limitation) |
+| PASS | 19 |
+| WARN | 0 |
 | FAIL | 0 |
 | Parameters mapped | 15/15 core |
 | Unique metrics | 16 |
