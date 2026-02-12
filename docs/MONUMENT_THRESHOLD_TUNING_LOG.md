@@ -2,15 +2,13 @@
 
 **Date**: 2026-02-11
 **Session**: B (Feature Adoption + Threshold Tuning)
-**Result**: 19/19 scenarios passing (18 PASS, 1 WARN)
+**Result**: 19/19 scenarios passing (19 PASS, 0 WARN)
 
 ---
 
 ## Summary
 
 All thresholds tuned from initial permissive ranges to ±50-60% of measured baseline values.
-The single WARN (frequency_response_air) is a known limitation: the sweep stimulus produces
-silent output through the in-process runner, making the frequency_response metric non-functional.
 
 ## Tuning Strategy
 
@@ -143,11 +141,10 @@ All three mass settings (0.1, 0.5, 0.9) produce nearly identical spectral centro
 white noise stimulus and the reverb tail. The stimulus dominates the centroid.
 A future improvement would be to use a tail-only analysis window.
 
-### Frequency Response Scenario Silent Output
-The sweep stimulus produces -180 dBFS output in the frequency_response_air scenario.
-This may be because the logarithmic sweep stimulus doesn't properly interact with
-the reverb's internal processing, or the in-process render duration is too short.
-This is documented as a known limitation.
+### Frequency Response Scenario (Resolved)
+Originally produced silent output due to incorrect stimulus_variant name ("logarithmic"
+instead of "log_sine") and mismatched parameter names. Fixed in Session C — now PASS
+with transfer function baseline at -120 dB and ±40 dB tolerance.
 
 ---
 
@@ -166,7 +163,7 @@ This is documented as a known limitation.
 | rt60 | Adopted | 8 scenarios |
 | clarity_c50/c80 | Adopted | 2 scenarios (core, cathedral) |
 | iacc_early/late | Adopted | 1 scenario (spatial_width) |
-| frequency_response | Adopted (WARN) | 1 scenario, limited by sweep output |
+| frequency_response | Adopted | 1 scenario (transfer function baseline) |
 | perf_metrics | Adopted | 1 scenario (performance_profile) |
 | baseline_tracking | Adopted | All 19 scenarios |
 | energy_growth | Adopted | 2 scenarios (freeze, abyss) |
