@@ -1,0 +1,118 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_spatial_width",
+  "name": "Monument Spatial Width — Stereo Imaging Validation",
+  "category": "reverb",
+  "description": "Validates spatial width and stereo correlation using white noise stimulus. Width=0.5 should produce moderate stereo spread. Monument FDN uses shared mid/side input distribution, so correlation is typically 0.3-0.95.",
+  "capability_requirements": {
+    "required_effect_types": [
+      "REVERB"
+    ],
+    "required_behaviors": [
+      "STATEFUL"
+    ],
+    "excluded_behaviors": [],
+    "notes": "Spatial metric validation for stereo reverb output"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "white",
+    "parameters": {
+      "amplitude": 0.3,
+      "duration_seconds": 3.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 0.75,
+    "1": 0.5,
+    "2": 0.5,
+    "3": 0.5,
+    "5": 0.5,
+    "6": 0.5
+  },
+  "analysis_windows": {},
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite (no NaN/Inf)"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level should not exceed -0.3 dBFS"
+    },
+    "stereo_width": {
+      "metric": "spatial_width",
+      "window": "full",
+      "threshold": {
+        "min": 0.1,
+        "max": 0.9
+      },
+      "severity": "soft_warn",
+      "description": "Spatial width — measured 0.498 (width=0.5, ±60% tolerance)"
+    },
+    "stereo_correlation": {
+      "metric": "correlation_lr",
+      "window": "full",
+      "threshold": {
+        "min": -0.5,
+        "max": 0.5
+      },
+      "severity": "soft_warn",
+      "description": "L/R correlation — measured 0.003 (FDN decorrelation)"
+    },
+    "ild_check": {
+      "metric": "ild_max_db",
+      "window": "full",
+      "threshold": {
+        "max": 3.0
+      },
+      "severity": "soft_warn",
+      "description": "ILD — measured 0.002 dB (tightened to 3 dB max)"
+    },
+    "iacc_early_check": {
+      "metric": "iacc_early",
+      "window": "full",
+      "threshold": {
+        "min": 0.0,
+        "max": 0.5
+      },
+      "severity": "soft_warn",
+      "description": "Early IACC — measured 0.0495 (low correlation expected)"
+    },
+    "iacc_late_check": {
+      "metric": "iacc_late",
+      "window": "full",
+      "threshold": {
+        "min": 0.0,
+        "max": 0.3
+      },
+      "severity": "soft_warn",
+      "description": "Late IACC — measured 0.00835 (very low late correlation)"
+    },
+    "itd_check": {
+      "metric": "itd_max_ms",
+      "window": "full",
+      "threshold": {
+        "min": 0.0,
+        "max": 2.0
+      },
+      "severity": "soft_warn",
+      "description": "ITD — measured 0.375 ms (bounded for stereo reverb)"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Reverb produces measurable stereo width with bounded correlation and ILD"
+}

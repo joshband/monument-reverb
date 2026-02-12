@@ -1,0 +1,83 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_performance_profile",
+  "name": "Monument Performance Profile",
+  "category": "performance",
+  "description": "CPU and real-time safety validation for monument reverb processing chain. Uses pink noise at moderate settings to profile block processing times.",
+  "capability_requirements": {
+    "required_effect_types": ["REVERB"],
+    "required_behaviors": ["STATEFUL"],
+    "excluded_behaviors": [],
+    "notes": "Performance profiling — block timing metrics"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "pink",
+    "parameters": {
+      "amplitude": 0.3,
+      "duration_seconds": 15.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 0.75,
+    "1": 0.55,
+    "2": 0.5,
+    "3": 0.5,
+    "4": 0.5,
+    "5": 0.5,
+    "6": 0.5
+  },
+  "analysis_windows": {},
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level bounded"
+    },
+    "median_block_time": {
+      "metric": "perf_median_block_time_ms",
+      "window": "full",
+      "threshold": {
+        "max": 5.0
+      },
+      "severity": "soft_warn",
+      "description": "Median block processing time — permissive initial threshold"
+    },
+    "p95_block_time": {
+      "metric": "perf_p95_block_time_ms",
+      "window": "full",
+      "threshold": {
+        "max": 10.0
+      },
+      "severity": "soft_warn",
+      "description": "P95 block processing time — permissive initial threshold"
+    },
+    "p99_block_time": {
+      "metric": "perf_p99_block_time_ms",
+      "window": "full",
+      "threshold": {
+        "max": 20.0
+      },
+      "severity": "soft_warn",
+      "description": "P99 block processing time — permissive initial threshold"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Monument reverb processes blocks within real-time budget"
+}

@@ -1,0 +1,98 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_preset_spring",
+  "name": "Monument Preset — Stone Circles (Spring-like)",
+  "category": "reverb",
+  "description": "Factory preset #7: Stone Circles. Short, grounded rings gather in layers. time=0.15 (shortest preset), mass=0.60, gravity=1.00. Uses noise burst for reliable RT60 measurement.",
+  "capability_requirements": {
+    "required_effect_types": [
+      "REVERB"
+    ],
+    "required_behaviors": [
+      "STATEFUL"
+    ],
+    "excluded_behaviors": [],
+    "notes": "Factory preset validation — Stone Circles (spring-like short reverb)"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "burst",
+    "parameters": {
+      "amplitude": 0.5,
+      "burst_duration_ms": 100.0,
+      "duration_seconds": 15.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 0.45,
+    "1": 0.15,
+    "2": 0.60,
+    "3": 0.20,
+    "4": 0.20,
+    "5": 0.5,
+    "6": 0.5,
+    "7": 0.00,
+    "8": 0.00,
+    "9": 0.20,
+    "10": 0.40,
+    "11": 0.45,
+    "12": 0.20,
+    "13": 1.00
+  },
+  "analysis_windows": {},
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level bounded"
+    },
+    "rt60_spring": {
+      "metric": "rt60",
+      "window": "full",
+      "threshold": {
+        "min": 5.0,
+        "max": 18.0
+      },
+      "severity": "soft_warn",
+      "description": "Stone Circles — measured RT60 10.80s (gravity=1.0 extends tail, ±50%)"
+    },
+    "spectral_centroid": {
+      "metric": "spectral_centroid",
+      "window": "full",
+      "threshold": {
+        "min": 5000.0,
+        "max": 16000.0
+      },
+      "severity": "soft_warn",
+      "description": "Spectral centroid — measured 11920 Hz (±30%)"
+    },
+    "spectral_flatness": {
+      "metric": "spectral_flatness",
+      "window": "full",
+      "threshold": {
+        "min": 0.4,
+        "max": 1.0
+      },
+      "severity": "soft_warn",
+      "description": "Spectral flatness — measured 0.846 (noise-like reverb)"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Stone Circles preset produces short, tight reverb"
+}

@@ -1,0 +1,127 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_reverb_core",
+  "name": "Monument Reverb Core — RT60 Measurement",
+  "category": "reverb",
+  "description": "RT60 measurement using noise burst excitation. Burst provides broadband energy for reliable Schroeder integration. Uses wet-only mix with mid-range time/mass/density. Measured RT60=7.89s at time=0.55.",
+  "capability_requirements": {
+    "required_effect_types": [
+      "REVERB"
+    ],
+    "required_behaviors": [
+      "STATEFUL"
+    ],
+    "excluded_behaviors": [],
+    "notes": "Core reverb decay measurement via noise burst excitation"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "burst",
+    "parameters": {
+      "amplitude": 0.5,
+      "burst_duration_ms": 100.0,
+      "duration_seconds": 20.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 1.0,
+    "1": 0.55,
+    "2": 0.5,
+    "3": 0.5,
+    "4": 0.5,
+    "5": 0.5,
+    "6": 0.5
+  },
+  "analysis_windows": {
+    "tail_region": {
+      "type": "time_range",
+      "start_seconds": 1.0,
+      "end_seconds": 20.0
+    }
+  },
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite (no NaN/Inf)"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level should not exceed -0.3 dBFS"
+    },
+    "rt60_measurement": {
+      "metric": "rt60",
+      "window": "full",
+      "threshold": {
+        "min": 1.0,
+        "max": 6.0
+      },
+      "severity": "soft_warn",
+      "description": "RT60 measured 2.30s for time=0.55 (±60% tolerance)"
+    },
+    "tail_decay": {
+      "metric": "monotonic_tail_decay",
+      "window": "tail_region",
+      "threshold": {
+        "max_upward_steps": 20,
+        "upward_step_db_max": 1.0
+      },
+      "severity": "soft_warn",
+      "description": "Reverb tail should decay mostly monotonically (analyzed well after burst)"
+    },
+    "clarity_c50": {
+      "metric": "clarity_c50",
+      "window": "full",
+      "threshold": {
+        "min": -20.0,
+        "max": 0.0
+      },
+      "severity": "soft_warn",
+      "description": "Speech clarity ratio — measured -11.45 dB (±8 dB tolerance)"
+    },
+    "clarity_c80": {
+      "metric": "clarity_c80",
+      "window": "full",
+      "threshold": {
+        "min": -18.0,
+        "max": 0.0
+      },
+      "severity": "soft_warn",
+      "description": "Music clarity ratio — measured -8.79 dB (±9 dB tolerance)"
+    },
+    "spectral_flatness": {
+      "metric": "spectral_flatness",
+      "window": "full",
+      "threshold": {
+        "min": 0.3,
+        "max": 1.0
+      },
+      "severity": "soft_warn",
+      "description": "Spectral flatness — measured 0.807 (noise-burst reverb expected flat)"
+    },
+    "crest_factor_check": {
+      "metric": "crest_factor",
+      "window": "full",
+      "threshold": {
+        "min": 8.0,
+        "max": 35.0
+      },
+      "severity": "soft_warn",
+      "description": "Crest factor — measured 19.86 dB (±60% tolerance)"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Reverb produces measurable RT60 with monotonic tail decay"
+}

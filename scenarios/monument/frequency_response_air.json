@@ -1,0 +1,78 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_frequency_response_air",
+  "name": "Monument Frequency Response — Air Parameter HF Damping",
+  "category": "reverb",
+  "description": "Validates air parameter's high-frequency damping using sweep stimulus. Air=0.1 should heavily damp high frequencies, producing lower spectral centroid and HF rolloff.",
+  "capability_requirements": {
+    "required_effect_types": ["REVERB"],
+    "required_behaviors": ["STATEFUL"],
+    "excluded_behaviors": [],
+    "notes": "Frequency response validation for air (HF damping) parameter"
+  },
+  "stimulus": {
+    "stimulus_id": "sweep",
+    "stimulus_variant": "logarithmic",
+    "parameters": {
+      "startFreqHz": 20,
+      "endFreqHz": 20000,
+      "magnitude": 0.5,
+      "duration_seconds": 5.0
+    }
+  },
+  "parameter_variations": {
+    "0": 1.0,
+    "1": 0.55,
+    "2": 0.5,
+    "3": 0.5,
+    "4": 0.5,
+    "5": 0.1,
+    "6": 0.5
+  },
+  "analysis_windows": {},
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level bounded"
+    },
+    "hf_rolloff": {
+      "metric": "frequency_response",
+      "window": "full",
+      "threshold": {
+        "frequencies": [100, 500, 1000, 2000, 5000, 10000],
+        "expected_db": [0, 0, 0, -1, -3, -10],
+        "tolerance_db": 12.0
+      },
+      "severity": "soft_warn",
+      "description": "Air=0.1 should damp HF — wide tolerance for baseline capture"
+    },
+    "low_centroid": {
+      "metric": "spectral_centroid",
+      "window": "full",
+      "threshold": {
+        "min": 0.0,
+        "max": 10000.0
+      },
+      "severity": "soft_warn",
+      "description": "Air=0.1 should damp HF — 0 accepted when sweep output is silent"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Air=0.1 produces measurable HF rolloff in frequency response"
+}

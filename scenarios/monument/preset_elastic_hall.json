@@ -1,0 +1,88 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_preset_elastic_hall",
+  "name": "Monument Preset — Elastic Cathedral (Elastic Hall)",
+  "category": "reverb",
+  "description": "Factory preset #25: Elastic Cathedral. Walls pulse and breathe with music. time=0.75, mass=0.50. Uses noise burst for reliable RT60 measurement. Physical modeling params (material/topology/viscosity) not mapped in current adapter — core params only.",
+  "capability_requirements": {
+    "required_effect_types": [
+      "REVERB"
+    ],
+    "required_behaviors": [
+      "STATEFUL"
+    ],
+    "excluded_behaviors": [],
+    "notes": "Factory preset validation — Elastic Cathedral (core params only)"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "burst",
+    "parameters": {
+      "amplitude": 0.5,
+      "burst_duration_ms": 100.0,
+      "duration_seconds": 25.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 0.65,
+    "1": 0.75,
+    "2": 0.50,
+    "3": 0.55,
+    "4": 0.50,
+    "5": 0.5,
+    "6": 0.5,
+    "7": 0.15,
+    "8": 0.20,
+    "9": 0.00,
+    "10": 0.50,
+    "11": 0.40,
+    "12": 0.30,
+    "13": 0.55
+  },
+  "analysis_windows": {},
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level bounded"
+    },
+    "rt60_elastic": {
+      "metric": "rt60",
+      "window": "full",
+      "threshold": {
+        "min": 3.0,
+        "max": 15.0
+      },
+      "severity": "soft_warn",
+      "description": "Elastic Cathedral — measured RT60 7.19s (time=0.75, ±50%)"
+    },
+    "spatial_width_elastic": {
+      "metric": "spatial_width",
+      "window": "full",
+      "threshold": {
+        "min": 0.1,
+        "max": 0.9
+      },
+      "severity": "soft_warn",
+      "description": "Spatial width — measured 0.501 (±60% tolerance)"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Elastic Cathedral preset produces stable reverb with measurable spatial width"
+}

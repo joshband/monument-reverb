@@ -1,0 +1,69 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_sweep_mass_dark",
+  "name": "Monument Mass Sweep — Dark (mass=0.9)",
+  "category": "reverb",
+  "description": "Parameter sweep: mass=0.9 (dark/heavy damping). Expected lower spectral centroid than neutral/bright settings. Mass controls reverb damping — higher values attenuate high frequencies.",
+  "capability_requirements": {
+    "required_effect_types": [
+      "REVERB"
+    ],
+    "required_behaviors": [
+      "STATEFUL"
+    ],
+    "excluded_behaviors": [],
+    "notes": "Mass parameter sweep — dark setting"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "white",
+    "parameters": {
+      "amplitude": 0.3,
+      "duration_seconds": 4.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 1.0,
+    "1": 0.5,
+    "2": 0.9,
+    "3": 0.5,
+    "5": 0.5,
+    "6": 0.5
+  },
+  "analysis_windows": {},
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level bounded"
+    },
+    "spectral_centroid_dark": {
+      "metric": "spectral_centroid",
+      "window": "full",
+      "threshold": {
+        "min": 5000.0,
+        "max": 16000.0
+      },
+      "severity": "soft_warn",
+      "description": "Dark mass=0.9 — measured 10942 Hz (±40%, dominated by white noise stimulus)"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Dark mass setting produces lower spectral centroid"
+}

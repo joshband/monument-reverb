@@ -1,0 +1,70 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_sweep_time_short",
+  "name": "Monument Time Sweep — Short (time=0.1)",
+  "category": "reverb",
+  "description": "Parameter sweep: time=0.1 (short reverb). Uses noise burst for reliable RT60 measurement. Expected shortest RT60 of the three sweep values.",
+  "capability_requirements": {
+    "required_effect_types": [
+      "REVERB"
+    ],
+    "required_behaviors": [
+      "STATEFUL"
+    ],
+    "excluded_behaviors": [],
+    "notes": "Time parameter sweep — short setting"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "burst",
+    "parameters": {
+      "amplitude": 0.5,
+      "burst_duration_ms": 100.0,
+      "duration_seconds": 15.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 1.0,
+    "1": 0.1,
+    "2": 0.5,
+    "3": 0.5,
+    "5": 0.5,
+    "6": 0.5
+  },
+  "analysis_windows": {},
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level bounded"
+    },
+    "rt60_short": {
+      "metric": "rt60",
+      "window": "full",
+      "threshold": {
+        "min": 0.8,
+        "max": 5.0
+      },
+      "severity": "soft_warn",
+      "description": "Short time=0.1 — measured RT60 2.13s (±60% tolerance)"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Short time setting produces measurable short RT60"
+}

@@ -1418,3 +1418,67 @@ if(MONUMENT_BUILD_ANALYZER)
       juce::juce_recommended_warning_flags
   )
 endif()
+
+# ============================================================================
+# QA Harness Integration (Audio DSP QA Framework)
+# ============================================================================
+
+option(BUILD_QA_HARNESS "Build QA harness test executable" OFF)
+
+if(BUILD_QA_HARNESS)
+  # Find the audio-dsp-qa-harness package
+  find_package(audio_dsp_qa_harness REQUIRED
+    PATHS $ENV{HOME}/.local/lib/cmake/audio_dsp_qa_harness /usr/local/lib/cmake/audio_dsp_qa_harness
+  )
+
+  # Create QA test executable
+  juce_add_console_app(monument_qa
+    PRODUCT_NAME "Monument QA Harness"
+  )
+
+  juce_generate_juce_header(monument_qa)
+
+  target_sources(monument_qa
+    PRIVATE
+      qa/monument_adapter.h
+      qa/monument_adapter.cpp
+      qa/main.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_qa
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_qa
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_qa
+    PRIVATE
+      qa::qa_core
+      qa::qa_runners
+      qa::qa_scenario_engine
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  message(STATUS "QA Harness integration enabled")
+  message(STATUS "  Executable: monument_qa")
+  message(STATUS "  Scenarios: scenarios/monument/")
+endif()

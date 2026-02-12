@@ -1,0 +1,88 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_reverb_air_envelope",
+  "name": "Monument Reverb Air Envelope — HF Damping Modulation",
+  "category": "reverb",
+  "description": "Parameter automation test: Envelope on air parameter (index 5). Sweeps air through attack-sustain-release shape, modulating high-frequency content. Validates spectral centroid responds to HF damping changes.",
+  "capability_requirements": {
+    "required_effect_types": ["REVERB"],
+    "required_behaviors": ["STATEFUL"],
+    "excluded_behaviors": [],
+    "notes": "Parameter automation — envelope on air (HF damping)"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "pink",
+    "parameters": {
+      "amplitude": 0.3,
+      "duration_seconds": 5.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 0.75,
+    "1": 0.55,
+    "2": 0.5,
+    "3": 0.5,
+    "4": 0.5,
+    "6": 0.5
+  },
+  "parameter_automation": [
+    {
+      "parameter_index": 5,
+      "type": "envelope",
+      "points": [
+        {"time": 0.0, "value": 0.5},
+        {"time": 0.5, "value": 1.0},
+        {"time": 1.5, "value": 0.7},
+        {"time": 3.5, "value": 0.7},
+        {"time": 5.0, "value": 0.3}
+      ]
+    }
+  ],
+  "analysis_windows": {},
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite during air envelope"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level bounded during air envelope"
+    },
+    "rms_energy_check": {
+      "metric": "rms_energy",
+      "window": "full",
+      "threshold": {
+        "min_db": -50.0,
+        "max_db": -10.0
+      },
+      "severity": "soft_warn",
+      "description": "RMS energy — measured -31.28 dBFS (±20 dB tolerance)"
+    },
+    "spectral_centroid_check": {
+      "metric": "spectral_centroid",
+      "window": "full",
+      "threshold": {
+        "min": 2000.0,
+        "max": 12000.0
+      },
+      "severity": "soft_warn",
+      "description": "Spectral centroid — measured 6359 Hz during air envelope (±50%)"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Air envelope modulation produces spectral variation without instability"
+}

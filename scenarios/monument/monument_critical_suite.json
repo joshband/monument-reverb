@@ -1,0 +1,18 @@
+{
+  "suite_version": "1.0",
+  "id": "monument_critical_suite",
+  "name": "Monument Reverb Critical Suite",
+  "description": "Core scenarios for fast CI validation — 5 essential scenarios covering smoke, reverb core, spatial, freeze, and cathedral preset",
+  "default_parameters": {
+    "sample_rate": 48000,
+    "buffer_size": 512,
+    "channels": 2
+  },
+  "scenarios": [
+    "smoke_test.json",
+    "reverb_core.json",
+    "spatial_width.json",
+    "freeze_mode.json",
+    "preset_cathedral.json"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "suite_version": "1.0",
+  "id": "monument_full_suite",
+  "name": "Monument Reverb Full Suite",
+  "description": "All monument-reverb QA scenarios — 19 scenarios covering core reverb, spatial, freeze, parameter sweeps, factory presets, automation, frequency response, and performance",
+  "default_parameters": {
+    "sample_rate": 48000,
+    "buffer_size": 512,
+    "channels": 2
+  },
+  "scenarios": [
+    "smoke_test.json",
+    "reverb_core.json",
+    "spatial_width.json",
+    "freeze_mode.json",
+    "parameter_sweep_time_short.json",
+    "parameter_sweep_time_medium.json",
+    "parameter_sweep_time_long.json",
+    "parameter_sweep_mass_bright.json",
+    "parameter_sweep_mass_neutral.json",
+    "parameter_sweep_mass_dark.json",
+    "preset_cathedral.json",
+    "preset_spring.json",
+    "preset_infinite_abyss.json",
+    "preset_elastic_hall.json",
+    "reverb_modulation.json",
+    "reverb_time_ramp.json",
+    "reverb_air_envelope.json",
+    "frequency_response_air.json",
+    "performance_profile.json"
+  ]
+}

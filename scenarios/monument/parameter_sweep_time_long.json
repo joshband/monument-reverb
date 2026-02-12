@@ -1,0 +1,70 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_sweep_time_long",
+  "name": "Monument Time Sweep — Long (time=1.0)",
+  "category": "reverb",
+  "description": "Parameter sweep: time=1.0 (long reverb). Uses noise burst for reliable RT60 measurement. Monument time=1.0 maps to RT60 > 25s per test data.",
+  "capability_requirements": {
+    "required_effect_types": [
+      "REVERB"
+    ],
+    "required_behaviors": [
+      "STATEFUL"
+    ],
+    "excluded_behaviors": [],
+    "notes": "Time parameter sweep — long setting"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "burst",
+    "parameters": {
+      "amplitude": 0.5,
+      "burst_duration_ms": 100.0,
+      "duration_seconds": 35.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 1.0,
+    "1": 1.0,
+    "2": 0.5,
+    "3": 0.5,
+    "5": 0.5,
+    "6": 0.5
+  },
+  "analysis_windows": {},
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level bounded"
+    },
+    "rt60_long": {
+      "metric": "rt60",
+      "window": "full",
+      "threshold": {
+        "min": 1.0,
+        "max": 6.0
+      },
+      "severity": "soft_warn",
+      "description": "Long time=1.0 — measured RT60 2.49s (±60% tolerance)"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Long time setting produces measurable long RT60"
+}

@@ -1,0 +1,96 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_reverb_modulation",
+  "name": "Monument Reverb Modulation — LFO on Warp",
+  "category": "reverb",
+  "description": "Parameter automation test: LFO modulation on warp parameter (index 7). Sine LFO at 0.5 Hz sweeps warp 0.2-0.8 during pink noise. Validates modulation activity via flux_rate and stability via non_finite.",
+  "capability_requirements": {
+    "required_effect_types": ["REVERB"],
+    "required_behaviors": ["STATEFUL"],
+    "excluded_behaviors": [],
+    "notes": "Parameter automation — LFO modulation on warp"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "pink",
+    "parameters": {
+      "amplitude": 0.3,
+      "duration_seconds": 5.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 0.75,
+    "1": 0.55,
+    "2": 0.5,
+    "3": 0.5,
+    "4": 0.5,
+    "5": 0.5,
+    "6": 0.5
+  },
+  "parameter_automation": [
+    {
+      "parameter_index": 7,
+      "type": "lfo",
+      "waveform": "sine",
+      "rate_hz": 0.5,
+      "min_value": 0.2,
+      "max_value": 0.8
+    }
+  ],
+  "analysis_windows": {},
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite during modulation"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level bounded during modulation"
+    },
+    "rms_energy_check": {
+      "metric": "rms_energy",
+      "window": "full",
+      "threshold": {
+        "min_db": -50.0,
+        "max_db": -10.0
+      },
+      "severity": "soft_warn",
+      "description": "RMS energy — measured -31.41 dBFS (±20 dB tolerance)"
+    },
+    "spectral_centroid_check": {
+      "metric": "spectral_centroid",
+      "window": "full",
+      "threshold": {
+        "min": 2000.0,
+        "max": 12000.0
+      },
+      "severity": "soft_warn",
+      "description": "Spectral centroid — measured 6306 Hz during warp LFO (±50%)"
+    },
+    "flux_rate_check": {
+      "metric": "flux_rate",
+      "window": "full",
+      "threshold": {
+        "min": 1.0,
+        "max": 50.0
+      },
+      "severity": "soft_warn",
+      "description": "Spectral flux — measured 15.99 during warp LFO (±60%)"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "LFO modulation on warp produces measurable spectral flux without instability"
+}

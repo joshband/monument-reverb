@@ -1,0 +1,84 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_reverb_time_ramp",
+  "name": "Monument Reverb Time Ramp — Short to Long",
+  "category": "reverb",
+  "description": "Parameter automation test: Ramp on time parameter (index 1) from 0.1 to 0.9 over duration. Validates smooth reverb tail growth and stability. Uses noise burst for RT60 measurement.",
+  "capability_requirements": {
+    "required_effect_types": ["REVERB"],
+    "required_behaviors": ["STATEFUL"],
+    "excluded_behaviors": [],
+    "notes": "Parameter automation — ramp on reverb time"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "burst",
+    "parameters": {
+      "amplitude": 0.5,
+      "burst_duration_ms": 100.0,
+      "duration_seconds": 10.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 1.0,
+    "2": 0.5,
+    "3": 0.5,
+    "4": 0.5,
+    "5": 0.5,
+    "6": 0.5
+  },
+  "parameter_automation": [
+    {
+      "parameter_index": 1,
+      "type": "ramp",
+      "start_value": 0.1,
+      "end_value": 0.9
+    }
+  ],
+  "analysis_windows": {},
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite during time ramp"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level bounded during time ramp"
+    },
+    "rt60_during_ramp": {
+      "metric": "rt60",
+      "window": "full",
+      "threshold": {
+        "min": 1.0,
+        "max": 6.0
+      },
+      "severity": "soft_warn",
+      "description": "RT60 during ramp — measured 2.37s (±60% tolerance)"
+    },
+    "crest_factor_check": {
+      "metric": "crest_factor",
+      "window": "full",
+      "threshold": {
+        "min": 8.0,
+        "max": 35.0
+      },
+      "severity": "soft_warn",
+      "description": "Crest factor — measured 19.93 dB (±60% tolerance)"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Time ramp from short to long produces smooth reverb growth without instability"
+}

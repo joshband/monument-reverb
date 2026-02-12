@@ -1,0 +1,82 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_freeze_mode",
+  "name": "Monument Freeze Mode — Sustained Output Validation",
+  "category": "reverb",
+  "description": "Validates freeze mode behavior. Monument freeze holds the reverb buffer, producing sustained output. The second half of output should show stable energy (no unbounded growth). Freeze is parameter index 14.",
+  "capability_requirements": {
+    "required_effect_types": [
+      "REVERB"
+    ],
+    "required_behaviors": [
+      "STATEFUL"
+    ],
+    "excluded_behaviors": [],
+    "notes": "Freeze mode hold behavior — sustained reverb buffer"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "pink",
+    "parameters": {
+      "amplitude": 0.3,
+      "duration_seconds": 4.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 1.0,
+    "1": 0.5,
+    "2": 0.5,
+    "3": 0.5,
+    "5": 0.5,
+    "6": 0.5,
+    "14": 1.0
+  },
+  "analysis_windows": {
+    "frozen_output": {
+      "template": "second_half"
+    }
+  },
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite (no NaN/Inf)"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level should not exceed -0.3 dBFS"
+    },
+    "frozen_has_energy": {
+      "metric": "rms_energy",
+      "window": "frozen_output",
+      "threshold": {
+        "min": 0.001
+      },
+      "severity": "soft_warn",
+      "description": "Frozen reverb should sustain energy (hold mode)"
+    },
+    "no_energy_growth": {
+      "metric": "energy_growth",
+      "window": "full",
+      "threshold": {
+        "allow_increase_pct": 20.0
+      },
+      "severity": "soft_warn",
+      "description": "Frozen output — measured 0% growth (tightened to 20% max)"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Freeze mode produces sustained output without unbounded energy growth"
+}

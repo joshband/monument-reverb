@@ -1,0 +1,107 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_preset_infinite_abyss",
+  "name": "Monument Preset — Event Horizon (Infinite Abyss)",
+  "category": "reverb",
+  "description": "Factory preset #15: Event Horizon. time=1.0 (maximum), mass=0.85 (very dark), bloom=0.85, memory=0.75. Uses noise burst for reliable RT60 measurement. Expected extremely long RT60.",
+  "capability_requirements": {
+    "required_effect_types": [
+      "REVERB"
+    ],
+    "required_behaviors": [
+      "STATEFUL"
+    ],
+    "excluded_behaviors": [],
+    "notes": "Factory preset validation — Event Horizon (extreme long reverb)"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "burst",
+    "parameters": {
+      "amplitude": 0.5,
+      "burst_duration_ms": 100.0,
+      "duration_seconds": 40.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 0.70,
+    "1": 1.00,
+    "2": 0.85,
+    "3": 0.55,
+    "4": 0.85,
+    "5": 0.5,
+    "6": 0.5,
+    "7": 0.30,
+    "8": 0.50,
+    "9": 0.75,
+    "10": 0.70,
+    "11": 0.70,
+    "12": 0.50,
+    "13": 0.50
+  },
+  "analysis_windows": {},
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level bounded"
+    },
+    "rt60_abyss": {
+      "metric": "rt60",
+      "window": "full",
+      "threshold": {
+        "min": 3.0,
+        "max": 15.0
+      },
+      "severity": "soft_warn",
+      "description": "Infinite abyss — measured RT60 7.03s (time=1.0, ±50%)"
+    },
+    "no_energy_growth": {
+      "metric": "energy_growth",
+      "window": "full",
+      "threshold": {
+        "allow_increase_pct": 10.0
+      },
+      "severity": "soft_warn",
+      "description": "Measured 0.26% growth — tightened to 10% max"
+    },
+    "dynamic_range_check": {
+      "metric": "dynamic_range",
+      "window": "full",
+      "threshold": {
+        "min": 20.0,
+        "max": 80.0
+      },
+      "severity": "soft_warn",
+      "description": "Dynamic range — measured 44.89 dB (±50% tolerance)"
+    },
+    "crest_factor_check": {
+      "metric": "crest_factor",
+      "window": "full",
+      "threshold": {
+        "min": 5.0,
+        "max": 30.0
+      },
+      "severity": "soft_warn",
+      "description": "Crest factor — measured 15.54 dB (±60% tolerance)"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Event Horizon preset produces extremely long reverb without instability"
+}

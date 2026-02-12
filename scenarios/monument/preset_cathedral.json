@@ -1,0 +1,108 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_preset_cathedral",
+  "name": "Monument Preset — Cathedral of Glass",
+  "category": "reverb",
+  "description": "Factory preset #8: Cathedral of Glass. Bright surfaces carry long light trails. time=0.82, mass=0.25 (bright), density=0.80, bloom=0.55. Uses noise burst for reliable RT60 measurement.",
+  "capability_requirements": {
+    "required_effect_types": [
+      "REVERB"
+    ],
+    "required_behaviors": [
+      "STATEFUL"
+    ],
+    "excluded_behaviors": [],
+    "notes": "Factory preset validation — Cathedral of Glass"
+  },
+  "stimulus": {
+    "stimulus_id": "noise",
+    "stimulus_variant": "burst",
+    "parameters": {
+      "amplitude": 0.5,
+      "burst_duration_ms": 100.0,
+      "duration_seconds": 25.0,
+      "seed": 42
+    }
+  },
+  "parameter_variations": {
+    "0": 0.60,
+    "1": 0.82,
+    "2": 0.25,
+    "3": 0.80,
+    "4": 0.55,
+    "5": 0.5,
+    "6": 0.5,
+    "7": 0.00,
+    "8": 0.20,
+    "9": 0.25,
+    "10": 0.45,
+    "11": 0.45,
+    "12": 0.25,
+    "13": 0.15
+  },
+  "analysis_windows": {},
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level bounded"
+    },
+    "rt60_cathedral": {
+      "metric": "rt60",
+      "window": "full",
+      "threshold": {
+        "min": 1.5,
+        "max": 8.0
+      },
+      "severity": "soft_warn",
+      "description": "Cathedral preset — measured RT60 3.13s (±60% tolerance)"
+    },
+    "clarity_c50": {
+      "metric": "clarity_c50",
+      "window": "full",
+      "threshold": {
+        "min": -20.0,
+        "max": -2.0
+      },
+      "severity": "soft_warn",
+      "description": "Speech clarity — measured -10.05 dB (±8 dB tolerance)"
+    },
+    "clarity_c80": {
+      "metric": "clarity_c80",
+      "window": "full",
+      "threshold": {
+        "min": -18.0,
+        "max": 0.0
+      },
+      "severity": "soft_warn",
+      "description": "Music clarity — measured -7.72 dB (±9 dB tolerance)"
+    },
+    "spectral_centroid": {
+      "metric": "spectral_centroid",
+      "window": "full",
+      "threshold": {
+        "min": 5000.0,
+        "max": 16000.0
+      },
+      "severity": "soft_warn",
+      "description": "Spectral centroid — measured 11881 Hz (bright cathedral, ±30%)"
+    }
+  },
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Cathedral of Glass preset produces long, bright reverb tail"
+}
