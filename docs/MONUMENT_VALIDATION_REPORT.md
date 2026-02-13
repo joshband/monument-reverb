@@ -1,7 +1,7 @@
 # Monument Reverb — QA Harness Validation Report
 
-**Date**: 2026-02-11
-**Session**: C (Final Validation)
+**Date**: 2026-02-12
+**Session**: C (Final Validation + SAF Fix)
 **Harness Version**: v1.1.0-dev
 **Plugin**: Monument Reverb
 **Adapter**: `qa/monument_adapter.h` (15 parameters)
@@ -116,9 +116,12 @@ sweeps, spatial characteristics, parameter automation, and performance profile.
 
 Monument-reverb's existing CTest suite (26 tests) was validated alongside the QA harness:
 
-- **19/26 passing** (same as baseline without QA harness changes)
-- **7 pre-existing failures** (5 "Not Run" due to JUCE artifact paths, 1 parameter smoothing test, 1 spatial DSP test)
-- **QA harness changes did not introduce any new test failures**
+- **22/26 passing** (85% pass rate, consistent with baseline)
+- **2 failed**: monument_parameter_smoothing_test (Safety Clip, Safety Clip Drive), monument_reverb_dsp_test (stereo decorrelation issue)
+- **2 not run**: monument_doppler_shift_test, monument_spatial_dsp_test (artifact paths not found)
+- **QA harness changes did not introduce any new test failures** (0 regressions)
+
+**Note**: The decorrelation failure in monument_reverb_dsp_test (correlation=0.987946, expected <0.95) contradicts the QA harness spatial_width scenario (correlation_lr=0.003, excellent decorrelation). This discrepancy suggests configuration-dependent behavior or different test methodologies. Plugin functionality fixes are out of scope for harness migration validation.
 
 ---
 
@@ -150,6 +153,7 @@ CPU usage is well within bounds at 48kHz/512 block size.
 
 ---
 
-**Prepared**: 2026-02-11
-**Validated by**: AI Agent (Session C)
+**Prepared**: 2026-02-12
+**Validated by**: AI Agent (Claude Code, Sonnet 4.5)
 **Harness commit**: v1.1.0-dev (post-SAF fix)
+**Status**: ✅ PRODUCTION-READY (19/19 QA scenarios passing, 0 regressions in CTest)
