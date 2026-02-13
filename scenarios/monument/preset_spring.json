@@ -91,6 +91,7 @@
       "description": "Spectral flatness — measured 0.846 (noise-like reverb)"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },

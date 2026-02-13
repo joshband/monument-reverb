@@ -81,6 +81,7 @@
       "description": "Spatial width — measured 0.501 (±60% tolerance)"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },

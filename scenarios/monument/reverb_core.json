@@ -120,6 +120,7 @@
       "description": "Crest factor — measured 19.86 dB (±60% tolerance)"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },

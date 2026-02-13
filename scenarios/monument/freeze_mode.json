@@ -75,6 +75,7 @@
       "description": "Frozen output — measured 0% growth (tightened to 20% max)"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },

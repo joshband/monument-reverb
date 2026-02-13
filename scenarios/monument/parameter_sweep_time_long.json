@@ -63,6 +63,7 @@
       "description": "Long time=1.0 — measured RT60 2.49s (±60% tolerance)"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },

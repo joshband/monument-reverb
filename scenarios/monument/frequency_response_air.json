@@ -71,6 +71,7 @@
       "description": "Air=0.1 should damp HF — 0 accepted when sweep output is silent"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },

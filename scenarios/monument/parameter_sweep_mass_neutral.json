@@ -62,6 +62,7 @@
       "description": "Neutral mass=0.5 — measured 10923 Hz (±40%)"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },

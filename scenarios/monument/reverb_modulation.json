@@ -89,6 +89,7 @@
       "description": "Spectral flux — measured 15.99 during warp LFO (±60%)"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },

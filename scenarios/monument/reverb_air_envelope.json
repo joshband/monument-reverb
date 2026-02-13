@@ -81,6 +81,7 @@
       "description": "Spectral centroid — measured 6359 Hz during air envelope (±50%)"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },

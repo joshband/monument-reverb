@@ -63,6 +63,7 @@
       "description": "Short time=0.1 — measured RT60 2.13s (±60% tolerance)"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },

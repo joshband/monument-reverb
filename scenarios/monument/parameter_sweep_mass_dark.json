@@ -62,6 +62,7 @@
       "description": "Dark mass=0.9 — measured 10942 Hz (±40%, dominated by white noise stimulus)"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },

@@ -101,6 +101,7 @@
       "description": "Spectral centroid — measured 11881 Hz (bright cathedral, ±30%)"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },

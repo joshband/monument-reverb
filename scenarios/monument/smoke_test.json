@@ -50,8 +50,9 @@
       "description": "Peak level should not exceed -0.3 dBFS"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
-    "enabled": false
+    "enabled": true
   },
   "pass_criteria": "Monument produces finite output for impulse stimulus"
 }

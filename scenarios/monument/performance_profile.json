@@ -39,6 +39,15 @@
       "severity": "hard_fail",
       "description": "Output must be finite"
     },
+    "no_allocations": {
+      "metric": "perf_total_allocations",
+      "window": "full",
+      "threshold": {
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Zero heap allocations in processBlock (RT-safety)"
+    },
     "reasonable_peak": {
       "metric": "peak_level",
       "window": "full",
@@ -76,6 +85,7 @@
       "description": "P99 block processing time — permissive initial threshold"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },

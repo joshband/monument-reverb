@@ -111,6 +111,7 @@
       "description": "ITD — measured 0.375 ms (bounded for stereo reverb)"
     }
   },
+  "threshold_preset": "reverb_architecture",
   "baseline_tracking": {
     "enabled": true
   },
