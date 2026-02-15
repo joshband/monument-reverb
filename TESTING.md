@@ -69,6 +69,7 @@ NON_INTERACTIVE=1 ./scripts/analyze_all_presets.sh
 
 Set `TEST_CONFIG=Debug` to run the harness against Debug builds.
 Set `BUILD_DIR=build-ninja` (or another build folder) to point the harness at a Ninja build.
+For GitHub Actions, define `SUBMODULE_TOKEN` with read access to `joshband/audio-dsp-qa-harness` so recursive submodule checkout can fetch the private harness dependency.
 
 ## Tooling Catalog (By Location)
 
