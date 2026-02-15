@@ -1,0 +1,34 @@
+name: Legacy DSP Diagnostics
+
+on:
+  workflow_dispatch:
+
+jobs:
+  monument_legacy_dsp_shadow:
+    runs-on: macos-14
+    timeout-minutes: 35
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python deps for analyzer
+        run: python3 -m pip install -r tools/plugin-analyzer/python/requirements.txt
+
+      - name: Run legacy CI script in diagnostic mode
+        env:
+          NON_INTERACTIVE: "1"
+          CTEST_CONTINUE_ON_FAILURE: "1"
+          DSP_CONTINUE_ON_FAILURE: "1"
+          PRESET_CAPTURE_CONTINUE_ON_FAILURE: "1"
+        run: ./scripts/run_ci_tests.sh
+
+      - name: Upload diagnostic artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monument-legacy-diagnostics-output
+          path: |
+            qa_output/
+            test-results/
+          retention-days: 14

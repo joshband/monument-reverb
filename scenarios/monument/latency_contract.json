@@ -1,0 +1,104 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_latency_contract",
+  "name": "Monument Latency Contract",
+  "category": "reverb",
+  "description": "Validates low-latency response for impulse excitation. Uses short onset windows to ensure output appears within one to two blocks while preserving stable tail behavior.",
+  "capability_requirements": {
+    "required_effect_types": [
+      "REVERB"
+    ],
+    "required_behaviors": [
+      "STATEFUL"
+    ],
+    "excluded_behaviors": [],
+    "notes": "Latency invariant proxy for DSP-path timing"
+  },
+  "stimulus": {
+    "stimulus_id": "impulse",
+    "stimulus_variant": "single",
+    "parameters": {
+      "magnitude": 0.5,
+      "duration_seconds": 2.0
+    }
+  },
+  "parameter_variations": {
+    "0": 1.0,
+    "1": 0.5,
+    "2": 0.5,
+    "3": 0.5,
+    "4": 0.5,
+    "5": 0.5,
+    "6": 0.5
+  },
+  "analysis_windows": {
+    "onset_20ms": {
+      "type": "time_range",
+      "start_seconds": 0.0,
+      "end_seconds": 0.02
+    },
+    "onset_40ms": {
+      "type": "time_range",
+      "start_seconds": 0.0,
+      "end_seconds": 0.04
+    },
+    "tail_region": {
+      "type": "time_range",
+      "start_seconds": 0.04,
+      "end_seconds": 1.5
+    }
+  },
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max_count": 0,
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "Output must be finite"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "full",
+      "threshold": {
+        "peak_dbfs_max": -0.3
+      },
+      "severity": "soft_warn",
+      "description": "Peak level should remain bounded"
+    },
+    "onset_energy_20ms": {
+      "metric": "rms_energy",
+      "window": "onset_20ms",
+      "threshold": {
+        "min_db": -90.0
+      },
+      "severity": "soft_warn",
+      "description": "Output should appear within ~1 block (20 ms window)"
+    },
+    "onset_energy_40ms": {
+      "metric": "rms_energy",
+      "window": "onset_40ms",
+      "threshold": {
+        "min_db": -80.0
+      },
+      "severity": "hard_fail",
+      "description": "Output must appear within 40 ms latency budget"
+    },
+    "tail_has_energy": {
+      "metric": "rms_energy",
+      "window": "tail_region",
+      "threshold": {
+        "min_db": -90.0
+      },
+      "severity": "soft_warn",
+      "description": "Tail region must contain reverberant energy"
+    }
+  },
+  "threshold_preset": "reverb_architecture",
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Impulse response appears within low-latency onset windows and remains stable"
+}

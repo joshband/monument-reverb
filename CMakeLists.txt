@@ -208,7 +208,7 @@ target_link_libraries(monument_ui_prototype
     juce::juce_recommended_warning_flags
 )
 
-option(MONUMENT_ENABLE_TESTS "Build Monument tests" ON)
+option(MONUMENT_ENABLE_TESTS "Build Monument legacy tests (DEPRECATED for DSP authority)" OFF)
 option(MONUMENT_ENABLE_MEMORY "Enable Memory Echoes in plugin" OFF)
 option(MONUMENT_LEGACY_UI "Use legacy UI layout" OFF)
 

@@ -1,0 +1,74 @@
+name: DSP QA Harness
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  monument_harness_critical:
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache JUCE FetchContent
+        uses: actions/cache@v4
+        with:
+          path: build-qa/_deps
+          key: ${{ runner.os }}-juce-qa-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-juce-qa-
+
+      - name: Configure QA build
+        run: cmake -S . -B build-qa -DBUILD_QA_HARNESS=ON -DMONUMENT_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64
+
+      - name: Build QA executable
+        run: cmake --build build-qa --config Release --target monument_qa
+
+      - name: Run critical suite
+        run: ./build-qa/monument_qa_artefacts/Release/monument_qa scenarios/monument/monument_critical_suite.json
+
+      - name: Upload critical QA output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monument-qa-critical-output
+          path: qa_output/
+          retention-days: 7
+
+  monument_harness_full:
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-14
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache JUCE FetchContent
+        uses: actions/cache@v4
+        with:
+          path: build-qa/_deps
+          key: ${{ runner.os }}-juce-qa-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-juce-qa-
+
+      - name: Configure QA build
+        run: cmake -S . -B build-qa -DBUILD_QA_HARNESS=ON -DMONUMENT_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64
+
+      - name: Build QA executable
+        run: cmake --build build-qa --config Release --target monument_qa
+
+      - name: Run full suite
+        run: ./build-qa/monument_qa_artefacts/Release/monument_qa scenarios/monument/monument_suite.json
+
+      - name: Upload full QA output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monument-qa-full-output
+          path: qa_output/
+          retention-days: 30

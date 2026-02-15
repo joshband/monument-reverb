@@ -3,11 +3,28 @@
 This is the canonical testing hub (CI/QA entrypoint, commands, and results).
 For deep dives, see `docs/testing/`.
 
+## DSP QA Authority Policy
+
+- `audio-dsp-qa-harness` scenarios are the authoritative DSP QA gate.
+- Blocking DSP CI checks run via `monument_qa` suites:
+  - `scenarios/monument/monument_critical_suite.json`
+  - `scenarios/monument/monument_suite.json`
+- Legacy DSP test/script flows are non-authoritative and may be run as optional diagnostics when risk warrants.
+- Non-DSP checks (plugin format validation, UI visual regression) remain outside harness scope.
+
 ## Quick Start
 
 ### Run All Tests
 
 ```bash
+# Build + run harness critical suite (authoritative PR gate)
+cmake -S . -B build-qa -DBUILD_QA_HARNESS=ON -DMONUMENT_ENABLE_TESTS=OFF
+cmake --build build-qa --config Release --target monument_qa
+./build-qa/monument_qa_artefacts/Release/monument_qa scenarios/monument/monument_critical_suite.json
+
+# Build + run harness full suite (authoritative main gate)
+./build-qa/monument_qa_artefacts/Release/monument_qa scenarios/monument/monument_suite.json
+
 # Build analyzer for preset capture + analysis
 cmake --build build --config Release --target monument_plugin_analyzer
 
@@ -55,8 +72,9 @@ Set `BUILD_DIR=build-ninja` (or another build folder) to point the harness at a 
 **Core entrypoints:**
 - `scripts/run_ci_tests.sh` - Master QA harness (CTest + audio regression + quality gates + optional UI/RT checks).
 - `ctest --test-dir build -C Release` - Runs all registered C++ tests.
-- `.github/workflows/ci.yml` - CI build + CTest smoke on macOS.
-- `.github/workflows/build.yml` - CI build + artifact upload.
+- `.github/workflows/qa_harness.yml` - Authoritative DSP harness CI (critical + full suites).
+- `.github/workflows/qa_legacy_shadow.yml` - Optional legacy DSP diagnostic CI (non-blocking).
+- `.github/workflows/ci.yml` - General build + CTest smoke (non-authoritative for DSP QA).
 
 **Audio regression pipeline:**
 - `scripts/capture_all_presets.sh` - Render IRs for all presets.

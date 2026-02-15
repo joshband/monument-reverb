@@ -1,0 +1,195 @@
+{
+  "scenario_version": "1.0",
+  "id": "monument_state_management_contract",
+  "name": "Monument State Management Contract",
+  "category": "reverb",
+  "description": "State-management proxy contract for harness parity. Applies preset-style parameter jumps during continuous excitation to validate stable transitions, bounded transients, and finite output under rapid state-like changes.",
+  "capability_requirements": {
+    "required_effect_types": [
+      "REVERB"
+    ],
+    "required_behaviors": [
+      "STATEFUL"
+    ],
+    "excluded_behaviors": [],
+    "notes": "Proxy for state save/restore + preset switching behavior in current harness interface"
+  },
+  "stimulus": {
+    "stimulus_id": "multitone",
+    "stimulus_variant": "harmonic",
+    "parameters": {
+      "fundamental_hz": 110.0,
+      "num_harmonics": 10,
+      "overall_amplitude": 0.32,
+      "duration_seconds": 8.0
+    }
+  },
+  "parameter_variations": {
+    "0": 0.7,
+    "1": 0.5,
+    "2": 0.5,
+    "3": 0.5,
+    "4": 0.5,
+    "5": 0.5,
+    "6": 0.5,
+    "7": 0.3,
+    "8": 0.3,
+    "13": 0.2
+  },
+  "parameter_automation": [
+    {
+      "parameter_index": 1,
+      "type": "envelope",
+      "points": [
+        { "time": 0.0, "value": 0.82 },
+        { "time": 1.2, "value": 0.15 },
+        { "time": 2.4, "value": 1.0 },
+        { "time": 3.6, "value": 0.75 },
+        { "time": 4.8, "value": 0.55 },
+        { "time": 6.0, "value": 0.9 },
+        { "time": 8.0, "value": 0.5 }
+      ]
+    },
+    {
+      "parameter_index": 2,
+      "type": "envelope",
+      "points": [
+        { "time": 0.0, "value": 0.25 },
+        { "time": 1.2, "value": 0.6 },
+        { "time": 2.4, "value": 0.85 },
+        { "time": 3.6, "value": 0.5 },
+        { "time": 4.8, "value": 0.35 },
+        { "time": 6.0, "value": 0.7 },
+        { "time": 8.0, "value": 0.5 }
+      ]
+    },
+    {
+      "parameter_index": 3,
+      "type": "envelope",
+      "points": [
+        { "time": 0.0, "value": 0.8 },
+        { "time": 1.2, "value": 0.4 },
+        { "time": 2.4, "value": 0.7 },
+        { "time": 3.6, "value": 0.6 },
+        { "time": 4.8, "value": 0.45 },
+        { "time": 6.0, "value": 0.75 },
+        { "time": 8.0, "value": 0.5 }
+      ]
+    },
+    {
+      "parameter_index": 4,
+      "type": "envelope",
+      "points": [
+        { "time": 0.0, "value": 0.55 },
+        { "time": 1.2, "value": 0.2 },
+        { "time": 2.4, "value": 0.85 },
+        { "time": 3.6, "value": 0.45 },
+        { "time": 4.8, "value": 0.65 },
+        { "time": 6.0, "value": 0.3 },
+        { "time": 8.0, "value": 0.5 }
+      ]
+    },
+    {
+      "parameter_index": 5,
+      "type": "envelope",
+      "points": [
+        { "time": 0.0, "value": 0.5 },
+        { "time": 1.2, "value": 0.25 },
+        { "time": 2.4, "value": 0.7 },
+        { "time": 3.6, "value": 0.3 },
+        { "time": 4.8, "value": 0.8 },
+        { "time": 6.0, "value": 0.2 },
+        { "time": 8.0, "value": 0.5 }
+      ]
+    },
+    {
+      "parameter_index": 6,
+      "type": "envelope",
+      "points": [
+        { "time": 0.0, "value": 0.5 },
+        { "time": 1.2, "value": 0.85 },
+        { "time": 2.4, "value": 0.35 },
+        { "time": 3.6, "value": 0.75 },
+        { "time": 4.8, "value": 0.25 },
+        { "time": 6.0, "value": 0.9 },
+        { "time": 8.0, "value": 0.5 }
+      ]
+    },
+    {
+      "parameter_index": 13,
+      "type": "envelope",
+      "points": [
+        { "time": 0.0, "value": 0.15 },
+        { "time": 1.2, "value": 1.0 },
+        { "time": 2.4, "value": 0.2 },
+        { "time": 3.6, "value": 0.65 },
+        { "time": 4.8, "value": 0.35 },
+        { "time": 6.0, "value": 0.8 },
+        { "time": 8.0, "value": 0.2 }
+      ]
+    }
+  ],
+  "analysis_windows": {
+    "steady": {
+      "type": "time_range",
+      "start_seconds": 0.25,
+      "end_seconds": 8.0
+    }
+  },
+  "expected_invariants": {
+    "no_nan_inf": {
+      "metric": "non_finite",
+      "window": "full",
+      "threshold": {
+        "max_count": 0,
+        "max": 0
+      },
+      "severity": "hard_fail",
+      "description": "State-like transitions must remain finite"
+    },
+    "reasonable_peak": {
+      "metric": "peak_level",
+      "window": "steady",
+      "threshold": {
+        "peak_dbfs_max": -0.2
+      },
+      "severity": "soft_warn",
+      "description": "Preset-style transitions should remain bounded"
+    },
+    "bounded_energy": {
+      "metric": "rms_energy",
+      "window": "steady",
+      "threshold": {
+        "min_db": -45.0,
+        "max_db": -8.0
+      },
+      "severity": "soft_warn",
+      "description": "Output energy should remain in expected operating band"
+    },
+    "switch_discontinuities": {
+      "metric": "discontinuity_count",
+      "window": "steady",
+      "threshold": {
+        "detection_threshold_db": 12.0,
+        "max_count": 400,
+        "max": 400
+      },
+      "severity": "soft_warn",
+      "description": "Preset-like jumps should avoid excessive discontinuities"
+    },
+    "dc_stability": {
+      "metric": "dc_offset",
+      "window": "steady",
+      "threshold": {
+        "max": 0.02
+      },
+      "severity": "soft_warn",
+      "description": "State transitions should not introduce significant DC bias"
+    }
+  },
+  "threshold_preset": "reverb_architecture",
+  "baseline_tracking": {
+    "enabled": true
+  },
+  "pass_criteria": "Preset-style state transitions remain finite, bounded, and free of severe click artifacts"
+}
