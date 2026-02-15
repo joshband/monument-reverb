@@ -1426,10 +1426,37 @@ endif()
 option(BUILD_QA_HARNESS "Build QA harness test executable" OFF)
 
 if(BUILD_QA_HARNESS)
-  # Find the audio-dsp-qa-harness package
-  find_package(audio_dsp_qa_harness REQUIRED
-    PATHS $ENV{HOME}/.local/lib/cmake/audio_dsp_qa_harness /usr/local/lib/cmake/audio_dsp_qa_harness
-  )
+  set(_qa_harness_submodule_dir "${CMAKE_CURRENT_SOURCE_DIR}/external/audio-dsp-qa-harness")
+
+  if(EXISTS "${_qa_harness_submodule_dir}/CMakeLists.txt")
+    # Prefer in-repo submodule for reproducible CI and local builds
+    if(NOT TARGET qa_core)
+      set(BUILD_QA_TESTS OFF CACHE BOOL "Disable harness tests when embedded" FORCE)
+      set(BUILD_QA_EXAMPLES OFF CACHE BOOL "Disable harness examples when embedded" FORCE)
+      add_subdirectory(external/audio-dsp-qa-harness EXCLUDE_FROM_ALL)
+    endif()
+  else()
+    # Fallback for environments using a preinstalled harness package
+    find_package(audio_dsp_qa_harness REQUIRED
+      PATHS $ENV{HOME}/.local/lib/cmake/audio_dsp_qa_harness /usr/local/lib/cmake/audio_dsp_qa_harness
+    )
+  endif()
+
+  set(_qa_core_target "")
+  set(_qa_runners_target "")
+  set(_qa_scenario_engine_target "")
+
+  if(TARGET qa_core AND TARGET qa_runners AND TARGET qa_scenario_engine)
+    set(_qa_core_target qa_core)
+    set(_qa_runners_target qa_runners)
+    set(_qa_scenario_engine_target qa_scenario_engine)
+  elseif(TARGET qa::qa_core AND TARGET qa::qa_runners AND TARGET qa::qa_scenario_engine)
+    set(_qa_core_target qa::qa_core)
+    set(_qa_runners_target qa::qa_runners)
+    set(_qa_scenario_engine_target qa::qa_scenario_engine)
+  else()
+    message(FATAL_ERROR "QA harness targets not found (expected qa_core/qa_runners/qa_scenario_engine or qa:: namespaced variants)")
+  endif()
 
   # Create QA test executable
   juce_add_console_app(monument_qa
@@ -1467,9 +1494,9 @@ if(BUILD_QA_HARNESS)
 
   target_link_libraries(monument_qa
     PRIVATE
-      qa::qa_core
-      qa::qa_runners
-      qa::qa_scenario_engine
+      ${_qa_core_target}
+      ${_qa_runners_target}
+      ${_qa_scenario_engine_target}
       juce::juce_audio_utils
       juce::juce_dsp
     PUBLIC
@@ -1481,4 +1508,9 @@ if(BUILD_QA_HARNESS)
   message(STATUS "QA Harness integration enabled")
   message(STATUS "  Executable: monument_qa")
   message(STATUS "  Scenarios: scenarios/monument/")
+
+  unset(_qa_harness_submodule_dir)
+  unset(_qa_core_target)
+  unset(_qa_runners_target)
+  unset(_qa_scenario_engine_target)
 endif()

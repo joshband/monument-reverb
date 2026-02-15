@@ -17,8 +17,11 @@ For deep dives, see `docs/testing/`.
 ### Run All Tests
 
 ```bash
+# Initialize QA harness dependency (one-time per clone)
+git submodule update --init --recursive external/audio-dsp-qa-harness
+
 # Build + run harness critical suite (authoritative PR gate)
-cmake -S . -B build-qa -DBUILD_QA_HARNESS=ON -DMONUMENT_ENABLE_TESTS=OFF
+cmake -S . -B build-qa -DBUILD_QA_HARNESS=ON -DMONUMENT_ENABLE_TESTS=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build-qa --config Release --target monument_qa
 ./build-qa/monument_qa_artefacts/Release/monument_qa scenarios/monument/monument_critical_suite.json
 

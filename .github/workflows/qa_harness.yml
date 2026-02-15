@@ -14,6 +14,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_TOKEN != '' && secrets.SUBMODULE_TOKEN || github.token }}
 
       - name: Cache JUCE FetchContent
         uses: actions/cache@v4
@@ -24,7 +27,7 @@ jobs:
             ${{ runner.os }}-juce-qa-
 
       - name: Configure QA build
-        run: cmake -S . -B build-qa -DBUILD_QA_HARNESS=ON -DMONUMENT_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64
+        run: cmake -S . -B build-qa -DBUILD_QA_HARNESS=ON -DMONUMENT_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
       - name: Build QA executable
         run: cmake --build build-qa --config Release --target monument_qa
@@ -47,6 +50,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_TOKEN != '' && secrets.SUBMODULE_TOKEN || github.token }}
 
       - name: Cache JUCE FetchContent
         uses: actions/cache@v4
@@ -57,7 +63,7 @@ jobs:
             ${{ runner.os }}-juce-qa-
 
       - name: Configure QA build
-        run: cmake -S . -B build-qa -DBUILD_QA_HARNESS=ON -DMONUMENT_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64
+        run: cmake -S . -B build-qa -DBUILD_QA_HARNESS=ON -DMONUMENT_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
       - name: Build QA executable
         run: cmake --build build-qa --config Release --target monument_qa

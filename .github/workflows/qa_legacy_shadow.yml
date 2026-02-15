@@ -11,6 +11,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_TOKEN != '' && secrets.SUBMODULE_TOKEN || github.token }}
 
       - name: Install Python deps for analyzer
         run: python3 -m pip install -r tools/plugin-analyzer/python/requirements.txt
