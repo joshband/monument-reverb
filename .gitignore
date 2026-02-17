@@ -55,6 +55,7 @@ assets/ui/knobs_enhanced/
 test-results/*
 test-results/.*
 !test-results/README.md
+/qa_output/
 
 # Heavy local artifacts and traces (not for version control)
 artifacts/
