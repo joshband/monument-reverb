@@ -10,8 +10,8 @@ namespace dsp
 SequenceScheduler::SequenceScheduler()
 {
     // Initialize with empty sequence
-    currentSequence.name = "Empty Sequence";
-    currentSequence.enabled = false;
+    ownedSequenceStorage.name = "Empty Sequence";
+    sequenceEnabled = false;
 }
 
 SequenceScheduler::~SequenceScheduler()
@@ -41,7 +41,7 @@ void SequenceScheduler::reset()
 void SequenceScheduler::process(const juce::Optional<juce::AudioPlayHead::PositionInfo>& positionInfo, int numSamples)
 {
     // Skip processing if sequence is disabled or empty
-    if (!currentSequence.enabled || currentSequence.keyframes.empty())
+    if (!sequenceEnabled || currentSequence->keyframes.empty())
     {
         return;
     }
@@ -74,13 +74,20 @@ std::optional<float> SequenceScheduler::getParameterValue(ParameterId param) con
 
 void SequenceScheduler::loadSequence(const Sequence& sequence)
 {
-    currentSequence = sequence;
+    ownedSequenceStorage = sequence;
+    currentSequence = &ownedSequenceStorage;
+    reset();
+}
+
+void SequenceScheduler::loadSequenceRef(const Sequence& sequence) noexcept
+{
+    currentSequence = &sequence;
     reset();
 }
 
 void SequenceScheduler::setEnabled(bool shouldBeEnabled)
 {
-    currentSequence.enabled = shouldBeEnabled;
+    sequenceEnabled = shouldBeEnabled;
 
     if (!shouldBeEnabled)
     {
@@ -95,13 +102,13 @@ void SequenceScheduler::setCurrentPosition(double newPosition)
     currentPosition = newPosition;
 
     // Clamp to valid range
-    if (currentSequence.timingMode == TimingMode::Beats)
+    if (currentSequence->timingMode == TimingMode::Beats)
     {
-        currentPosition = juce::jlimit(0.0, currentSequence.durationBeats, currentPosition);
+        currentPosition = juce::jlimit(0.0, currentSequence->durationBeats, currentPosition);
     }
     else
     {
-        currentPosition = juce::jlimit(0.0, currentSequence.durationSeconds, currentPosition);
+        currentPosition = juce::jlimit(0.0, currentSequence->durationSeconds, currentPosition);
     }
 
     updateCurrentValues();
@@ -180,14 +187,14 @@ SequenceScheduler::KeyframePair SequenceScheduler::findSurroundingKeyframes() co
 {
     KeyframePair result;
 
-    if (currentSequence.keyframes.empty())
+    if (currentSequence->keyframes.empty())
     {
         result.valid = false;
         return result;
     }
 
     // Single keyframe: hold its values
-    if (currentSequence.keyframes.size() == 1)
+    if (currentSequence->keyframes.size() == 1)
     {
         result.beforeIndex = 0;
         result.afterIndex = 0;
@@ -196,10 +203,10 @@ SequenceScheduler::KeyframePair SequenceScheduler::findSurroundingKeyframes() co
     }
 
     // Find keyframes surrounding current position
-    for (size_t i = 0; i < currentSequence.keyframes.size() - 1; ++i)
+    for (size_t i = 0; i < currentSequence->keyframes.size() - 1; ++i)
     {
-        if (currentPosition >= currentSequence.keyframes[i].time &&
-            currentPosition <= currentSequence.keyframes[i + 1].time)
+        if (currentPosition >= currentSequence->keyframes[i].time &&
+            currentPosition <= currentSequence->keyframes[i + 1].time)
         {
             result.beforeIndex = i;
             result.afterIndex = i + 1;
@@ -209,7 +216,7 @@ SequenceScheduler::KeyframePair SequenceScheduler::findSurroundingKeyframes() co
     }
 
     // Position is before first keyframe
-    if (currentPosition < currentSequence.keyframes.front().time)
+    if (currentPosition < currentSequence->keyframes.front().time)
     {
         result.beforeIndex = 0;
         result.afterIndex = 0;
@@ -218,9 +225,9 @@ SequenceScheduler::KeyframePair SequenceScheduler::findSurroundingKeyframes() co
     }
 
     // Position is after last keyframe
-    if (currentPosition >= currentSequence.keyframes.back().time)
+    if (currentPosition >= currentSequence->keyframes.back().time)
     {
-        size_t lastIndex = currentSequence.keyframes.size() - 1;
+        size_t lastIndex = currentSequence->keyframes.size() - 1;
         result.beforeIndex = lastIndex;
         result.afterIndex = lastIndex;
         result.valid = true;
@@ -288,7 +295,7 @@ void SequenceScheduler::updateCurrentValues()
     // Find surrounding keyframes
     auto pair = findSurroundingKeyframes();
 
-    if (!pair.valid || currentSequence.keyframes.empty())
+    if (!pair.valid || currentSequence->keyframes.empty())
     {
         // No valid keyframes: clear all values
         for (auto& val : currentValues)
@@ -296,8 +303,8 @@ void SequenceScheduler::updateCurrentValues()
         return;
     }
 
-    const auto& beforeKeyframe = currentSequence.keyframes[pair.beforeIndex];
-    const auto& afterKeyframe = currentSequence.keyframes[pair.afterIndex];
+    const auto& beforeKeyframe = currentSequence->keyframes[pair.beforeIndex];
+    const auto& afterKeyframe = currentSequence->keyframes[pair.afterIndex];
 
     // Calculate interpolation fraction
     double fraction = 0.0;
@@ -336,7 +343,7 @@ void SequenceScheduler::advancePosition(double deltaSeconds, double tempoBeatsPe
     // Calculate position increment
     double increment = 0.0;
 
-    if (currentSequence.timingMode == TimingMode::Beats)
+    if (currentSequence->timingMode == TimingMode::Beats)
     {
         // Convert seconds to beats using tempo
         double beatsPerSecond = tempoBeatsPerMinute / 60.0;
@@ -356,11 +363,11 @@ void SequenceScheduler::advancePosition(double deltaSeconds, double tempoBeatsPe
     currentPosition += increment;
 
     // Handle playback mode boundaries
-    double duration = (currentSequence.timingMode == TimingMode::Beats)
-        ? currentSequence.durationBeats
-        : currentSequence.durationSeconds;
+    double duration = (currentSequence->timingMode == TimingMode::Beats)
+        ? currentSequence->durationBeats
+        : currentSequence->durationSeconds;
 
-    switch (currentSequence.playbackMode)
+    switch (currentSequence->playbackMode)
     {
         case PlaybackMode::OneShot:
             // Clamp to [0, duration]

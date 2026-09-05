@@ -114,6 +114,10 @@ private:
     monument::dsp::ExpressiveMacroMapper expressiveMacroMapper;
     monument::dsp::ModulationMatrix modulationMatrix;
     monument::dsp::SequenceScheduler sequenceScheduler;  // Phase 4: Timeline automation
+    // Factory timeline presets, populated once in prepareToPlay() (off the audio thread).
+    // processBlock() aliases into this via SequenceScheduler::loadSequenceRef() to avoid
+    // constructing/copying a Sequence on every timelinePreset change.
+    std::vector<monument::dsp::SequenceScheduler::Sequence> cachedTimelineSequences;
 
     // FIXED: Parameter cache for batched atomic loads (reduces overhead from 25+ sequential atomics)
     struct ParameterCache

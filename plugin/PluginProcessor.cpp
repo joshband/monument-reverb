@@ -207,6 +207,8 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     memoryEchoes.prepare(sampleRate, samplesPerBlock, numChannels);
     modulationMatrix.prepare(sampleRate, samplesPerBlock, numChannels);
     sequenceScheduler.prepare(sampleRate, samplesPerBlock);  // Phase 4: Timeline automation
+    if (cachedTimelineSequences.empty())
+        cachedTimelineSequences = monument::dsp::SequencePresets::getAllPresets();
 
     // Initialize JUCE SmoothedValue for macro parameter smoothing (500ms ramp time)
     // INCREASED from 50ms → 500ms to minimize zipper noise and eliminate clicks
@@ -417,7 +419,9 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const int timelinePreset = sanitizeChoice(paramCache.timelinePreset, 0, maxTimelinePreset, 0);
     if (timelinePreset != lastTimelinePreset)
     {
-        sequenceScheduler.loadSequence(monument::dsp::SequencePresets::getPreset(timelinePreset));
+        // Realtime-safe: aliases a permanently-cached preset (populated in prepareToPlay())
+        // instead of constructing/copying a Sequence on the audio thread.
+        sequenceScheduler.loadSequenceRef(cachedTimelineSequences[static_cast<size_t>(timelinePreset)]);
         lastTimelinePreset = timelinePreset;
     }
     if (paramCache.timelineEnabled != lastTimelineEnabled)

@@ -34,7 +34,6 @@ static void testBasicKeyframeInterpolation()
     sequence.timingMode = SequenceScheduler::TimingMode::Seconds;
     sequence.playbackMode = SequenceScheduler::PlaybackMode::OneShot;
     sequence.durationSeconds = 4.0;
-    sequence.enabled = true;
 
     // Keyframe 0: Time = 0.0
     SequenceScheduler::Keyframe kf0(0.0, SequenceScheduler::InterpolationType::Linear);
@@ -47,6 +46,7 @@ static void testBasicKeyframeInterpolation()
     sequence.addKeyframe(kf1);
 
     scheduler.loadSequence(sequence);
+    scheduler.setEnabled(true);
 
     // Process for 2 seconds (should be at 50% = 0.5)
     const int numSamples = static_cast<int>(2.0 * kSampleRate);
@@ -76,7 +76,6 @@ static void testMultipleParameters()
     sequence.timingMode = SequenceScheduler::TimingMode::Seconds;
     sequence.playbackMode = SequenceScheduler::PlaybackMode::OneShot;
     sequence.durationSeconds = 1.0;
-    sequence.enabled = true;
 
     // Start keyframe
     SequenceScheduler::Keyframe kf0(0.0, SequenceScheduler::InterpolationType::Linear);
@@ -93,6 +92,7 @@ static void testMultipleParameters()
     sequence.addKeyframe(kf1);
 
     scheduler.loadSequence(sequence);
+    scheduler.setEnabled(true);
 
     // Process to midpoint
     const int numSamples = static_cast<int>(0.5 * kSampleRate);
@@ -127,7 +127,6 @@ static void testLoopMode()
     sequence.timingMode = SequenceScheduler::TimingMode::Seconds;
     sequence.playbackMode = SequenceScheduler::PlaybackMode::Loop;
     sequence.durationSeconds = 1.0;
-    sequence.enabled = true;
 
     SequenceScheduler::Keyframe kf0(0.0, SequenceScheduler::InterpolationType::Linear);
     kf0.setParameter(SequenceScheduler::ParameterId::Warp, 0.0f);
@@ -138,6 +137,7 @@ static void testLoopMode()
     sequence.addKeyframe(kf1);
 
     scheduler.loadSequence(sequence);
+    scheduler.setEnabled(true);
 
     // Process for 2.5 seconds (should loop and be at 0.5 in second cycle)
     const int numSamples = static_cast<int>(2.5 * kSampleRate);
@@ -171,7 +171,6 @@ static void testInterpolationCurves()
     sequence.timingMode = SequenceScheduler::TimingMode::Seconds;
     sequence.playbackMode = SequenceScheduler::PlaybackMode::OneShot;
     sequence.durationSeconds = 1.0;
-    sequence.enabled = true;
 
     SequenceScheduler::Keyframe kf0(0.0, SequenceScheduler::InterpolationType::SCurve);
     kf0.setParameter(SequenceScheduler::ParameterId::Drift, 0.0f);
@@ -182,6 +181,7 @@ static void testInterpolationCurves()
     sequence.addKeyframe(kf1);
 
     scheduler.loadSequence(sequence);
+    scheduler.setEnabled(true);
 
     // Sample at 0.25 (should be less than 0.25 due to ease-in)
     scheduler.setCurrentPosition(0.25);
@@ -215,7 +215,6 @@ static void testTempoSync()
     sequence.timingMode = SequenceScheduler::TimingMode::Beats;
     sequence.playbackMode = SequenceScheduler::PlaybackMode::OneShot;
     sequence.durationBeats = 4.0;
-    sequence.enabled = true;
 
     SequenceScheduler::Keyframe kf0(0.0, SequenceScheduler::InterpolationType::Linear);
     kf0.setParameter(SequenceScheduler::ParameterId::Bloom, 0.0f);
@@ -226,6 +225,7 @@ static void testTempoSync()
     sequence.addKeyframe(kf1);
 
     scheduler.loadSequence(sequence);
+    scheduler.setEnabled(true);
 
     // Simulate 120 BPM (2 beats per second)
     // After 1 second, should be at beat 2 (50% through 4-beat sequence)
@@ -299,7 +299,6 @@ static void testDisabledSequence()
     SequenceScheduler::Sequence sequence("Disabled");
     sequence.timingMode = SequenceScheduler::TimingMode::Seconds;
     sequence.durationSeconds = 1.0;
-    sequence.enabled = false;  // Disabled
 
     SequenceScheduler::Keyframe kf(0.0);
     kf.setParameter(SequenceScheduler::ParameterId::Mix, 0.5f);
