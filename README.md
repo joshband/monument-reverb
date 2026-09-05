@@ -15,17 +15,15 @@ Monument is a compositional tool for massive, slow, dense, evolving ambience. It
 
 ## Project Status
 
-**Current Phase:** Phase 4 Complete - Supporting Systems Documentation (2026-01-09)
+**Platform:** macOS (arm64/Intel) via Xcode/CMake. Windows/Linux are not built or tested by this repository's workflows.
 
-**Build Status:** ✅ VST3/AU compiling and installing successfully
+**Build Status:** VST3/AU/Standalone compile via CMake; see [STANDARD_BUILD_WORKFLOW.md](STANDARD_BUILD_WORKFLOW.md).
 
-**Test Status:** See `TESTING.md` for the current test matrix and run results.
+**Test Status:** See [TESTING.md](TESTING.md) for the current test matrix, known-red tests, and how to run them — don't infer status from this file.
 
-**Preset Count:** 8 presets (3 original + 5 experimental)
+**Preset Count:** 37 factory presets (see `plugin/PresetManager.cpp`).
 
-**Documentation:** 15/17 DSP architecture modules documented (~184,500 words)
-
-**For detailed status, see [docs/STATUS.md](docs/STATUS.md)**
+**For development history, see [CHANGELOG.md](CHANGELOG.md).**
 
 ---
 
@@ -69,11 +67,13 @@ ctest --test-dir build -C Release
 
 **Essential Documents:**
 
+- [AGENTS.md](AGENTS.md) - Repository operating contract and canonical commands
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture overview
+- [TESTING.md](TESTING.md) - Validation taxonomy, commands, and known limitations
 - [ROADMAP.md](ROADMAP.md) - Long-term vision and future enhancements
 - [MANIFEST.md](MANIFEST.md) - Project manifesto and design philosophy
 - [STANDARD_BUILD_WORKFLOW.md](STANDARD_BUILD_WORKFLOW.md) - Build commands and workflows
-- [docs/STATUS.md](docs/STATUS.md) - Current implementation status
+- [docs/STATUS.md](docs/STATUS.md) - Implementation status (historical; may lag `git log`)
 - [CHANGELOG.md](CHANGELOG.md) - Detailed session history
 
 **Detailed Documentation:**
@@ -94,18 +94,22 @@ ctest --test-dir build -C Release
 **Core Signal Flow:**
 
 ```
-Input → Foundation → Pillars → Chambers → Physical Modules → Weathering → Buttress → Facade → Output
+Input → Foundation → Pillars → Chambers → Weathering → Physical Modules → Buttress → Facade → Output
           ↓                                                                                    ↑
           └────────────────────────────── Dry Signal ───────────────────────────────────────┘
 ```
+
+This is the default `AncientWay` fixed chain, the only one reachable through the
+current UI/host controls; two other internal chain implementations exist but
+have no demonstrated external caller (see `ARCHITECTURE.md`).
 
 **DSP Modules:**
 
 1. **Foundation** - Input conditioning (pre-delay, filtering)
 2. **Pillars** - Early reflections (8-tap allpass diffuser)
 3. **Chambers** - FDN reverb core (8×8 feedback matrix)
-4. **Physical Modules** - TubeRayTracer, ElasticHallway, AlienAmplification, MemoryEchoes
-5. **Weathering** - LFO modulation (4 sources × 27 destinations)
+4. **Weathering** - LFO modulation (4 sources × 27 destinations)
+5. **Physical Modules** - TubeRayTracer, ElasticHallway, AlienAmplification (MemoryEchoes is prepared but not reached by ordinary processing)
 6. **Buttress** - Feedback safety (soft clipping, limiter)
 7. **Facade** - Output stage (dry/wet mix, stereo width)
 
@@ -147,19 +151,17 @@ Input → Foundation → Pillars → Chambers → Physical Modules → Weatherin
 
 ## Presets
 
-Monument includes **8 factory presets:**
+Monument includes **37 factory presets**, spanning plain architectural spaces
+through physically-modeled and modulation-driven ("Living") variants. A few
+representative examples:
 
-**Original Presets:**
-1. Cathedral Space - Large reverb with 8.5s decay
-2. Spring Chamber - Vintage spring simulation
-3. Infinite Abyss - 20s decay with memory system
+- **Init Patch** - a clean, even hall with no motion
+- **Cathedral of Glass** - bright surfaces with long, fragile light trails
+- **Breathing Stone** - the hall expands and contracts with the input signal
+- **Metallic Corridor** - sound routed through resonant metal tubes (TubeRayTracer)
+- **Fractal Space** - topology morphs through a chaotic attractor
 
-**Experimental Presets:**
-4. Elastic Hall - Living Stone algorithm
-5. Alien Amplification - Impossible Geometry algorithm
-6. Memory Lane - Memory system focus
-7. Parallel Universe - Parallel routing configuration
-8. Feedback Loop - Series routing with high feedback
+See `plugin/PresetManager.cpp` for the complete, authoritative list and descriptions.
 
 User presets can be saved as JSON in `~/Documents/MonumentPresets/`.
 
@@ -227,19 +229,10 @@ monument-reverb/
 
 ## Development Roadmap
 
-**Current Status:** Phase 4 Complete - Supporting Systems Documentation
-
-**Completed Phases:**
-- ✅ Phase 1: Foundation (JUCE setup, FDN reverb core)
-- ✅ Phase 2: Core Signal Flow (6 modules documented)
-- ✅ Phase 3: Physical Modeling + Memory (4 modules)
-- ✅ Phase 4: Supporting Systems (4 modules)
-
-**Next Steps:**
-- Complete remaining 2 DSP documentation modules
-- Address critical RT-safety issues (routing allocation, SpinLock)
-- Performance optimization (SIMD, memory ordering)
-- UI enhancement planning
+Development history lives in `git log` and [CHANGELOG.md](CHANGELOG.md), not a
+phase checklist. Known open realtime-safety work — timeline-preset and
+TubeRayTracer allocation on the audio thread — is tracked as a deliberately
+failing characterization test; see [TESTING.md](TESTING.md).
 
 **For long-term vision, see [ROADMAP.md](ROADMAP.md)**
 
