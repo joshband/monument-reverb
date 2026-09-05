@@ -20,7 +20,7 @@ void TubeRayTracer::prepare(double sampleRate, int blockSize, int numChannels)
     tubes.resize(kMaxTubes);
     for (auto& tube : tubes)
     {
-        tube.modalFrequencies.reserve(5);
+        tube.modalFrequencies.reserve(kMaxModalFrequencies);
         tube.resonanceFilter.prepare({sampleRate, static_cast<juce::uint32>(blockSize),
                                       static_cast<juce::uint32>(numChannels)});
         tube.resonanceFilter.reset();
@@ -47,6 +47,16 @@ void TubeRayTracer::prepare(double sampleRate, int blockSize, int numChannels)
     radiusVariationSmoother.setTarget(radiusVariationTarget);
     metallicResonanceSmoother.setTarget(metallicResonanceTarget);
     couplingSmoother.setTarget(couplingStrengthTarget);
+
+    // Warm every tube's modal-frequency storage and resonance-filter coefficient
+    // capacity here (off the audio thread), not just the currently active count.
+    // reconfigureTubes()/updateTubeResonanceFilter() reuse already-reserved
+    // vector/array capacity, so a later audio-thread tube-count increase that
+    // reaches a previously-untouched tube index does not allocate.
+    const int tubeCountToRestore = activeTubeCount;
+    activeTubeCount = kMaxTubes;
+    reconfigureTubes();
+    activeTubeCount = tubeCountToRestore;
 
     tubesNeedReconfiguration = true;
 }
@@ -156,7 +166,7 @@ void TubeRayTracer::reconfigureTubes()
         tube.absorptionPerMeter = 0.05f + (50.0f - tube.diameterMM) / 50.0f * 0.15f;
 
         // Compute modal frequencies
-        tube.modalFrequencies = computeModalFrequencies(tube.lengthMeters, tube.diameterMM);
+        computeModalFrequencies(tube.lengthMeters, tube.diameterMM, tube.modalFrequencies);
 
         // Update resonance filter
         updateTubeResonanceFilter(tube);
@@ -166,7 +176,8 @@ void TubeRayTracer::reconfigureTubes()
     }
 }
 
-std::vector<float> TubeRayTracer::computeModalFrequencies(float lengthMeters, float diameterMM) const
+void TubeRayTracer::computeModalFrequencies(float lengthMeters, float diameterMM,
+                                             std::vector<float>& outModes) const
 {
     // Helmholtz resonator: f = (c / 2π) * sqrt(A / (V * L))
     // For cylindrical tube: fundamental frequency and harmonics
@@ -174,8 +185,11 @@ std::vector<float> TubeRayTracer::computeModalFrequencies(float lengthMeters, fl
     const float speedOfSound = 343.0f; // m/s at 20°C
     const float fundamentalFreq = speedOfSound / (2.0f * lengthMeters);
 
-    std::vector<float> modes;
-    modes.reserve(5);
+    // Realtime-safe: clear() keeps the vector's already-reserved capacity
+    // (kMaxModalFrequencies, reserved in prepare()); the push_backs below never
+    // exceed that capacity, so this does not allocate when called from
+    // reconfigureTubes() on the audio thread.
+    outModes.clear();
 
     // Generate first 5 harmonics
     for (int harmonic = 1; harmonic <= 5; ++harmonic)
@@ -184,16 +198,14 @@ std::vector<float> TubeRayTracer::computeModalFrequencies(float lengthMeters, fl
 
         // Clamp to audible range
         if (freq >= 20.0f && freq <= 20000.0f)
-            modes.push_back(freq);
+            outModes.push_back(freq);
     }
 
     // Add diameter-dependent resonance (cross-sectional mode)
     float diameterMeters = diameterMM / 1000.0f;
     float crossSectionalMode = speedOfSound / (juce::MathConstants<float>::pi * diameterMeters);
     if (crossSectionalMode >= 20.0f && crossSectionalMode <= 20000.0f)
-        modes.push_back(crossSectionalMode);
-
-    return modes;
+        outModes.push_back(crossSectionalMode);
 }
 
 void TubeRayTracer::updateTubeResonanceFilter(Tube& tube)
@@ -211,11 +223,14 @@ void TubeRayTracer::updateTubeResonanceFilter(Tube& tube)
     static constexpr float kFreqUpdateThreshold = 1.0f;  // 1 Hz threshold
     if (std::abs(fundamentalFreq - tube.lastCachedFundamentalFreq) > kFreqUpdateThreshold)
     {
-        // Create bandpass filter at fundamental frequency
-        auto coeffs = juce::dsp::IIR::Coefficients<float>::makeBandPass(
+        // Realtime-safe: ArrayCoefficients::makeBandPass computes the same
+        // coefficients as Coefficients::makeBandPass (which wraps it) but returns
+        // a std::array by value instead of heap-allocating a new reference-counted
+        // Coefficients object. prepare() warms every tube's Coefficients array
+        // capacity ahead of time, so this in-place assignment does not allocate
+        // even the first time a given tube index is reached.
+        *tube.resonanceFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass(
             sampleRateHz, fundamentalFreq, resonanceQ);
-
-        *tube.resonanceFilter.state = *coeffs;
         tube.lastCachedFundamentalFreq = fundamentalFreq;
     }
 }
