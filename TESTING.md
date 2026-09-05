@@ -266,6 +266,15 @@ CTest list:
 - `monument_reverb_dsp_test` - reverb DSP correctness.
 - `monument_delay_dsp_test` - delay DSP correctness.
 - `monument_spatial_dsp_test` - spatial processing.
+- `monument_realtime_allocation_characterization_test` - **deliberately failing** (see note below).
+
+> **Known-red test:** `monument_realtime_allocation_characterization_test`
+> characterizes real allocations in the timeline-preset `processBlock` path and
+> the `TubeRayTracer` count-boundary `process` path. It fails by design on the
+> pinned source until a later runtime-remediation increment removes those
+> allocations; it is registered for local CTest discovery only and is not part
+> of any required GitHub workflow. Do not silence it with `WILL_FAIL` or treat
+> its failure as a regression.
 
 ## Adding Tests (Standard Workflow)
 
