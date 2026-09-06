@@ -307,7 +307,9 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
 
     driftDepthMaxSamples = kDriftDepthMaxSamples;
     {
-        juce::Random random;
+        juce::Random random = testDriftSeed.has_value()
+            ? juce::Random(*testDriftSeed)
+            : juce::Random();
         for (size_t i = 0; i < kNumLines; ++i)
         {
             driftRateHz[i] = juce::jmap(random.nextFloat(), kDriftRateMinHz, kDriftRateMaxHz);
