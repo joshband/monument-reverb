@@ -16,7 +16,6 @@ SequenceScheduler::Sequence SequencePresets::createEvolvingCathedral()
     sequence.timingMode = SequenceScheduler::TimingMode::Beats;
     sequence.playbackMode = SequenceScheduler::PlaybackMode::Loop;
     sequence.durationBeats = 16.0;
-    sequence.enabled = false;  // Will be enabled when loaded
 
     // Keyframe 0 (Beat 0): Small room
     Keyframe kf0(0.0, Interpolation::SCurve);
@@ -71,7 +70,6 @@ SequenceScheduler::Sequence SequencePresets::createSpatialJourney()
     sequence.timingMode = SequenceScheduler::TimingMode::Beats;
     sequence.playbackMode = SequenceScheduler::PlaybackMode::Loop;
     sequence.durationBeats = 16.0;
-    sequence.enabled = false;
 
     // Create circular path in X/Y plane (8 keyframes for smooth circle)
     const int numSteps = 8;
@@ -121,7 +119,6 @@ SequenceScheduler::Sequence SequencePresets::createLivingSpace()
     sequence.timingMode = SequenceScheduler::TimingMode::Seconds;
     sequence.playbackMode = SequenceScheduler::PlaybackMode::Loop;
     sequence.durationSeconds = 32.0;
-    sequence.enabled = false;
 
     // Keyframe 0 (0s): Neutral starting point
     Keyframe kf0(0.0, Interpolation::SCurve);
@@ -176,7 +173,6 @@ SequenceScheduler::Sequence SequencePresets::createInfiniteAbyss()
     sequence.timingMode = SequenceScheduler::TimingMode::Beats;
     sequence.playbackMode = SequenceScheduler::PlaybackMode::Loop;
     sequence.durationBeats = 64.0;
-    sequence.enabled = false;
 
     // Keyframe 0 (0 beats): Deep pit begins
     Keyframe kf0(0.0, Interpolation::SCurve);
@@ -230,7 +226,6 @@ SequenceScheduler::Sequence SequencePresets::createQuantumTunneling()
     sequence.timingMode = SequenceScheduler::TimingMode::Beats;
     sequence.playbackMode = SequenceScheduler::PlaybackMode::Loop;
     sequence.durationBeats = 32.0;
-    sequence.enabled = false;
 
     // Base parameters: sparse, warped, drifting
     Keyframe base(0.0, Interpolation::Linear);
@@ -282,7 +277,6 @@ SequenceScheduler::Sequence SequencePresets::createTimeDissolution()
     sequence.timingMode = SequenceScheduler::TimingMode::Seconds;
     sequence.playbackMode = SequenceScheduler::PlaybackMode::Loop;
     sequence.durationSeconds = 120.0;  // 2 minutes of slow evolution
-    sequence.enabled = false;
 
     // Keyframe 0 (0s): Stable starting point
     Keyframe kf0(0.0, Interpolation::SCurve);
@@ -333,7 +327,6 @@ SequenceScheduler::Sequence SequencePresets::createCrystallineVoid()
     sequence.timingMode = SequenceScheduler::TimingMode::Beats;
     sequence.playbackMode = SequenceScheduler::PlaybackMode::Loop;
     sequence.durationBeats = 48.0;
-    sequence.enabled = false;
 
     // Keyframe 0 (0 beats): Crystalline space
     Keyframe kf0(0.0, Interpolation::Linear);
@@ -379,7 +372,6 @@ SequenceScheduler::Sequence SequencePresets::createHyperdimensionalFold()
     sequence.timingMode = SequenceScheduler::TimingMode::Beats;
     sequence.playbackMode = SequenceScheduler::PlaybackMode::Loop;
     sequence.durationBeats = 64.0;
-    sequence.enabled = false;
 
     // Create complex evolution across all major parameters
     const int numKeyframes = 16;
