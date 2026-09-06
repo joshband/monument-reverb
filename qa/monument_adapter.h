@@ -66,6 +66,12 @@ public:
     // Optional features
     ::qa::OptionalFeatures getOptionalFeatures() const override;
 
+    // Test-only: see lastProcessedBlockSamplesForTesting_.
+    int getLastProcessedBlockSamplesForTesting() const noexcept
+    {
+        return lastProcessedBlockSamplesForTesting_;
+    }
+
 private:
     static constexpr int kNumParameters = 15;  // Phase 1: core parameters only
 
@@ -84,6 +90,20 @@ private:
     // the correct values. NOT triggered during automation (would crash).
     bool needsReinit_{false};
     bool hasProcessed_{false};
+
+    // The maxBlockSize declared to prepare(); audioBuffer_ is sized to this.
+    // The needsReinit_ re-warmup MUST prepareToPlay() with this value, not
+    // with whatever numSamples the first processBlock() call happens to pass
+    // (which may be a partial block smaller than the declared maximum) -
+    // otherwise the processor's own internal buffers end up undersized for a
+    // later, larger, still in-contract block. See report finding E18.
+    int maxBlockSize_{0};
+
+    // Test-only: the numSamples value most recently forwarded to the wrapped
+    // processor's processBlock(), so adapter contract tests can prove partial
+    // blocks are never silently widened to the full preallocated buffer
+    // capacity (report finding E18). Not read by production code.
+    int lastProcessedBlockSamplesForTesting_{0};
 
     // Parameter ID mapping
     struct ParameterIds
