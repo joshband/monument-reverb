@@ -970,6 +970,52 @@ if(BUILD_TESTING)
   add_test(NAME monument_dsp_routing_graph_test COMMAND $<TARGET_FILE:monument_dsp_routing_graph_test>)
 endif()
 
+# Routing Preset x Macro Mode Characterization Test (Repository Reset Report, Step 5)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_routing_macro_mode_characterization_test
+    PRODUCT_NAME "Monument Routing x Macro Mode Characterization Test"
+  )
+
+  juce_generate_juce_header(monument_routing_macro_mode_characterization_test)
+
+  target_sources(monument_routing_macro_mode_characterization_test
+    PRIVATE
+      tests/RoutingAndMacroModeCharacterizationTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_routing_macro_mode_characterization_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_routing_macro_mode_characterization_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_routing_macro_mode_characterization_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_routing_macro_mode_characterization_test COMMAND $<TARGET_FILE:monument_routing_macro_mode_characterization_test>)
+endif()
+
 # Feedback Mix Safety Test (Regression: 100% mix feedback runaway)
 if(BUILD_TESTING)
   juce_add_console_app(monument_feedback_mix_safety_test

@@ -277,6 +277,305 @@ PresetSwitchResult testPresetSwitching(MonumentAudioProcessor& processor, double
     return result;
 }
 
+/**
+ * Result of the fresh-instance host state roundtrip characterization (Test 3).
+ */
+struct HostStateFreshInstanceResult
+{
+    int totalParameters{0};
+    int parametersMismatched{0};
+    bool modulationConnectionRegisteredOnSource{false};
+    bool modulationConnectionSurvivedRoundtrip{false};
+    bool passed{false};
+    std::vector<juce::String> mismatchedParams;
+};
+
+/**
+ * Test 3: Fresh-Instance Host State Roundtrip (Report Step 5 characterization)
+ *
+ * MonumentAudioProcessor::getStateInformation()/setStateInformation() save and
+ * restore ONLY `parameters.copyState()` as XML -- the APVTS parameter tree
+ * (see plugin/PluginProcessor.cpp). This is a real, incomplete contract:
+ * it does NOT capture the custom modulation-matrix connections managed by
+ * ModulationMatrix::setConnections()/getConnections() (dsp/ModulationMatrix.h),
+ * which live entirely outside the APVTS tree.
+ *
+ * This test proves BOTH halves of that contract using two SEPARATE, freshly
+ * constructed MonumentAudioProcessor instances (not the same instance reused,
+ * which could hide bugs where in-memory state leaks across the save/restore
+ * boundary rather than actually round-tripping through the serialized bytes):
+ *   (a) every APVTS parameter round-trips correctly from instance A to a
+ *       brand new instance B via getStateInformation()/setStateInformation()
+ *       (expected: yes, for all parameters)
+ *   (b) a modulation connection created on instance A does NOT appear on
+ *       instance B after the same roundtrip (expected: it does NOT survive --
+ *       this is the documented gap, not a bug this test is trying to fix).
+ *
+ * If a future change intentionally folds modulation connections into host
+ * state, this assertion must be updated deliberately -- do not "fix" this
+ * test by loosening it without also verifying the production code actually
+ * changed.
+ */
+HostStateFreshInstanceResult testFreshInstanceHostStateRoundtrip()
+{
+    HostStateFreshInstanceResult result;
+
+    MonumentAudioProcessor processorA;
+    processorA.prepareToPlay(48000.0, 512);
+
+    auto& paramsA = processorA.getParameters();
+    std::map<juce::String, float> distinctiveValues;
+
+    for (auto* paramBase : paramsA)
+    {
+        auto* param = dynamic_cast<juce::RangedAudioParameter*>(paramBase);
+        if (!param) continue;
+
+        juce::String paramID = param->getParameterID();
+        auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(paramBase);
+        auto* boolParam = dynamic_cast<juce::AudioParameterBool*>(paramBase);
+
+        float distinctiveValue;
+        if (choiceParam)
+        {
+            // Deliberately pick the LAST valid choice -- distinct from the
+            // near-universal "index 0" default.
+            const int numChoices = choiceParam->choices.size();
+            distinctiveValue = numChoices > 1
+                ? static_cast<float>(numChoices - 1) / static_cast<float>(numChoices - 1)
+                : 0.0f;
+        }
+        else if (boolParam)
+        {
+            distinctiveValue = 1.0f;  // flip true; most bool defaults are false
+        }
+        else
+        {
+            distinctiveValue = 0.87f;  // distinct from the common 0.0/0.5 defaults
+        }
+
+        param->setValueNotifyingHost(distinctiveValue);
+        distinctiveValues[paramID] = param->getValue();  // record actual normalized value
+        result.totalParameters++;
+    }
+
+    // Set up a modulation connection -- NOT covered by host XML state.
+    using MM = monument::dsp::ModulationMatrix;
+    processorA.getModulationMatrix().setConnection(
+        MM::SourceType::ChaosAttractor, MM::DestinationType::Warp,
+        /*sourceAxis*/ 0, /*depth*/ 0.75f, /*smoothingMs*/ 150.0f);
+
+    for (const auto& conn : processorA.getModulationMatrix().getConnections())
+    {
+        if (conn.destination == MM::DestinationType::Warp && conn.enabled
+            && std::abs(conn.depth - 0.75f) < 0.001f)
+        {
+            result.modulationConnectionRegisteredOnSource = true;
+        }
+    }
+
+    // Save state from instance A.
+    juce::MemoryBlock stateData;
+    processorA.getStateInformation(stateData);
+
+    // Fresh SECOND instance -- this is the point of the test.
+    MonumentAudioProcessor processorB;
+    processorB.prepareToPlay(48000.0, 512);
+    processorB.setStateInformation(stateData.getData(), static_cast<int>(stateData.getSize()));
+
+    for (auto* paramBase : processorB.getParameters())
+    {
+        auto* param = dynamic_cast<juce::RangedAudioParameter*>(paramBase);
+        if (!param) continue;
+
+        juce::String paramID = param->getParameterID();
+        const float restored = param->getValue();
+        const float expected = distinctiveValues[paramID];
+
+        if (std::abs(restored - expected) > 0.001f)
+        {
+            result.parametersMismatched++;
+            result.mismatchedParams.push_back(paramID);
+        }
+    }
+
+    for (const auto& conn : processorB.getModulationMatrix().getConnections())
+    {
+        if (conn.destination == MM::DestinationType::Warp && conn.enabled
+            && std::abs(conn.depth - 0.75f) < 0.001f)
+        {
+            result.modulationConnectionSurvivedRoundtrip = true;
+        }
+    }
+
+    processorB.releaseResources();
+    processorA.releaseResources();
+
+    // Characterization passes when:
+    //  - every APVTS parameter round-tripped (0 mismatches)
+    //  - the connection really was registered on A (sanity -- otherwise
+    //    "it didn't survive" would be true for the wrong reason)
+    //  - the connection did NOT survive onto B (the known, documented gap)
+    result.passed = (result.parametersMismatched == 0)
+        && result.modulationConnectionRegisteredOnSource
+        && !result.modulationConnectionSurvivedRoundtrip;
+
+    return result;
+}
+
+/**
+ * Result of the user-preset JSON roundtrip characterization (Test 4).
+ */
+struct UserPresetJsonRoundtripResult
+{
+    int fieldsRoundTripped{0};
+    int fieldsFailedRoundtrip{0};
+    bool gapConfirmed{true};
+    bool modulationConnectionSurvived{false};
+    bool passed{false};
+    std::vector<juce::String> unexpectedFailures;    // covered fields that should have round-tripped but didn't
+    std::vector<juce::String> unexpectedRoundtrips;  // gap fields that round-tripped when they shouldn't have
+};
+
+/**
+ * Test 4: User-Preset JSON Roundtrip (Report Step 5 characterization)
+ *
+ * PresetManager's user-preset JSON (see PresetManager::saveUserPreset,
+ * PresetManager::loadUserPreset, PresetManager::captureCurrentValues, and
+ * PresetManager::applyPreset in plugin/PresetManager.cpp) captures a
+ * SMALLER, DIFFERENT subset of controls than host XML state, and this is a
+ * separate, non-overlapping incomplete contract:
+ *
+ *   - COVERED (round-trips): time, mass, density, bloom, gravity, warp,
+ *     drift, memory, memoryDepth, memoryDecay, memoryDrift, mix, material,
+ *     topology, viscosity, evolution, chaosIntensity, elasticityDecay,
+ *     patina, abyss, corona, breath -- plus modulation-matrix connections,
+ *     but ONLY when driven through MonumentAudioProcessor::saveUserPreset()/
+ *     loadUserPreset(file), which explicitly applies
+ *     presetManager.getLastLoadedModulationConnections() to the real
+ *     ModulationMatrix after PresetManager::loadUserPreset() returns.
+ *     (PresetManager::applyPreset() itself only *caches* the connections;
+ *     it never touches a ModulationMatrix directly.)
+ *
+ *   - NOT COVERED (does not round-trip): the Expressive macro parameters
+ *     (character, spaceType, energy, motion, color, dimension), the
+ *     routingPreset selection, the timelinePreset selection, and macroMode
+ *     itself -- none of these appear in PresetValues, captureCurrentValues(),
+ *     or applyPreset().
+ *
+ * This test documents both halves. It does not fix or fill either gap.
+ */
+UserPresetJsonRoundtripResult testUserPresetJsonRoundtrip()
+{
+    UserPresetJsonRoundtripResult result;
+
+    MonumentAudioProcessor processorA;
+    processorA.prepareToPlay(48000.0, 512);
+    auto& apvtsA = processorA.getAPVTS();
+
+    auto setNormalized = [&apvtsA](const juce::String& id, float normalized)
+    {
+        if (auto* param = dynamic_cast<juce::RangedAudioParameter*>(apvtsA.getParameter(id)))
+            param->setValueNotifyingHost(normalized);
+    };
+
+    // Fields the JSON contract DOES cover per PresetManager::captureCurrentValues/applyPreset.
+    const std::vector<juce::String> coveredFields = {
+        "time", "mass", "density", "bloom", "gravity", "warp", "drift",
+        "memory", "memoryDepth", "memoryDecay", "memoryDrift", "mix",
+        "material", "topology", "viscosity", "evolution", "chaosIntensity",
+        "elasticityDecay", "patina", "abyss", "corona", "breath"
+    };
+    for (const auto& id : coveredFields)
+        setNormalized(id, 0.87f);
+
+    // Fields the architectural assessment report says are OMITTED from the JSON contract.
+    const std::vector<juce::String> gapFloatFields = {
+        "character", "spaceType", "energy", "motion", "color", "dimension"
+    };
+    for (const auto& id : gapFloatFields)
+        setNormalized(id, 0.87f);
+
+    // routingPreset / timelinePreset / macroMode are choice params, also omitted from the JSON contract.
+    const std::vector<juce::String> gapChoiceFields = { "routingPreset", "timelinePreset", "macroMode" };
+    for (const auto& id : gapChoiceFields)
+        setNormalized(id, 1.0f);  // last choice -- distinct from index-0 defaults
+
+    std::map<juce::String, float> originals;
+    for (const auto& id : coveredFields) originals[id] = apvtsA.getParameter(id)->getValue();
+    for (const auto& id : gapFloatFields) originals[id] = apvtsA.getParameter(id)->getValue();
+    for (const auto& id : gapChoiceFields) originals[id] = apvtsA.getParameter(id)->getValue();
+
+    // Modulation connection -- covered when driven through the PROCESSOR's
+    // saveUserPreset()/loadUserPreset(file), which applies the parsed
+    // connections after PresetManager::loadUserPreset() returns.
+    using MM = monument::dsp::ModulationMatrix;
+    processorA.getModulationMatrix().setConnection(
+        MM::SourceType::BrownianMotion, MM::DestinationType::Density,
+        /*sourceAxis*/ 0, /*depth*/ 0.6f, /*smoothingMs*/ 250.0f);
+
+    juce::File tempFile = juce::File::createTempFile(".mrpreset.json");
+    processorA.saveUserPreset(tempFile, "Step5CharacterizationPreset", "state/preset coverage characterization");
+
+    MonumentAudioProcessor processorB;
+    processorB.prepareToPlay(48000.0, 512);
+    auto& apvtsB = processorB.getAPVTS();
+
+    processorB.loadUserPreset(tempFile);
+    tempFile.deleteFile();
+
+    for (const auto& id : coveredFields)
+    {
+        const float restored = apvtsB.getParameter(id)->getValue();
+        if (std::abs(restored - originals[id]) < 0.001f)
+        {
+            result.fieldsRoundTripped++;
+        }
+        else
+        {
+            result.fieldsFailedRoundtrip++;
+            result.unexpectedFailures.push_back(id);
+        }
+    }
+
+    for (const auto& id : gapFloatFields)
+    {
+        const float restored = apvtsB.getParameter(id)->getValue();
+        if (std::abs(restored - originals[id]) < 0.001f)
+        {
+            result.gapConfirmed = false;
+            result.unexpectedRoundtrips.push_back(id);
+        }
+    }
+    for (const auto& id : gapChoiceFields)
+    {
+        const float restored = apvtsB.getParameter(id)->getValue();
+        if (std::abs(restored - originals[id]) < 0.001f)
+        {
+            result.gapConfirmed = false;
+            result.unexpectedRoundtrips.push_back(id);
+        }
+    }
+
+    for (const auto& conn : processorB.getModulationMatrix().getConnections())
+    {
+        if (conn.destination == MM::DestinationType::Density && conn.enabled
+            && std::abs(conn.depth - 0.6f) < 0.001f)
+        {
+            result.modulationConnectionSurvived = true;
+        }
+    }
+
+    processorB.releaseResources();
+    processorA.releaseResources();
+
+    result.passed = (result.fieldsFailedRoundtrip == 0)
+        && result.gapConfirmed
+        && result.modulationConnectionSurvived;
+
+    return result;
+}
+
 int main()
 {
     std::cout << "\n";
@@ -376,6 +675,72 @@ int main()
     std::cout << "\n";
 
     processor.releaseResources();
+
+    // Test 3: Fresh-Instance Host State Roundtrip (Report Step 5 characterization)
+    std::cout << "Test 3: Fresh-Instance Host State Roundtrip (characterization)\n";
+    std::cout << "  Setting distinctive values on instance A + one modulation connection...\n";
+    std::cout << "  Saving host state, restoring into a brand new instance B...\n";
+
+    HostStateFreshInstanceResult hostStateResult = testFreshInstanceHostStateRoundtrip();
+    totalTests++;
+
+    std::cout << "\n";
+    std::cout << "  Total APVTS parameters:         " << hostStateResult.totalParameters << "\n";
+    std::cout << "  Mismatched after roundtrip:     " << hostStateResult.parametersMismatched << "\n";
+    std::cout << "  Modulation connection on A:      " << (hostStateResult.modulationConnectionRegisteredOnSource ? "registered" : "MISSING (test setup bug)") << "\n";
+    std::cout << "  Modulation connection on B:      " << (hostStateResult.modulationConnectionSurvivedRoundtrip ? "SURVIVED (unexpected)" : "did NOT survive (expected/known gap)") << "\n";
+    std::cout << "\n";
+
+    if (hostStateResult.passed)
+    {
+        std::cout << "  " << COLOR_GREEN << "✓ PASS" << COLOR_RESET
+                   << " (all APVTS parameters round-trip; modulation connections confirmed NOT covered by host state -- known gap)\n";
+        passedTests++;
+    }
+    else
+    {
+        std::cout << "  " << COLOR_RED << "✗ FAIL" << COLOR_RESET << "\n";
+        for (const auto& id : hostStateResult.mismatchedParams)
+            std::cout << "    mismatched parameter: " << id << "\n";
+        if (!hostStateResult.modulationConnectionRegisteredOnSource)
+            std::cout << "    modulation connection was never registered on source instance (test setup issue)\n";
+        if (hostStateResult.modulationConnectionSurvivedRoundtrip)
+            std::cout << "    modulation connection unexpectedly SURVIVED the host-state roundtrip -- report's documented gap no longer holds; update this test deliberately if that's an intentional fix\n";
+    }
+    std::cout << "\n";
+
+    // Test 4: User-Preset JSON Roundtrip (Report Step 5 characterization)
+    std::cout << "Test 4: User-Preset JSON Roundtrip (characterization)\n";
+    std::cout << "  Setting distinctive values (covered + gap fields) on instance A...\n";
+    std::cout << "  Saving user preset JSON, loading into a brand new instance B...\n";
+
+    UserPresetJsonRoundtripResult presetJsonResult = testUserPresetJsonRoundtrip();
+    totalTests++;
+
+    std::cout << "\n";
+    std::cout << "  Covered fields round-tripped:    " << presetJsonResult.fieldsRoundTripped << "\n";
+    std::cout << "  Covered fields FAILED:           " << presetJsonResult.fieldsFailedRoundtrip << "\n";
+    std::cout << "  Gap fields confirmed omitted:    " << (presetJsonResult.gapConfirmed ? "yes" : "NO (unexpected roundtrip)") << "\n";
+    std::cout << "  Modulation connection survived:  " << (presetJsonResult.modulationConnectionSurvived ? "yes (expected, via processor-level apply)" : "NO (unexpected)") << "\n";
+    std::cout << "\n";
+
+    if (presetJsonResult.passed)
+    {
+        std::cout << "  " << COLOR_GREEN << "✓ PASS" << COLOR_RESET
+                   << " (covered fields + modulation connections round-trip; expressive macros/routingPreset/timelinePreset/macroMode confirmed NOT covered -- known gap)\n";
+        passedTests++;
+    }
+    else
+    {
+        std::cout << "  " << COLOR_RED << "✗ FAIL" << COLOR_RESET << "\n";
+        for (const auto& id : presetJsonResult.unexpectedFailures)
+            std::cout << "    covered field failed to round-trip: " << id << "\n";
+        for (const auto& id : presetJsonResult.unexpectedRoundtrips)
+            std::cout << "    gap field unexpectedly round-tripped: " << id << " -- report's documented gap no longer holds; update this test deliberately if that's an intentional fix\n";
+        if (!presetJsonResult.modulationConnectionSurvived)
+            std::cout << "    modulation connection did not survive user-preset roundtrip (unexpected regression)\n";
+    }
+    std::cout << "\n";
 
     // Print summary
     std::cout << COLOR_BLUE << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" << COLOR_RESET << "\n";
