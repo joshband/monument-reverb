@@ -334,6 +334,46 @@ if(MONUMENT_ENABLE_TESTS)
     COMMAND $<TARGET_FILE:monument_realtime_allocation_characterization_test>
   )
 
+  juce_add_console_app(monument_block_shape_contract_test
+    PRODUCT_NAME "Monument Block Shape Contract Test"
+  )
+  juce_generate_juce_header(monument_block_shape_contract_test)
+  target_sources(monument_block_shape_contract_test
+    PRIVATE
+      tests/BlockShapeContractTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PluginEditorV2.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+  target_include_directories(monument_block_shape_contract_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_compile_definitions(monument_block_shape_contract_test
+    PRIVATE
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+  target_link_libraries(monument_block_shape_contract_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+  add_test(
+    NAME monument_block_shape_contract_test
+    COMMAND $<TARGET_FILE:monument_block_shape_contract_test>
+  )
+
   juce_add_console_app(monument_memory_echoes_test
     PRODUCT_NAME "Monument Memory Echoes Test"
   )
