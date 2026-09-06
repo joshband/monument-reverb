@@ -1352,6 +1352,45 @@ if(BUILD_TESTING)
   add_test(NAME monument_dsp_initialization_test COMMAND $<TARGET_FILE:monument_dsp_initialization_test>)
 endif()
 
+# Deterministic RNG Seed Seam Test (report finding E25)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_deterministic_rng_seed_test
+    PRODUCT_NAME "Monument Deterministic RNG Seed Test"
+  )
+
+  juce_generate_juce_header(monument_deterministic_rng_seed_test)
+
+  target_sources(monument_deterministic_rng_seed_test
+    PRIVATE
+      tests/DeterministicRngSeedTest.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_deterministic_rng_seed_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_deterministic_rng_seed_test
+    PRIVATE
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+
+  target_link_libraries(monument_deterministic_rng_seed_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_deterministic_rng_seed_test COMMAND $<TARGET_FILE:monument_deterministic_rng_seed_test>)
+endif()
+
 # Reverb DSP Test (Phase C: DSP Verification)
 if(BUILD_TESTING)
   juce_add_console_app(monument_reverb_dsp_test

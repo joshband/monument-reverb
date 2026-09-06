@@ -8,6 +8,7 @@
 
 #include <array>
 #include <memory>
+#include <optional>
 
 namespace monument
 {
@@ -19,6 +20,16 @@ public:
     void prepare(double sampleRate, int blockSize, int numChannels) override;
     void reset() override;
     void process(juce::AudioBuffer<float>& buffer) override;
+
+    /**
+     * @brief Force a deterministic seed for the late-diffusion drift RNG (test-only).
+     *
+     * Call before prepare(). Production code never calls this, so production
+     * behavior (each instance gets an unseeded, genuinely different drift
+     * character) is unchanged unless a test explicitly opts in. Intended for
+     * QA-harness scenario captures that need reproducible output run to run.
+     */
+    void setDeterministicDriftSeedForTesting(juce::int64 seed) noexcept { testDriftSeed = seed; }
 
     // Phase 4: Per-sample parameter setters (accept ParameterBuffer for zipper-free automation)
     void setTime(const ParameterBuffer& time);
@@ -59,6 +70,11 @@ public:
     SpatialProcessor* getSpatialProcessor() noexcept { return spatialProcessor.get(); }
 
 private:
+    // Test-only deterministic seed for the drift RNG in prepare(); nullopt in
+    // production, so juce::Random's own unseeded default constructor is used
+    // (see setDeterministicDriftSeedForTesting()).
+    std::optional<juce::int64> testDriftSeed;
+
     static constexpr int kNumLines = 8;
     double sampleRateHz = 44100.0;
     int maxBlockSize = 0;
