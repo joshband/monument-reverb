@@ -603,8 +603,17 @@ void ModulationMatrix::processMidi(const juce::MidiBuffer& midiMessages)
 
 void ModulationMatrix::publishConnectionsSnapshot() noexcept
 {
-    const int nextIndex =
-        1 - activeSnapshotIndex.load(std::memory_order_relaxed);
+    // Never reclaim the currently-active slot, and never reclaim the slot the
+    // audio thread has announced it is reading (see process()). With
+    // kNumSnapshotSlots == 3, at most two of the three slots are excluded by
+    // these two checks, so a free slot always exists - even if this function
+    // is called multiple times with no audio block processed in between.
+    const int current = activeSnapshotIndex.load(std::memory_order_relaxed);
+    const int reading = readerSnapshotIndex.load(std::memory_order_acquire);
+    int nextIndex = 0;
+    while (nextIndex == current || nextIndex == reading)
+        ++nextIndex;
+    jassert(nextIndex < kNumSnapshotSlots);
 
     snapshotCounts[nextIndex] = connectionCount;
     for (int i = 0; i < connectionCount; ++i)
@@ -674,7 +683,23 @@ void ModulationMatrix::process(const juce::AudioBuffer<float>& audioBuffer, int 
         }
     }
 
-    const int snapshotIndex = activeSnapshotIndex.load(std::memory_order_acquire);
+    // Announce which slot we are about to read before touching it, then
+    // verify the writer did not publish a different slot in the window
+    // between our load and our announcement - if it did, our announcement
+    // was stale, so re-announce the current one. Once this loop exits,
+    // readerSnapshotIndex accurately reflects snapshotIndex, and
+    // publishConnectionsSnapshot() will never reclaim it for as long as that
+    // holds (i.e. until this function's next call updates it again). See the
+    // matching exclusion logic in publishConnectionsSnapshot().
+    int snapshotIndex;
+    for (;;)
+    {
+        snapshotIndex = activeSnapshotIndex.load(std::memory_order_acquire);
+        readerSnapshotIndex.store(snapshotIndex, std::memory_order_release);
+        if (activeSnapshotIndex.load(std::memory_order_acquire) == snapshotIndex)
+            break;
+    }
+
     if (snapshotIndex != appliedSmoothingSnapshotIndex)
         applySmootherSnapshot(snapshotIndex);
 

@@ -334,6 +334,45 @@ if(MONUMENT_ENABLE_TESTS)
     COMMAND $<TARGET_FILE:monument_realtime_allocation_characterization_test>
   )
 
+  option(MONUMENT_TSAN "Build monument_modulation_matrix_concurrency_stress_test with ThreadSanitizer" OFF)
+
+  juce_add_console_app(monument_modulation_matrix_concurrency_stress_test
+    PRODUCT_NAME "Monument ModulationMatrix Concurrency Stress Test"
+  )
+  juce_generate_juce_header(monument_modulation_matrix_concurrency_stress_test)
+  target_sources(monument_modulation_matrix_concurrency_stress_test
+    PRIVATE
+      tests/ModulationMatrixConcurrencyStressTest.cpp
+      dsp/ModulationMatrix.cpp
+  )
+  target_include_directories(monument_modulation_matrix_concurrency_stress_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_compile_definitions(monument_modulation_matrix_concurrency_stress_test
+    PRIVATE
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+  target_link_libraries(monument_modulation_matrix_concurrency_stress_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+  if(MONUMENT_TSAN)
+    target_compile_options(monument_modulation_matrix_concurrency_stress_test PRIVATE -fsanitize=thread)
+    target_link_options(monument_modulation_matrix_concurrency_stress_test PRIVATE -fsanitize=thread)
+  endif()
+  add_test(
+    NAME monument_modulation_matrix_concurrency_stress_test
+    COMMAND $<TARGET_FILE:monument_modulation_matrix_concurrency_stress_test>
+  )
+
   juce_add_console_app(monument_block_shape_contract_test
     PRODUCT_NAME "Monument Block Shape Contract Test"
   )
