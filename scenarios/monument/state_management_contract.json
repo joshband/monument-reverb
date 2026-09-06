@@ -141,8 +141,7 @@
       "metric": "non_finite",
       "window": "full",
       "threshold": {
-        "max_count": 0,
-        "max": 0
+        "max_count": 0
       },
       "severity": "hard_fail",
       "description": "State-like transitions must remain finite"
@@ -171,8 +170,7 @@
       "window": "steady",
       "threshold": {
         "detection_threshold_db": 12.0,
-        "max_count": 400,
-        "max": 400
+        "max_count": 400
       },
       "severity": "soft_warn",
       "description": "Preset-like jumps should avoid excessive discontinuities"
