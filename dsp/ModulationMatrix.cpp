@@ -187,13 +187,18 @@ private:
 class ModulationMatrix::BrownianMotion
 {
 public:
-    void prepare(double sampleRate, int /*blockSize*/)
+    void prepare(double sampleRate, int /*blockSize*/,
+                 std::optional<unsigned int> deterministicSeed = std::nullopt)
     {
         sampleRateHz = sampleRate;
 
-        // Initialize random number generator with time-based seed
-        const auto seed = static_cast<unsigned int>(
-            std::chrono::high_resolution_clock::now().time_since_epoch().count());
+        // Production: time-based seed (each instance gets genuinely different
+        // motion). Test-only override: a caller-supplied deterministic seed,
+        // for reproducible QA-harness captures.
+        const unsigned int seed = deterministicSeed.has_value()
+            ? *deterministicSeed
+            : static_cast<unsigned int>(
+                  std::chrono::high_resolution_clock::now().time_since_epoch().count());
         rng.seed(seed);
 
         reset();
@@ -528,7 +533,7 @@ void ModulationMatrix::prepare(double sampleRate, int maxBlockSize, int numChann
     // Prepare all sources
     chaosGen->prepare(sampleRate, maxBlockSize);
     audioFollower->prepare(sampleRate, maxBlockSize);
-    brownianGen->prepare(sampleRate, maxBlockSize);
+    brownianGen->prepare(sampleRate, maxBlockSize, testRngSeed);
     envTracker->prepare(sampleRate, maxBlockSize);
 
     for (size_t i = 0; i < lfos.size(); ++i)
