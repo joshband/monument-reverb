@@ -777,14 +777,6 @@ bool DspRoutingGraph::isRoutingValid([[maybe_unused]] const std::vector<RoutingC
     return true;
 }
 
-std::vector<ModuleType> DspRoutingGraph::computeProcessingOrder() const
-{
-    // TODO: Implement topological sort for complex routing graphs
-    // For now, routing connections are processed in the order they're defined
-    std::vector<ModuleType> order;
-    return order;
-}
-
 // ============================================================================
 // Ancient Monuments Processing Modes
 // ============================================================================
