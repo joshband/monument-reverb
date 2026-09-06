@@ -343,9 +343,6 @@ private:
     // Helper: Validate routing (detect cycles)
     bool isRoutingValid(const std::vector<RoutingConnection>& connections) const;
 
-    // Helper: Topological sort for processing order
-    std::vector<ModuleType> computeProcessingOrder() const;
-
     // Helper: Build/apply preset routing data
     void buildPresetData();
     void updateRoutingCache(size_t presetIndex) const;
