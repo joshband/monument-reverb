@@ -31,8 +31,8 @@ You are operating as a senior audio DSP engineer and JUCE plugin developer.
 - `/gen-dsp <algorithm>` - Generate DSP algorithm with math + C++
 - `/bench-dsp <class>` - Generate benchmarking harness
 - `/gen-tests <class>` - Generate audio test suite (impulse/sweep/null)
-- `/gen-ui <params>` - Generate JUCE UI with parameter bindings
-- `/review-dsp` - Review current file for real-time safety
+- `/gen-golden-tests` - Generate golden/reference-output regression tests
+- `/gen-rgba-component-pack` - Generate an RGBA UI component asset pack
 
 ## Code Generation Defaults
 
@@ -52,20 +52,10 @@ juce::ScopedNoDenormals noDenormals;
 
 ## File Organization
 
-```
-MyPlugin/
-├── CMakeLists.txt
-├── Source/
-│   ├── PluginProcessor.cpp/h
-│   ├── PluginEditor.cpp/h
-│   └── DSP/
-│       ├── Filter.cpp/h
-│       └── Dynamics.cpp/h
-├── Assets/
-│   └── UI/
-└── Tests/
-    └── AudioTests.cpp
-```
+This repository's actual layout (`plugin/`, `dsp/`, `ui/`, `tests/`, `qa/`,
+`scenarios/`, `external/audio-dsp-qa-harness/`) is documented in
+[ARCHITECTURE.md](ARCHITECTURE.md)'s Project Structure section — check there
+rather than assuming a generic JUCE template layout.
 
 ## When Asked About DSP
 
@@ -85,16 +75,15 @@ MyPlugin/
 ## Monument Reverb Project
 
 **Build:** `./scripts/rebuild_and_install.sh` (builds + installs VST3/AU to system)
-**Quick Test:** `ctest --test-dir build -C Release -R monument_reverb_dsp_test`
-**Full Tests:** `./scripts/run_ci_tests.sh` (CTest + audio regression + quality gates). Use `TEST_CONFIG=Debug` for Debug builds.
+**Quick Test:** `ctest --test-dir build -C Release -R monument_reverb_dsp_test` — the build must be configured with `-DMONUMENT_ENABLE_TESTS=ON -DBUILD_TESTING=ON` first (both OFF by default), or CTest silently finds nothing.
+**Authoritative DSP QA gate:** `audio-dsp-qa-harness` scenario suites — see [TESTING.md](TESTING.md#dsp-qa-authority-policy). `./scripts/run_ci_tests.sh` is a non-authoritative local diagnostic wrapper (CTest + audio regression + quality gates), not a second authority; use `TEST_CONFIG=Debug` for Debug builds.
 **Build Dir Override:** `BUILD_DIR=build-ninja` for Ninja builds (scripts default to `build/` if present).
-**Docs:** `TESTING.md` (canonical testing hub). Index: `docs/testing/README.md`
+**Full contract:** [AGENTS.md](AGENTS.md) (repository operating contract). **Docs:** `TESTING.md` (canonical testing hub); index: `docs/testing/README.md`.
 
 ## Reference Skills
 
 Read these for detailed implementations:
-- `skills/dsp-core.md` - DSP fundamentals and algorithms
-- `skills/realtime-safety.md` - Thread safety rules
-- `skills/plugin-architecture.md` - VST3/AU lifecycle
-- `skills/photorealistic-ui.md` - Advanced UI rendering
-- `skills/juce-modules.md` - JUCE API patterns
+- `Skills/SKILL.md` (`dsp-cookbook`) - production DSP algorithms (filters, compressors, delays, modulation, saturation)
+- `Skills/SKILL 2.md` (`juce-best-practices`) - realtime safety, threading, memory management, modern C++ JUCE patterns
+- `Skills/juce-audio-graphics-architect/SKILL.md` - DSP chains, FFT/audio-reactive UI, OpenGL/particle visuals, layered JUCE interfaces
+- `Skills/system-setup/SKILL.md` - validates/configures build dependencies (Python, CMake, JUCE, pluginval)

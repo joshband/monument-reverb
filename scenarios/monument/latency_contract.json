@@ -53,8 +53,7 @@
       "metric": "non_finite",
       "window": "full",
       "threshold": {
-        "max_count": 0,
-        "max": 0
+        "max_count": 0
       },
       "severity": "hard_fail",
       "description": "Output must be finite"
