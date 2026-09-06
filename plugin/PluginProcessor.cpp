@@ -195,6 +195,7 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
 #endif
 
     paramBufferPool.prepare(samplesPerBlock);
+    preparedBlockSize = samplesPerBlock;
 
     const auto numChannels = getTotalNumOutputChannels();
     dryBuffer.setSize(numChannels, samplesPerBlock, false, false, true);
@@ -207,6 +208,8 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     memoryEchoes.prepare(sampleRate, samplesPerBlock, numChannels);
     modulationMatrix.prepare(sampleRate, samplesPerBlock, numChannels);
     sequenceScheduler.prepare(sampleRate, samplesPerBlock);  // Phase 4: Timeline automation
+    if (cachedTimelineSequences.empty())
+        cachedTimelineSequences = monument::dsp::SequencePresets::getAllPresets();
 
     // Initialize JUCE SmoothedValue for macro parameter smoothing (500ms ramp time)
     // INCREASED from 50ms → 500ms to minimize zipper noise and eliminate clicks
@@ -326,6 +329,41 @@ bool MonumentAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) 
 
 void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+    const int hostNumSamples = buffer.getNumSamples();
+
+    // Zero-length block: several downstream computations (macro/param
+    // block-rate averaging, RMS metering) divide by numSamples. There is
+    // nothing to process, so return before any of that runs.
+    if (hostNumSamples <= 0)
+        return;
+
+    if (hostNumSamples > preparedBlockSize)
+    {
+        // Host called processBlock with more samples than it declared via
+        // prepareToPlay(). Every internal buffer (dryBuffer, routingGraph's
+        // internal buffers, DSP module buffers) is sized to exactly
+        // preparedBlockSize, so growing anything to fit the larger count
+        // would mean allocating on the audio thread - never do that. Process
+        // only the first preparedBlockSize samples, through a non-owning
+        // JUCE-supported view of the same channel memory (no allocation, no
+        // copy). The tail beyond preparedBlockSize is left untouched in the
+        // host's buffer. Deliberately not jassert()/logged here: JUCE's
+        // default assertion handler builds a log string, which is not
+        // allocation-free - this path proves out via
+        // monument_block_shape_contract_test instead of an in-callback
+        // assertion.
+        juce::AudioBuffer<float> clampedBuffer(buffer.getArrayOfWritePointers(),
+                                                buffer.getNumChannels(),
+                                                preparedBlockSize);
+        processBlockCore(clampedBuffer, midiMessages);
+        return;
+    }
+
+    processBlockCore(buffer, midiMessages);
+}
+
+void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+{
     juce::ScopedNoDenormals noDenormals;
 
 #if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
@@ -417,7 +455,9 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const int timelinePreset = sanitizeChoice(paramCache.timelinePreset, 0, maxTimelinePreset, 0);
     if (timelinePreset != lastTimelinePreset)
     {
-        sequenceScheduler.loadSequence(monument::dsp::SequencePresets::getPreset(timelinePreset));
+        // Realtime-safe: aliases a permanently-cached preset (populated in prepareToPlay())
+        // instead of constructing/copying a Sequence on the audio thread.
+        sequenceScheduler.loadSequenceRef(cachedTimelineSequences[static_cast<size_t>(timelinePreset)]);
         lastTimelinePreset = timelinePreset;
     }
     if (paramCache.timelineEnabled != lastTimelineEnabled)
@@ -679,13 +719,11 @@ void MonumentAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 
     // Fill per-sample parameter buffers for critical parameters (Phase 4: Per-sample interpolation)
     // These 8 parameters are most audible and require per-sample smoothing for zipper-free automation
+    // processBlock() guarantees numSamples is in (0, preparedBlockSize]
+    // before calling this function - never allocate here.
     const int numSamples = buffer.getNumSamples();
-    if (numSamples > paramBufferPool.capacity())
-    {
-        // Fallback: resize heap buffers if host changes block size without prepareToPlay().
-        paramBufferPool.prepare(numSamples);
-    }
-    jassert(numSamples <= paramBufferPool.capacity());
+    jassert(numSamples > 0 && numSamples <= preparedBlockSize
+             && numSamples <= paramBufferPool.capacity());
 
     auto* timeBuffer = paramBufferPool.getTimeBuffer(numSamples);
     auto* massBuffer = paramBufferPool.getMassBuffer(numSamples);

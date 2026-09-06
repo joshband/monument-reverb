@@ -114,6 +114,10 @@ private:
     monument::dsp::ExpressiveMacroMapper expressiveMacroMapper;
     monument::dsp::ModulationMatrix modulationMatrix;
     monument::dsp::SequenceScheduler sequenceScheduler;  // Phase 4: Timeline automation
+    // Factory timeline presets, populated once in prepareToPlay() (off the audio thread).
+    // processBlock() aliases into this via SequenceScheduler::loadSequenceRef() to avoid
+    // constructing/copying a Sequence on every timelinePreset change.
+    std::vector<monument::dsp::SequenceScheduler::Sequence> cachedTimelineSequences;
 
     // FIXED: Parameter cache for batched atomic loads (reduces overhead from 25+ sequential atomics)
     struct ParameterCache
@@ -182,6 +186,14 @@ private:
     // Stack-allocated pool (64KB, cache-aligned) for critical parameters
     ParameterBufferPool paramBufferPool;
 
+    // Block size declared via the most recent prepareToPlay() call. Every
+    // internal buffer (dryBuffer, routingGraph's internal buffers, DSP module
+    // buffers) is sized to exactly this value, so it - not
+    // paramBufferPool.capacity(), which can be larger - is the true safety
+    // ceiling processBlock() must clamp to for an out-of-contract oversized
+    // block. See processBlock()'s zero/oversized-block contract.
+    int preparedBlockSize{0};
+
     // Processing mode transition gain (prevents clicks on mode change)
     juce::SmoothedValue<float> modeTransitionGain;
     ModeTransitionState modeTransitionState{ModeTransitionState::None};
@@ -203,6 +215,11 @@ private:
     void processBlockAncientWay(juce::AudioBuffer<float>& buffer);
     void processBlockResonantHalls(juce::AudioBuffer<float>& buffer);
     void processBlockBreathingStone(juce::AudioBuffer<float>& buffer);
+
+    // The actual processing body (unchanged), operating on a buffer already
+    // known to be non-empty and within preparedBlockSize. See processBlock()
+    // for the realtime-safe zero/oversized-block contract.
+    void processBlockCore(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages);
 
     std::atomic<float> inputLevel{0.0f};
     std::atomic<float> outputLevel{0.0f};

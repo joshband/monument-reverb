@@ -101,3 +101,4 @@ tools/third-party/
 
 # Build artifacts and bundles
 /artifacts/
+/.superpowers/

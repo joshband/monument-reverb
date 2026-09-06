@@ -308,11 +308,26 @@ private:
     std::array<Connection, kMaxConnections> connections{};
     int connectionCount = 0;
 
-    // Lock-free snapshot for the audio thread (double-buffered)
-    std::array<std::array<Connection, kMaxConnections>, 2> connectionSnapshots{};
-    std::array<int, 2> snapshotCounts{};
+    // Lock-free snapshot for the audio thread. Three slots, not two: the
+    // writer (message thread, via publishConnectionsSnapshot()) must never
+    // reclaim a slot the reader (audio thread, via process()) has announced
+    // via readerSnapshotIndex. With only two slots the writer publishing
+    // twice in a row - e.g. two setConnection() calls with no audio block in
+    // between - would force it to reuse the slot the reader might still be
+    // reading, a genuine data race (proven via ThreadSanitizer in
+    // tests/ModulationMatrixConcurrencyStressTest.cpp). Three slots guarantee
+    // a free one is always available: at most one is "active" and at most
+    // one is "announced by the reader" at any moment, leaving a third.
+    static constexpr int kNumSnapshotSlots = 3;
+    std::array<std::array<Connection, kMaxConnections>, kNumSnapshotSlots> connectionSnapshots{};
+    std::array<int, kNumSnapshotSlots> snapshotCounts{};
     std::atomic<int> activeSnapshotIndex{0};
-    std::array<std::array<float, static_cast<size_t>(DestinationType::Count)>, 2> smoothingSnapshots{};
+    // Slot the audio thread has announced it is about to read (or is
+    // reading); -1 means no reader has announced yet (e.g. before the first
+    // process() call). See process()'s announce-then-verify loop and
+    // publishConnectionsSnapshot()'s slot selection.
+    std::atomic<int> readerSnapshotIndex{-1};
+    std::array<std::array<float, static_cast<size_t>(DestinationType::Count)>, kNumSnapshotSlots> smoothingSnapshots{};
     int appliedSmoothingSnapshotIndex{-1};
 
     // Per-destination modulation accumulators (smoothed output values)

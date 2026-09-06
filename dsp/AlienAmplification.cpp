@@ -196,10 +196,12 @@ void AlienAmplification::updatePitchEvolution()
         float modulatedFreq = baseFrequencies[i] * freqMultiplier;
         modulatedFreq = juce::jlimit(20.0f, 20000.0f, modulatedFreq);
 
-        auto coeffs = juce::dsp::IIR::Coefficients<float>::makeAllPass(
+        // Realtime-safe: ArrayCoefficients::makeAllPass computes the same coefficients
+        // as Coefficients::makeAllPass (which wraps it) but returns a std::array by
+        // value instead of heap-allocating a new reference-counted Coefficients object.
+        // This runs every block by design (continuous LFO drift), so it must not allocate.
+        *pitchEvolutionFilters[i].state = juce::dsp::IIR::ArrayCoefficients<float>::makeAllPass(
             sampleRateHz, modulatedFreq, 0.707f);
-
-        *pitchEvolutionFilters[i].state = *coeffs;
     }
 }
 
@@ -310,10 +312,11 @@ void AlienAmplification::applyNonLocalAbsorption(juce::AudioBuffer<float>& buffe
     float cutoffHz = 2000.0f + absorption * 8000.0f;
     cutoffHz = juce::jlimit(500.0f, 15000.0f, cutoffHz);
 
-    auto coeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(
+    // Realtime-safe: see the equivalent ArrayCoefficients note in updatePitchEvolution().
+    // This filter runs every block while impossibility > 0.01 (continuous drift), so it
+    // must not allocate.
+    *absorptionFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(
         sampleRateHz, cutoffHz, 0.707f);
-
-    *absorptionFilter.state = *coeffs;
 
     // Apply filter with wet/dry mix using pre-allocated buffer
     wetBuffer.clear();

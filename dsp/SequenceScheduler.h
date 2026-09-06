@@ -157,7 +157,8 @@ public:
         PlaybackMode playbackMode{PlaybackMode::Loop};
         double durationBeats{16.0};   // Total duration in beats (for tempo sync)
         double durationSeconds{8.0};  // Total duration in seconds (for free-running)
-        bool enabled{false};           // Sequence active/bypassed
+        // Playback enable/disable is scheduler-level state (see SequenceScheduler::setEnabled),
+        // not preset content, so it does not live here.
 
         Sequence() = default;
         explicit Sequence(const juce::String& n) : name(n) {}
@@ -223,16 +224,29 @@ public:
     std::optional<float> getParameterValue(ParameterId param) const noexcept;
 
     /**
-     * @brief Load a sequence and make it active.
+     * @brief Load a sequence by value and make it active.
      *
-     * This replaces the current sequence and resets playback to the start.
+     * Copies @p sequence into scheduler-owned storage, then resets playback
+     * to the start. Not realtime-safe: the copy may allocate (Sequence owns
+     * heap containers). Prefer loadSequenceRef() on the audio thread.
      */
     void loadSequence(const Sequence& sequence);
 
     /**
+     * @brief Load a sequence by reference and make it active, without copying.
+     *
+     * Realtime-safe: performs no allocation. The caller must guarantee
+     * @p sequence outlives every subsequent use of it by this scheduler
+     * (i.e. until the next loadSequence()/loadSequenceRef() call or this
+     * scheduler's destruction) - e.g. a permanently-cached factory preset
+     * owned by the processor.
+     */
+    void loadSequenceRef(const Sequence& sequence) noexcept;
+
+    /**
      * @brief Get the currently loaded sequence.
      */
-    const Sequence& getSequence() const noexcept { return currentSequence; }
+    const Sequence& getSequence() const noexcept { return *currentSequence; }
 
     /**
      * @brief Set playback enabled/disabled.
@@ -242,7 +256,7 @@ public:
     /**
      * @brief Check if playback is enabled.
      */
-    bool isEnabled() const noexcept { return currentSequence.enabled; }
+    bool isEnabled() const noexcept { return sequenceEnabled; }
 
     /**
      * @brief Get current playback position (in beats or seconds, depending on timing mode).
@@ -273,7 +287,9 @@ private:
     double sampleRateHz{48000.0};
     int maxBlockSizeInternal{2048};
 
-    Sequence currentSequence;           // Active timeline sequence
+    Sequence ownedSequenceStorage;               // Owned copy target for loadSequence()
+    const Sequence* currentSequence{&ownedSequenceStorage};  // Active sequence (owned or aliased)
+    bool sequenceEnabled{false};         // Scheduler-level playback enable (see setEnabled)
     double currentPosition{0.0};        // Current playback position (beats or seconds)
     bool playingForward{true};          // Direction for ping-pong mode
     double lastTempoBeatsPerMinute{120.0};  // Cached tempo from last process() call

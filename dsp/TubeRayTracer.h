@@ -77,6 +77,8 @@ private:
     static constexpr int kMinTubes = 5;
     static constexpr int kMaxTubes = 16;
     static constexpr int kRayCount = 64; // Rays traced per block
+    // Max entries computeModalFrequencies() can produce: 5 harmonics + 1 cross-sectional mode.
+    static constexpr size_t kMaxModalFrequencies = 6;
 
     double sampleRateHz{48000.0};
     int maxBlockSizeInternal{2048};
@@ -114,11 +116,18 @@ private:
 
     /**
      * @brief Compute Helmholtz resonance frequencies for a tube.
+     *
+     * Writes into @p outModes in place (clear + push_back, reusing its already-
+     * reserved capacity) instead of returning a new vector, so this is
+     * allocation-free once @p outModes has been reserved to kMaxModalFrequencies
+     * (done once in prepare()). Realtime-safe when called from reconfigureTubes().
+     *
      * @param lengthMeters Tube length
      * @param diameterMM Tube diameter
-     * @return Vector of modal frequencies (typically 3-5 modes)
+     * @param outModes Destination for modal frequencies (typically 3-6 modes)
      */
-    std::vector<float> computeModalFrequencies(float lengthMeters, float diameterMM) const;
+    void computeModalFrequencies(float lengthMeters, float diameterMM,
+                                  std::vector<float>& outModes) const;
 
     /**
      * @brief Update resonance filter for a tube based on current metallicResonance.

@@ -5,12 +5,13 @@ For deep dives, see `docs/testing/`.
 
 ## DSP QA Authority Policy
 
-- `audio-dsp-qa-harness` scenarios are the authoritative DSP QA gate.
+- `audio-dsp-qa-harness` scenarios are the authoritative DSP QA gate. `scripts/run_ci_tests.sh` is a broader **local diagnostic wrapper**, not a second authority — it skips missing diagnostic binaries and can create a missing baseline rather than failing, so a green run does not carry the same weight as the harness suites below.
 - Blocking DSP CI checks run via `monument_qa` suites:
   - `scenarios/monument/monument_critical_suite.json`
   - `scenarios/monument/monument_suite.json`
 - Legacy DSP test/script flows are non-authoritative and may be run as optional diagnostics when risk warrants.
 - Non-DSP checks (plugin format validation, UI visual regression) remain outside harness scope.
+- The `state_management_contract` scenario applies parameter-automation envelopes; it does not save/restore a real host state blob, and the suite runner passes a null baseline configuration despite `baseline_tracking.enabled` in the scenario JSON. A zero exit code means no hard failure was recorded — it does not mean a state/preset compatibility contract or an audio-unchanged baseline was verified. See `plugin/PluginProcessor.cpp` (`getStateInformation`/`setStateInformation`) for what host state actually covers.
 
 ## Quick Start
 
@@ -34,7 +35,7 @@ cmake --build build --config Release --target monument_plugin_analyzer
 # Python deps for audio analysis (one-time)
 python3 -m pip install -r tools/plugin-analyzer/python/requirements.txt
 
-# Full CI/QA test suite (comprehensive)
+# Full local diagnostic wrapper (CTest + audio regression + quality gates; not the authoritative DSP gate above)
 ./scripts/run_ci_tests.sh
 
 # Use a non-default build directory (e.g., Ninja)
@@ -55,7 +56,9 @@ CTEST_RERUN_FAILED=1 ./scripts/run_ci_tests.sh
 # Run a subset of CTest tests by regex (optional)
 CTEST_FILTER=monument_dsp_ ./scripts/run_ci_tests.sh
 
-# C++ tests only (fast)
+# C++ tests only (fast) — build must be configured with -DMONUMENT_ENABLE_TESTS=ON -DBUILD_TESTING=ON,
+# both OFF by default; otherwise zero tests are registered and this command silently finds none
+cmake -S . -B build -DMONUMENT_ENABLE_TESTS=ON -DBUILD_TESTING=ON
 ctest --test-dir build -C Release
 
 # Capture baseline for regression testing
@@ -74,8 +77,8 @@ For GitHub Actions, define `SUBMODULE_TOKEN` with read access to `joshband/audio
 ## Tooling Catalog (By Location)
 
 **Core entrypoints:**
-- `scripts/run_ci_tests.sh` - Master QA harness (CTest + audio regression + quality gates + optional UI/RT checks).
-- `ctest --test-dir build -C Release` - Runs all registered C++ tests.
+- `scripts/run_ci_tests.sh` - Local diagnostic wrapper (CTest + audio regression + quality gates + optional UI/RT checks); non-authoritative, see policy above.
+- `ctest --test-dir build -C Release` - Runs registered C++ tests (empty unless the build was configured with `-DMONUMENT_ENABLE_TESTS=ON -DBUILD_TESTING=ON`).
 - `.github/workflows/qa_harness.yml` - Authoritative DSP harness CI (critical + full suites).
 - `.github/workflows/qa_legacy_shadow.yml` - Optional legacy DSP diagnostic CI (non-blocking).
 - `.github/workflows/ci.yml` - General build + CTest smoke (non-authoritative for DSP QA).
@@ -266,6 +269,15 @@ CTest list:
 - `monument_reverb_dsp_test` - reverb DSP correctness.
 - `monument_delay_dsp_test` - delay DSP correctness.
 - `monument_spatial_dsp_test` - spatial processing.
+- `monument_realtime_allocation_characterization_test` - **deliberately failing** (see note below).
+
+> **Known-red test:** `monument_realtime_allocation_characterization_test`
+> characterizes real allocations in the timeline-preset `processBlock` path and
+> the `TubeRayTracer` count-boundary `process` path. It fails by design on the
+> pinned source until a later runtime-remediation increment removes those
+> allocations; it is registered for local CTest discovery only and is not part
+> of any required GitHub workflow. Do not silence it with `WILL_FAIL` or treat
+> its failure as a regression.
 
 ## Adding Tests (Standard Workflow)
 
