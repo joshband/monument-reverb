@@ -315,6 +315,17 @@ void MonumentAudioProcessor::releaseResources()
     modulationMatrix.reset();
 }
 
+void MonumentAudioProcessor::reset()
+{
+    // juce::AudioProcessor::reset() is a no-op by default. Hosts (and the QA
+    // harness adapter) call it to clear reverb tail/state between takes
+    // without a full prepareToPlay()/releaseResources() cycle, so it must
+    // actually clear the same state releaseResources() does.
+    routingGraph.reset();
+    memoryEchoes.reset();
+    modulationMatrix.reset();
+}
+
 bool MonumentAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     const auto mainOutput = layouts.getMainOutputChannelSet();

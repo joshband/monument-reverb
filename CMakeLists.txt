@@ -1674,6 +1674,58 @@ if(BUILD_QA_HARNESS)
   message(STATUS "  Executable: monument_qa")
   message(STATUS "  Scenarios: scenarios/monument/")
 
+  # Focused adapter lifecycle/buffer contract test (report finding E18).
+  # Lives inside BUILD_QA_HARNESS because it links the adapter directly
+  # against qa_core for the DspUnderTest interface it implements.
+  juce_add_console_app(monument_qa_adapter_contract_test
+    PRODUCT_NAME "Monument QA Adapter Contract Test"
+  )
+
+  juce_generate_juce_header(monument_qa_adapter_contract_test)
+
+  target_sources(monument_qa_adapter_contract_test
+    PRIVATE
+      tests/QaAdapterContractTest.cpp
+      qa/monument_adapter.h
+      qa/monument_adapter.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_qa_adapter_contract_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_qa_adapter_contract_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_qa_adapter_contract_test
+    PRIVATE
+      ${_qa_core_target}
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(
+    NAME monument_qa_adapter_contract_test
+    COMMAND $<TARGET_FILE:monument_qa_adapter_contract_test>
+  )
+
   unset(_qa_harness_submodule_dir)
   unset(_qa_core_target)
   unset(_qa_runners_target)
