@@ -169,44 +169,49 @@ target_link_libraries(Monument
     juce::juce_recommended_warning_flags
 )
 
-juce_add_gui_app(monument_ui_prototype
-  PRODUCT_NAME "Monument UI Prototype"
-  COMPANY_NAME "Monument Audio"
-  BUNDLE_ID "com.monumentaudio.monument.ui.prototype"
-)
+# UI Prototype / debug shell (development tool, not part of the shipping plugin)
+option(MONUMENT_BUILD_UI_PROTOTYPE "Build the standalone UI prototype/debug shell" OFF)
 
-juce_generate_juce_header(monument_ui_prototype)
+if(MONUMENT_BUILD_UI_PROTOTYPE)
+  juce_add_gui_app(monument_ui_prototype
+    PRODUCT_NAME "Monument UI Prototype"
+    COMPANY_NAME "Monument Audio"
+    BUNDLE_ID "com.monumentaudio.monument.ui.prototype"
+  )
 
-target_sources(monument_ui_prototype
-  PRIVATE
-    ui/MonumentUiPrototype.cpp
-)
+  juce_generate_juce_header(monument_ui_prototype)
 
-target_include_directories(monument_ui_prototype
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
+  target_sources(monument_ui_prototype
+    PRIVATE
+      ui/MonumentUiPrototype.cpp
+  )
 
-target_compile_definitions(monument_ui_prototype
-  PRIVATE
-    JUCE_WEB_BROWSER=0
-    JUCE_USE_CURL=0
-    JUCE_VST3_CAN_REPLACE_VST2=0
-    MONUMENT_TESTING_UI=1
-)
+  target_include_directories(monument_ui_prototype
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
 
-target_link_libraries(monument_ui_prototype
-  PRIVATE
-    Monument
-    juce::juce_audio_utils
-    juce::juce_dsp
-    juce::juce_gui_extra
-    juce::juce_opengl
-  PUBLIC
-    juce::juce_recommended_config_flags
-    juce::juce_recommended_lto_flags
-    juce::juce_recommended_warning_flags
-)
+  target_compile_definitions(monument_ui_prototype
+    PRIVATE
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      MONUMENT_TESTING_UI=1
+  )
+
+  target_link_libraries(monument_ui_prototype
+    PRIVATE
+      Monument
+      juce::juce_audio_utils
+      juce::juce_dsp
+      juce::juce_gui_extra
+      juce::juce_opengl
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+endif()
 
 option(MONUMENT_ENABLE_TESTS "Build Monument legacy tests (DEPRECATED for DSP authority)" OFF)
 option(MONUMENT_ENABLE_MEMORY "Enable Memory Echoes in plugin" OFF)
@@ -1576,7 +1581,7 @@ if(BUILD_TESTING)
 endif()
 
 # Plugin Analyzer Tool
-option(MONUMENT_BUILD_ANALYZER "Build Monument plugin analyzer tool" ON)
+option(MONUMENT_BUILD_ANALYZER "Build Monument plugin analyzer tool" OFF)
 
 if(MONUMENT_BUILD_ANALYZER)
   juce_add_console_app(monument_plugin_analyzer
