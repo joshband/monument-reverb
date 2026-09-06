@@ -9,6 +9,7 @@
 #include "scenario_engine/test_suite_executor.h"
 #include "scenario_engine/invariant_evaluator.h"
 #include "runners/in_process_runner.h"
+#include "runners/performance_profiler.h"
 #include <juce_events/juce_events.h>
 #include <iostream>
 #include <memory>
@@ -143,6 +144,7 @@ int runScenario(const std::string& scenarioPath, const CommandLineOptions& /* op
     config.blockSize = 512;
     config.numChannels = 2;
     config.outputDir = "qa_output";
+    config.enableProfiling = true;
 
     // Create scenario executor
     qa::scenario::ScenarioExecutor executor(
@@ -153,6 +155,19 @@ int runScenario(const std::string& scenarioPath, const CommandLineOptions& /* op
 
     // Execute scenario
     qa::scenario::ScenarioResult result = executor.execute(loadResult.scenario);
+
+    // Populate real performance measurements before invariant evaluation, so
+    // no_allocations/timing invariants see actual data instead of reporting
+    // "unmeasured" (report finding E31's remaining half).
+    if (config.enableProfiling)
+    {
+        qa::AudioConfig profilingConfig{};
+        profilingConfig.sampleRate = config.sampleRate;
+        profilingConfig.blockSize = config.blockSize;
+        profilingConfig.numChannels = config.numChannels;
+        qa::profileIntoResult(createMonumentDut, profilingConfig, result,
+                               config.profilingIterations, config.profilingWarmupIterations);
+    }
 
     // Evaluate invariants
     qa::scenario::InvariantEvaluator evaluator;
@@ -233,6 +248,7 @@ int runTestSuite(const std::string& suitePath, const CommandLineOptions& /* opti
     config.blockSize = 512;
     config.numChannels = 2;
     config.outputDir = "qa_output";
+    config.enableProfiling = true;
 
     // Create scenario executor
     qa::scenario::ScenarioExecutor scenarioExecutor(
@@ -286,6 +302,7 @@ int runDiscoverSuite(const std::string& directory, const CommandLineOptions& /* 
     config.blockSize = 512;
     config.numChannels = 2;
     config.outputDir = "qa_output";
+    config.enableProfiling = true;
 
     qa::scenario::ScenarioExecutor scenarioExecutor(
         makeInProcessRunnerFactory(),
