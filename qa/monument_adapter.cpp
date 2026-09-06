@@ -15,6 +15,7 @@ MonumentAdapter::MonumentAdapter()
 void MonumentAdapter::prepare(double sampleRate, int maxBlockSize, int numChannels)
 {
     sampleRate_ = sampleRate;
+    maxBlockSize_ = maxBlockSize;
     needsReinit_ = false;
     hasProcessed_ = false;
 
@@ -47,7 +48,10 @@ void MonumentAdapter::processBlock(float** channelData, int numChannels, int num
     if (needsReinit_)
     {
         needsReinit_ = false;
-        processor_->prepareToPlay(sampleRate_, numSamples);
+        // Re-warm with the declared maximum, not this call's numSamples: a
+        // partial first block must not undersize the processor's internal
+        // buffers for a later, larger (still in-contract) block.
+        processor_->prepareToPlay(sampleRate_, maxBlockSize_);
     }
     hasProcessed_ = true;
 
@@ -61,8 +65,17 @@ void MonumentAdapter::processBlock(float** channelData, int numChannels, int num
         }
     }
 
+    // View audioBuffer_ at exactly this call's declared sample count. audioBuffer_
+    // itself stays sized to maxBlockSize_ across calls (report finding E18): passing
+    // it in full would hand the processor stale/uninitialized samples beyond
+    // numSamples left over from a previous, larger call, silently corrupting
+    // internal DSP state (delay lines, smoothers) with data the harness never
+    // declared as part of this block.
+    juce::AudioBuffer<float> blockView(audioBuffer_.getArrayOfWritePointers(), numChannels, numSamples);
+    lastProcessedBlockSamplesForTesting_ = numSamples;
+
     // Process through JUCE plugin
-    processor_->processBlock(audioBuffer_, midiBuffer_);
+    processor_->processBlock(blockView, midiBuffer_);
 
     // Copy output back
     for (int ch = 0; ch < numChannels; ++ch)
