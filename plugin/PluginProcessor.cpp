@@ -1325,14 +1325,63 @@ void MonumentAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
+
+    // Report step 7: modulation-matrix connections live outside the APVTS
+    // tree, so they need their own child element to survive host session
+    // save/restore. Reuses PresetManager's Connection<->string mapping so
+    // host state and user-preset JSON stay consistent with each other.
+    auto* modulationXml = xml->createNewChildElement("MODULATION_CONNECTIONS");
+    for (const auto& conn : modulationMatrix.getConnections())
+    {
+        if (!conn.enabled)
+            continue;
+
+        auto* connXml = modulationXml->createNewChildElement("CONNECTION");
+        connXml->setAttribute("source", PresetManager::sourceTypeToString(conn.source));
+        connXml->setAttribute("destination", PresetManager::destinationTypeToString(conn.destination));
+        connXml->setAttribute("sourceAxis", conn.sourceAxis);
+        connXml->setAttribute("depth", static_cast<double>(conn.depth));
+        connXml->setAttribute("smoothingMs", static_cast<double>(conn.smoothingMs));
+        connXml->setAttribute("curveType", PresetManager::curveTypeToString(conn.curveType));
+        connXml->setAttribute("curveAmount", static_cast<double>(conn.curveAmount));
+    }
+
     copyXmlToBinary(*xml, destData);
 }
 
 void MonumentAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
-    if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    if (xmlState == nullptr || !xmlState->hasTagName(parameters.state.getType()))
+        return;
+
+    // Modulation connections are a sibling element of the APVTS tree, not
+    // part of it, so extract (and remove) them before handing the rest to
+    // replaceState() - an older saved state simply won't have this element,
+    // in which case connections are left as whatever they already were
+    // (matching replaceState()'s own "missing parameter keeps its current
+    // value" behavior).
+    if (auto* modulationXml = xmlState->getChildByName("MODULATION_CONNECTIONS"))
+    {
+        std::vector<monument::dsp::ModulationMatrix::Connection> connections;
+        for (auto* connXml : modulationXml->getChildIterator())
+        {
+            monument::dsp::ModulationMatrix::Connection conn;
+            conn.source = PresetManager::stringToSourceType(connXml->getStringAttribute("source"));
+            conn.destination = PresetManager::stringToDestinationType(connXml->getStringAttribute("destination"));
+            conn.sourceAxis = connXml->getIntAttribute("sourceAxis");
+            conn.depth = static_cast<float>(connXml->getDoubleAttribute("depth"));
+            conn.smoothingMs = static_cast<float>(connXml->getDoubleAttribute("smoothingMs"));
+            conn.curveType = PresetManager::stringToCurveType(connXml->getStringAttribute("curveType"));
+            conn.curveAmount = static_cast<float>(connXml->getDoubleAttribute("curveAmount"));
+            conn.enabled = true;
+            connections.push_back(conn);
+        }
+        modulationMatrix.setConnections(connections);
+        xmlState->removeChildElement(modulationXml, true);
+    }
+
+    parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
 }
 
 MonumentAudioProcessor::APVTS& MonumentAudioProcessor::getAPVTS()
