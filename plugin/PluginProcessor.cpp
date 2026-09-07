@@ -1,5 +1,4 @@
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
 #include "PluginEditorV2.h"
 #include "dsp/Chambers.h"
 #include "dsp/SequencePresets.h"
@@ -1304,11 +1303,7 @@ juce::AudioProcessorEditor* MonumentAudioProcessor::createEditor()
 #if defined(MONUMENT_TESTING) && !defined(MONUMENT_TESTING_UI)
     return nullptr;
 #else
-  #if defined(MONUMENT_LEGACY_UI)
-    return new MonumentAudioProcessorEditor(*this);
-  #else
     return new MonumentAudioProcessorEditorV2(*this);
-  #endif
 #endif
 }
 
