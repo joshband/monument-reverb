@@ -5,6 +5,7 @@
 #include <atomic>
 #include <vector>
 #include <memory>
+#include <optional>
 #include <random>
 
 namespace monument
@@ -146,6 +147,17 @@ public:
      * Must be called before first process() call and whenever sample rate changes.
      */
     void prepare(double sampleRate, int maxBlockSize, int numChannels);
+
+    /**
+     * @brief Force a deterministic seed for internal stochastic modulation
+     * sources (currently BrownianMotion) on the next prepare() call (test-only).
+     *
+     * Call before prepare(). Production code never calls this, so production
+     * behavior (time-based seed, genuinely different motion per instance) is
+     * unchanged unless a test explicitly opts in. Intended for QA-harness
+     * scenario captures that need reproducible output run to run.
+     */
+    void setDeterministicRngSeedForTesting(unsigned int seed) noexcept { testRngSeed = seed; }
 
     /**
      * @brief Reset all modulation state (clear chaos, envelope, Brownian history).
@@ -345,6 +357,11 @@ private:
     float midiPitchBend{0.0f};
     float midiChannelPressure{0.0f};
     std::atomic<bool> resetPending{false};
+
+    // Test-only deterministic seed applied to BrownianMotion in prepare();
+    // nullopt in production, so its own time-based seed is used (see
+    // setDeterministicRngSeedForTesting()).
+    std::optional<unsigned int> testRngSeed;
 
     // Helper: find existing connection index, or -1 if not found
     int findConnectionIndex(SourceType source, DestinationType destination, int axis) const noexcept;

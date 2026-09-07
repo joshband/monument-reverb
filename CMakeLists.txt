@@ -169,44 +169,49 @@ target_link_libraries(Monument
     juce::juce_recommended_warning_flags
 )
 
-juce_add_gui_app(monument_ui_prototype
-  PRODUCT_NAME "Monument UI Prototype"
-  COMPANY_NAME "Monument Audio"
-  BUNDLE_ID "com.monumentaudio.monument.ui.prototype"
-)
+# UI Prototype / debug shell (development tool, not part of the shipping plugin)
+option(MONUMENT_BUILD_UI_PROTOTYPE "Build the standalone UI prototype/debug shell" OFF)
 
-juce_generate_juce_header(monument_ui_prototype)
+if(MONUMENT_BUILD_UI_PROTOTYPE)
+  juce_add_gui_app(monument_ui_prototype
+    PRODUCT_NAME "Monument UI Prototype"
+    COMPANY_NAME "Monument Audio"
+    BUNDLE_ID "com.monumentaudio.monument.ui.prototype"
+  )
 
-target_sources(monument_ui_prototype
-  PRIVATE
-    ui/MonumentUiPrototype.cpp
-)
+  juce_generate_juce_header(monument_ui_prototype)
 
-target_include_directories(monument_ui_prototype
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
+  target_sources(monument_ui_prototype
+    PRIVATE
+      ui/MonumentUiPrototype.cpp
+  )
 
-target_compile_definitions(monument_ui_prototype
-  PRIVATE
-    JUCE_WEB_BROWSER=0
-    JUCE_USE_CURL=0
-    JUCE_VST3_CAN_REPLACE_VST2=0
-    MONUMENT_TESTING_UI=1
-)
+  target_include_directories(monument_ui_prototype
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
 
-target_link_libraries(monument_ui_prototype
-  PRIVATE
-    Monument
-    juce::juce_audio_utils
-    juce::juce_dsp
-    juce::juce_gui_extra
-    juce::juce_opengl
-  PUBLIC
-    juce::juce_recommended_config_flags
-    juce::juce_recommended_lto_flags
-    juce::juce_recommended_warning_flags
-)
+  target_compile_definitions(monument_ui_prototype
+    PRIVATE
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      MONUMENT_TESTING_UI=1
+  )
+
+  target_link_libraries(monument_ui_prototype
+    PRIVATE
+      Monument
+      juce::juce_audio_utils
+      juce::juce_dsp
+      juce::juce_gui_extra
+      juce::juce_opengl
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+endif()
 
 option(MONUMENT_ENABLE_TESTS "Build Monument legacy tests (DEPRECATED for DSP authority)" OFF)
 option(MONUMENT_ENABLE_MEMORY "Enable Memory Echoes in plugin" OFF)
@@ -970,6 +975,52 @@ if(BUILD_TESTING)
   add_test(NAME monument_dsp_routing_graph_test COMMAND $<TARGET_FILE:monument_dsp_routing_graph_test>)
 endif()
 
+# Routing Preset x Macro Mode Characterization Test (Repository Reset Report, Step 5)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_routing_macro_mode_characterization_test
+    PRODUCT_NAME "Monument Routing x Macro Mode Characterization Test"
+  )
+
+  juce_generate_juce_header(monument_routing_macro_mode_characterization_test)
+
+  target_sources(monument_routing_macro_mode_characterization_test
+    PRIVATE
+      tests/RoutingAndMacroModeCharacterizationTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_routing_macro_mode_characterization_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_routing_macro_mode_characterization_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_routing_macro_mode_characterization_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_routing_macro_mode_characterization_test COMMAND $<TARGET_FILE:monument_routing_macro_mode_characterization_test>)
+endif()
+
 # Feedback Mix Safety Test (Regression: 100% mix feedback runaway)
 if(BUILD_TESTING)
   juce_add_console_app(monument_feedback_mix_safety_test
@@ -1352,6 +1403,45 @@ if(BUILD_TESTING)
   add_test(NAME monument_dsp_initialization_test COMMAND $<TARGET_FILE:monument_dsp_initialization_test>)
 endif()
 
+# Deterministic RNG Seed Seam Test (report finding E25)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_deterministic_rng_seed_test
+    PRODUCT_NAME "Monument Deterministic RNG Seed Test"
+  )
+
+  juce_generate_juce_header(monument_deterministic_rng_seed_test)
+
+  target_sources(monument_deterministic_rng_seed_test
+    PRIVATE
+      tests/DeterministicRngSeedTest.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_deterministic_rng_seed_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_deterministic_rng_seed_test
+    PRIVATE
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+
+  target_link_libraries(monument_deterministic_rng_seed_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_deterministic_rng_seed_test COMMAND $<TARGET_FILE:monument_deterministic_rng_seed_test>)
+endif()
+
 # Reverb DSP Test (Phase C: DSP Verification)
 if(BUILD_TESTING)
   juce_add_console_app(monument_reverb_dsp_test
@@ -1491,7 +1581,7 @@ if(BUILD_TESTING)
 endif()
 
 # Plugin Analyzer Tool
-option(MONUMENT_BUILD_ANALYZER "Build Monument plugin analyzer tool" ON)
+option(MONUMENT_BUILD_ANALYZER "Build Monument plugin analyzer tool" OFF)
 
 if(MONUMENT_BUILD_ANALYZER)
   juce_add_console_app(monument_plugin_analyzer
@@ -1627,6 +1717,58 @@ if(BUILD_QA_HARNESS)
   message(STATUS "QA Harness integration enabled")
   message(STATUS "  Executable: monument_qa")
   message(STATUS "  Scenarios: scenarios/monument/")
+
+  # Focused adapter lifecycle/buffer contract test (report finding E18).
+  # Lives inside BUILD_QA_HARNESS because it links the adapter directly
+  # against qa_core for the DspUnderTest interface it implements.
+  juce_add_console_app(monument_qa_adapter_contract_test
+    PRODUCT_NAME "Monument QA Adapter Contract Test"
+  )
+
+  juce_generate_juce_header(monument_qa_adapter_contract_test)
+
+  target_sources(monument_qa_adapter_contract_test
+    PRIVATE
+      tests/QaAdapterContractTest.cpp
+      qa/monument_adapter.h
+      qa/monument_adapter.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_qa_adapter_contract_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_qa_adapter_contract_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_qa_adapter_contract_test
+    PRIVATE
+      ${_qa_core_target}
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(
+    NAME monument_qa_adapter_contract_test
+    COMMAND $<TARGET_FILE:monument_qa_adapter_contract_test>
+  )
 
   unset(_qa_harness_submodule_dir)
   unset(_qa_core_target)

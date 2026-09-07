@@ -29,7 +29,8 @@ cmake --build build-qa --config Release --target monument_qa
 # Build + run harness full suite (authoritative main gate)
 ./build-qa/monument_qa_artefacts/Release/monument_qa scenarios/monument/monument_suite.json
 
-# Build analyzer for preset capture + analysis
+# Build analyzer for preset capture + analysis (opt-in tool, defaults OFF — configure with the flag first)
+cmake -S . -B build -DMONUMENT_BUILD_ANALYZER=ON
 cmake --build build --config Release --target monument_plugin_analyzer
 
 # Python deps for audio analysis (one-time)
