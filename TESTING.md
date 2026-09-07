@@ -198,6 +198,18 @@ ctest -C Release --output-on-failure
 - 50-100 instance stress tests
 - Real-time safety validation
 
+**`monument_qa` scenario performance invariants (`no_allocations`, `perf_median/p95/p99_block_time_ms`):**
+As of the harness's `profileIntoResult()` wiring, `monument_performance_profile` (full suite only, not the critical
+8-scenario suite) reports real measured values instead of `unmeasured` soft warnings. Its `no_allocations`
+hard-fail check will genuinely FAIL under `monument_qa`, because `monument_qa` always compiles with
+`MONUMENT_TESTING=1`, which enables per-block debug log string construction
+(`plugin/PluginProcessor.cpp`'s `MONUMENT_TESTING`-gated `juce::String` concatenation) — this allocates on every
+processed block regardless of the DSP path's own real-time safety. This is a measurement-fidelity limitation of
+testing through the `MONUMENT_TESTING` build, not a production regression: the same DSP code is proven
+allocation-free by `monument_realtime_allocation_characterization_test` and `monument_block_shape_contract_test`,
+which build and profile without that flag. Treat a `monument_performance_profile` `no_allocations` failure as
+inconclusive for real-time safety unless it's also reproduced in one of those flag-free CTest targets.
+
 ### 6. Plugin Validation
 
 **Tool:** pluginval
