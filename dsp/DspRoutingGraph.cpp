@@ -600,7 +600,7 @@ void DspRoutingGraph::setChambersParams(const ParameterBuffer& time,
     chambersBloomBuffer = bloom;
     chambersGravityBuffer = gravity;
 
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     // DEBUG: Log first parameter value from each buffer (sample 0)
     static int logCounter = 0;
     if (++logCounter % 100 == 0)  // Log every 100th call to avoid flooding
@@ -798,7 +798,7 @@ void DspRoutingGraph::processAncientWay(juce::AudioBuffer<float>& buffer)
     processModule(ModuleType::Foundation, buffer, bypassMaskValue);
     processModule(ModuleType::Pillars, buffer, bypassMaskValue);
 
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     // DEBUG: Check signal before Chambers
     float preChambersRMS = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
@@ -807,7 +807,7 @@ void DspRoutingGraph::processAncientWay(juce::AudioBuffer<float>& buffer)
 
     processModule(ModuleType::Chambers, buffer, bypassMaskValue);
 
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     // DEBUG: Check signal after Chambers
     float postChambersRMS = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)

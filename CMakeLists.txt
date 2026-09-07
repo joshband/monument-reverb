@@ -418,6 +418,49 @@ if(MONUMENT_ENABLE_TESTS)
     COMMAND $<TARGET_FILE:monument_block_shape_contract_test>
   )
 
+  # Proves report finding E31/step 3: the exact compile flags monument_qa uses
+  # (MONUMENT_TESTING=1) must not allocate per processBlock() call, so the QA
+  # harness's allocation profiling isn't confounded by debug logging.
+  juce_add_console_app(monument_qa_build_allocation_characterization_test
+    PRODUCT_NAME "Monument QA Build Allocation Characterization Test"
+  )
+  juce_generate_juce_header(monument_qa_build_allocation_characterization_test)
+  target_sources(monument_qa_build_allocation_characterization_test
+    PRIVATE
+      tests/QaBuildAllocationCharacterizationTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+  target_include_directories(monument_qa_build_allocation_characterization_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_compile_definitions(monument_qa_build_allocation_characterization_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+  target_link_libraries(monument_qa_build_allocation_characterization_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+  add_test(
+    NAME monument_qa_build_allocation_characterization_test
+    COMMAND $<TARGET_FILE:monument_qa_build_allocation_characterization_test>
+  )
+
   juce_add_console_app(monument_memory_echoes_test
     PRODUCT_NAME "Monument Memory Echoes Test"
   )
