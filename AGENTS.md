@@ -47,12 +47,11 @@ are product decisions, not cleanup — they need their own review.
 ## Audio-Thread Restrictions
 Never in `processBlock`/audio-callback paths: heap allocation, locks/mutexes,
 file I/O or logging, exceptions, or unbounded loops. `MONUMENT_TESTING` is
-test/editor-suppression scaffolding, not a production-equivalent flag — it
-also enables string construction/logging in the callback, which distorts
-allocation measurements taken under it. See `TESTING.md` for the known-red
-`monument_realtime_allocation_characterization_test`, which proves (without
-`MONUMENT_TESTING`) that the timeline-preset and TubeRayTracer paths still
-allocate.
+test/editor-suppression scaffolding, not a production-equivalent flag. See
+`TESTING.md` for `monument_realtime_allocation_characterization_test`, which
+proves (without `MONUMENT_TESTING`) that the timeline-preset and TubeRayTracer
+paths are allocation-free — keep it green; a regression here is a real
+audio-thread allocation, not a known issue.
 
 ## Definition of Done
 A bounded, intended change; explicit preserved contracts (see Invariants

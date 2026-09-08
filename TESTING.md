@@ -292,15 +292,7 @@ CTest list:
 - `monument_reverb_dsp_test` - reverb DSP correctness.
 - `monument_delay_dsp_test` - delay DSP correctness.
 - `monument_spatial_dsp_test` - spatial processing.
-- `monument_realtime_allocation_characterization_test` - **deliberately failing** (see note below).
-
-> **Known-red test:** `monument_realtime_allocation_characterization_test`
-> characterizes real allocations in the timeline-preset `processBlock` path and
-> the `TubeRayTracer` count-boundary `process` path. It fails by design on the
-> pinned source until a later runtime-remediation increment removes those
-> allocations; it is registered for local CTest discovery only and is not part
-> of any required GitHub workflow. Do not silence it with `WILL_FAIL` or treat
-> its failure as a regression.
+- `monument_realtime_allocation_characterization_test` - proves the timeline-preset `processBlock` path and every `TubeRayTracer` tube-count boundary crossing are allocation-free (built without `MONUMENT_TESTING`, so nothing else confounds the count). Both paths previously allocated on the audio thread; both were fixed (report steps 6a/6b) and this test now passes green. Keep it green — a regression here means a real audio-thread allocation reappeared, not a "known" issue to wave off.
 
 ## Adding Tests (Standard Workflow)
 
