@@ -1,15 +1,17 @@
 /**
- * Feedback Mix Safety Test
+ * Facade Gain Smoothing Test
  *
- * Regression test for feedback runaway at 100% mix levels.
+ * Regression test for zipper noise when Facade output gain changes rapidly
+ * (e.g. fast mix automation). Verifies SmoothedValue interpolation keeps
+ * sample-to-sample deltas below an audible threshold.
  *
- * Bug discovered: When mix=100%, feedback routing presets (ShimmerInfinity,
- * ElasticFeedbackDream) experienced energy buildup because there was no
- * dry signal dampening and Facade output gain was fixed at 1.0.
- *
- * Fix: Apply mix-dependent attenuation to Facade output gain:
- * - 0% mix: 1.0x gain (no attenuation)
- * - 100% mix: 0.94x gain (-0.53 dB dampening prevents runaway)
+ * Historical note: this file previously also carried
+ * testFeedbackAt100PercentMix, a regression test for feedback runaway in
+ * DspRoutingGraph's generic series/parallel/feedback/crossfeed graph
+ * executor (DspRoutingGraph::process()). That executor had no caller
+ * anywhere in the plugin and has been removed as dead code (see
+ * ARCHITECTURE.md), so the test for its feedback-runaway bug was removed
+ * with it — the bug's subject no longer exists.
  */
 
 #include <JuceHeader.h>
@@ -30,147 +32,8 @@ struct TestResult
     std::string message;
 };
 
-float measureRMS(const juce::AudioBuffer<float>& buffer)
-{
-    float sum = 0.0f;
-    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-    {
-        for (int i = 0; i < buffer.getNumSamples(); ++i)
-        {
-            float sample = buffer.getSample(ch, i);
-            sum += sample * sample;
-        }
-    }
-    return std::sqrt(sum / (buffer.getNumChannels() * buffer.getNumSamples()));
-}
-
-float measurePeak(const juce::AudioBuffer<float>& buffer)
-{
-    float peak = 0.0f;
-    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-    {
-        for (int i = 0; i < buffer.getNumSamples(); ++i)
-        {
-            peak = std::max(peak, std::abs(buffer.getSample(ch, i)));
-        }
-    }
-    return peak;
-}
-
-bool containsInvalidSamples(const juce::AudioBuffer<float>& buffer)
-{
-    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-    {
-        for (int i = 0; i < buffer.getNumSamples(); ++i)
-        {
-            float sample = buffer.getSample(ch, i);
-            if (!std::isfinite(sample))
-                return true;
-        }
-    }
-    return false;
-}
-
 //==============================================================================
-// Test: Feedback Stability at 100% Mix
-//==============================================================================
-TestResult testFeedbackAt100PercentMix()
-{
-    TestResult result;
-    result.testName = "Feedback Stability at 100% Mix";
-
-    try
-    {
-        DspRoutingGraph graph;
-        graph.prepare(kSampleRate, kBlockSize, kNumChannels);
-
-        // Test all feedback routing presets
-        std::vector<RoutingPresetType> feedbackPresets = {
-            RoutingPresetType::ShimmerInfinity,
-            RoutingPresetType::ElasticFeedbackDream
-        };
-
-        for (const auto& preset : feedbackPresets)
-        {
-            graph.loadRoutingPreset(preset);
-
-            // Simulate 100% mix by setting Facade output gain to 0.94 (feedback safety)
-            // In PluginProcessor, this is calculated as:
-            // feedbackSafetyGain = juce::jmap(1.0f, 1.0f, 0.94f) = 0.94f
-            graph.setFacadeParams(0.5f, 1.0f, 0.94f);  // air=0.5, width=1.0, gain=0.94
-
-            // Create impulse
-            juce::AudioBuffer<float> buffer(kNumChannels, kBlockSize);
-            buffer.clear();
-            buffer.setSample(0, 0, 0.8f);  // Strong impulse to stress test
-            buffer.setSample(1, 0, 0.8f);
-
-            // Process for 20 seconds to detect slow energy buildup
-            const int numBlocks = static_cast<int>((20.0 * kSampleRate) / kBlockSize);
-            float maxRMS = 0.0f;
-            float maxPeak = 0.0f;
-
-            for (int i = 0; i < numBlocks; ++i)
-            {
-                graph.process(buffer);
-
-                float rms = measureRMS(buffer);
-                float peak = measurePeak(buffer);
-                maxRMS = std::max(maxRMS, rms);
-                maxPeak = std::max(maxPeak, peak);
-
-                // Check for runaway feedback (stricter threshold for 100% mix)
-                // At 100% mix with feedback, RMS should stabilize < 1.5
-                if (rms > 1.5f)
-                {
-                    result.passed = false;
-                    result.message = "Feedback runaway at 100% mix (preset: " +
-                                    std::to_string(static_cast<int>(preset)) +
-                                    "): RMS = " + std::to_string(rms) +
-                                    " at block " + std::to_string(i) +
-                                    " (should be < 1.5)";
-                    return result;
-                }
-
-                // Check for clipping (peak > 1.0 indicates energy buildup)
-                if (peak > 2.0f)
-                {
-                    result.passed = false;
-                    result.message = "Signal clipping at 100% mix: Peak = " +
-                                    std::to_string(peak) + " at block " + std::to_string(i);
-                    return result;
-                }
-
-                // Check for NaN/Inf
-                if (containsInvalidSamples(buffer))
-                {
-                    result.passed = false;
-                    result.message = "NaN/Inf detected at 100% mix";
-                    return result;
-                }
-
-                // Continue with silence (feedback loop should sustain, not grow)
-                buffer.clear();
-            }
-
-            std::cout << "  Preset " << static_cast<int>(preset)
-                      << ": maxRMS=" << maxRMS << ", maxPeak=" << maxPeak << std::endl;
-        }
-
-        result.passed = true;
-        result.message = "All feedback presets stable at 100% mix over 20s";
-    }
-    catch (const std::exception& e)
-    {
-        result.passed = false;
-        result.message = std::string("Exception: ") + e.what();
-    }
-
-    return result;
-}
-
-//==============================================================================
-// Test: Facade Gain Smoothing (Zipper Noise Prevention)
+// Test: Facade Gain Smoothing (Zipper Noise Prevention), via the live signal chain
 //==============================================================================
 TestResult testFacadeGainSmoothing()
 {
@@ -203,11 +66,11 @@ TestResult testFacadeGainSmoothing()
         {
             graph.setFacadeParams(0.5f, 1.0f, gainSequence[i]);
 
-            // Process a few blocks to let smoother catch up
+            // Process a few blocks through the live chain to let smoother catch up
             for (int block = 0; block < 5; ++block)
             {
                 auto bufferCopy = buffer;
-                graph.process(bufferCopy);
+                graph.processAncientWay(bufferCopy);
 
                 // Measure sample-to-sample differences (zipper noise shows as high diffs)
                 for (int ch = 0; ch < kNumChannels; ++ch)
@@ -256,17 +119,12 @@ TestResult testFacadeGainSmoothing()
 int main()
 {
     std::cout << "===============================================" << std::endl;
-    std::cout << "Feedback Mix Safety Regression Tests" << std::endl;
+    std::cout << "Facade Gain Smoothing Regression Test" << std::endl;
     std::cout << "===============================================\n" << std::endl;
 
     std::vector<TestResult> results;
 
-    // Test 1: Feedback at 100% Mix
-    std::cout << "Test 1: Feedback Stability at 100% Mix" << std::endl;
-    results.push_back(testFeedbackAt100PercentMix());
-
-    // Test 2: Facade Gain Smoothing
-    std::cout << "\nTest 2: Facade Gain Smoothing" << std::endl;
+    std::cout << "Test: Facade Gain Smoothing" << std::endl;
     results.push_back(testFacadeGainSmoothing());
 
     // Print summary
