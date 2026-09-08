@@ -27,7 +27,6 @@ DspRoutingGraph::DspRoutingGraph()
     buttress = std::make_unique<Buttress>();
     facade = std::make_unique<Facade>();
 
-    routingConnections.reserve(kMaxRoutingConnections);
     buildPresetData();
     loadRoutingPreset(RoutingPresetType::TraditionalCathedral);
 }
@@ -55,36 +54,6 @@ void DspRoutingGraph::prepare(double sampleRate, int maxBlockSize, int numChanne
     buttress->prepare(sampleRate, maxBlockSize, numChannels);
     facade->prepare(sampleRate, maxBlockSize, numChannels);
 
-    // Allocate temp buffers for parallel processing
-    for (auto& buffer : tempBuffers)
-    {
-        buffer.setSize(numChannels, maxBlockSize);
-        buffer.clear();
-    }
-
-    for (auto& buffer : moduleOutputBuffers)
-    {
-        buffer.setSize(numChannels, maxBlockSize);
-        buffer.clear();
-    }
-
-    feedbackBuffer.setSize(numChannels, maxBlockSize);
-    feedbackBuffer.clear();
-
-    dryBuffer.setSize(numChannels, maxBlockSize);
-    dryBuffer.clear();
-
-    // Initialize feedback safety components
-    feedbackGainSmoothed.reset(sampleRate, 0.05);  // 50ms smoothing to prevent clicks
-    feedbackGainSmoothed.setCurrentAndTargetValue(0.0f);
-
-    // Low-pass filter at 8kHz to prevent high-frequency buildup in feedback loops
-    auto coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 8000.0);
-    feedbackLowpassL.coefficients = coefficients;
-    feedbackLowpassR.coefficients = coefficients;
-    feedbackLowpassL.reset();
-    feedbackLowpassR.reset();
-
     // Load default routing preset
     loadRoutingPreset(RoutingPresetType::TraditionalCathedral);
     isPrepared = true;
@@ -101,249 +70,6 @@ void DspRoutingGraph::reset()
     alienAmplification->reset();
     buttress->reset();
     facade->reset();
-
-    // Reset all buffers
-    feedbackBuffer.clear();
-    dryBuffer.clear();
-    for (auto& buffer : tempBuffers)
-        buffer.clear();
-    for (auto& buffer : moduleOutputBuffers)
-        buffer.clear();
-
-    // Reset feedback safety components
-    feedbackGainSmoothed.setCurrentAndTargetValue(0.0f);
-    feedbackLowpassL.reset();
-    feedbackLowpassR.reset();
-}
-
-//==============================================================================
-// Processing
-//==============================================================================
-
-void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
-{
-    if (!isPrepared)
-    {
-        jassertfalse;
-        buffer.clear();
-        return;
-    }
-
-    const auto numChannels = buffer.getNumChannels();
-    const auto numSamples = buffer.getNumSamples();
-
-    // Save dry signal for parallel modes (dedicated buffer for clarity)
-    const bool dryReady = dryBuffer.getNumChannels() >= numChannels
-        && dryBuffer.getNumSamples() >= numSamples;
-    jassert(dryReady);
-    if (dryReady)
-    {
-        for (int ch = 0; ch < numChannels; ++ch)
-            dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
-    }
-
-    // Lock-free preset read: Load current preset index atomically
-    const size_t presetIdx = activePresetIndex.load(std::memory_order_acquire);
-    const auto& currentPresetData = presetData[presetIdx];
-    const uint32_t bypassMaskValue = bypassMask.load(std::memory_order_acquire);
-
-    std::array<bool, static_cast<size_t>(ModuleType::Count)> moduleHasOutput{};
-
-    auto isBypassed = [bypassMaskValue](ModuleType module)
-    {
-        return (bypassMaskValue & moduleBit(module)) != 0;
-    };
-
-    auto copyBuffer = [numChannels, numSamples](juce::AudioBuffer<float>& dest,
-                                                const juce::AudioBuffer<float>& src)
-    {
-        for (int ch = 0; ch < numChannels; ++ch)
-            dest.copyFrom(ch, 0, src, ch, 0, numSamples);
-    };
-
-    auto ensureModuleOutput = [&](ModuleType module,
-                                  const juce::AudioBuffer<float>& input) -> juce::AudioBuffer<float>&
-    {
-        const auto idx = static_cast<size_t>(module);
-        auto& outBuf = moduleOutputBuffers[idx];
-        if (!moduleHasOutput[idx])
-        {
-            copyBuffer(outBuf, input);
-            if (!isBypassed(module))
-                processModule(module, outBuf, bypassMaskValue);
-            moduleHasOutput[idx] = true;
-        }
-        return outBuf;
-    };
-
-    // Process each connection in order (from pre-allocated preset data)
-    for (size_t i = 0; i < currentPresetData.connectionCount; ++i)
-    {
-        const auto& conn = currentPresetData.connections[i];
-
-        // Skip disabled connections
-        if (!conn.enabled)
-            continue;
-
-        auto& sourceBuf = ensureModuleOutput(conn.source, dryBuffer);
-
-        switch (conn.mode)
-        {
-            case RoutingMode::Series:
-            {
-                auto& destBuf = ensureModuleOutput(conn.destination, sourceBuf);
-                copyBuffer(buffer, destBuf);
-                break;
-            }
-
-            case RoutingMode::Parallel:
-            {
-                // Skip if destination module is bypassed (early exit before buffer ops)
-                if (isBypassed(conn.destination))
-                {
-                    ensureModuleOutput(conn.destination, sourceBuf);
-                    break;
-                }
-
-                // Parallel: process in temp buffer, then blend with main
-                auto& parallelBuf = tempBuffers[static_cast<size_t>(conn.destination)];
-
-                copyBuffer(parallelBuf, sourceBuf);
-
-                processModule(conn.destination, parallelBuf, bypassMaskValue);
-                copyBuffer(moduleOutputBuffers[static_cast<size_t>(conn.destination)], parallelBuf);
-                moduleHasOutput[static_cast<size_t>(conn.destination)] = true;
-
-                // Use JUCE's optimized addFrom with gain
-                for (int ch = 0; ch < numChannels; ++ch)
-                    buffer.addFrom(ch, 0, parallelBuf, ch, 0, numSamples, conn.blendAmount);
-                break;
-            }
-
-            case RoutingMode::ParallelMix:
-            {
-                // Skip if destination module is bypassed
-                if (isBypassed(conn.destination))
-                {
-                    ensureModuleOutput(conn.destination, sourceBuf);
-                    break;
-                }
-
-                // Parallel with dry mix: process module, blend with original dry
-                auto& parallelBuf = tempBuffers[static_cast<size_t>(conn.destination)];
-
-                copyBuffer(parallelBuf, sourceBuf);
-
-                processModule(conn.destination, parallelBuf, bypassMaskValue);
-                copyBuffer(moduleOutputBuffers[static_cast<size_t>(conn.destination)], parallelBuf);
-                moduleHasOutput[static_cast<size_t>(conn.destination)] = true;
-
-                // Optimized mix using JUCE buffer operations
-                const float dryGain = 1.0f - conn.blendAmount;
-                const float wetGain = conn.blendAmount;
-
-                for (int ch = 0; ch < numChannels; ++ch)
-                {
-                    buffer.copyFrom(ch, 0, dryBuffer, ch, 0, numSamples);
-                    buffer.applyGain(ch, 0, numSamples, dryGain);
-                    buffer.addFrom(ch, 0, parallelBuf, ch, 0, numSamples, wetGain);
-                }
-                break;
-            }
-
-            case RoutingMode::Feedback:
-            {
-                if (isBypassed(conn.destination))
-                {
-                    copyBuffer(feedbackBuffer, sourceBuf);
-                    if (numChannels >= 1)
-                    {
-                        auto* dataL = feedbackBuffer.getWritePointer(0);
-                        for (int i = 0; i < numSamples; ++i)
-                            dataL[i] = feedbackLowpassL.processSample(dataL[i]);
-                    }
-                    if (numChannels >= 2)
-                    {
-                        auto* dataR = feedbackBuffer.getWritePointer(1);
-                        for (int i = 0; i < numSamples; ++i)
-                            dataR[i] = feedbackLowpassR.processSample(dataR[i]);
-                    }
-                    break;
-                }
-
-                // Clamp feedback gain to safety limit
-                const float safeGain = juce::jlimit(0.0f, kMaxFeedbackGain, conn.feedbackGain);
-                feedbackGainSmoothed.setTargetValue(safeGain);
-
-                copyBuffer(buffer, sourceBuf);
-
-                // Mix feedback buffer into input with smoothed gain
-                for (int sample = 0; sample < numSamples; ++sample)
-                {
-                    const float smoothedGain = feedbackGainSmoothed.getNextValue();
-                    for (int ch = 0; ch < numChannels; ++ch)
-                    {
-                        float fbSample = feedbackBuffer.getSample(ch, sample);
-                        buffer.setSample(ch, sample,
-                            buffer.getSample(ch, sample) + fbSample * smoothedGain);
-                    }
-                }
-
-                // Process module
-                processModule(conn.destination, buffer, bypassMaskValue);
-                copyBuffer(moduleOutputBuffers[static_cast<size_t>(conn.destination)], buffer);
-                moduleHasOutput[static_cast<size_t>(conn.destination)] = true;
-
-                // Update feedback buffer using source output (1-block delay)
-                copyBuffer(feedbackBuffer, sourceBuf);
-
-                // Apply low-pass filter to feedback to prevent high-frequency buildup
-                if (numChannels >= 1)
-                {
-                    auto* dataL = feedbackBuffer.getWritePointer(0);
-                    for (int i = 0; i < numSamples; ++i)
-                        dataL[i] = feedbackLowpassL.processSample(dataL[i]);
-                }
-                if (numChannels >= 2)
-                {
-                    auto* dataR = feedbackBuffer.getWritePointer(1);
-                    for (int i = 0; i < numSamples; ++i)
-                        dataR[i] = feedbackLowpassR.processSample(dataR[i]);
-                }
-                break;
-            }
-
-            case RoutingMode::Crossfeed:
-            {
-                // L/R channel crossfeed using optimized operations
-                if (numChannels >= 2)
-                {
-                    const float crossfeed = conn.crossfeedAmount;
-                    const float dryAmount = 1.0f - crossfeed;
-
-                    // Store original channels in temp buffer
-                    auto& tempL = tempBuffers[0];
-                    auto& tempR = tempBuffers[1];
-                    tempL.copyFrom(0, 0, buffer, 0, 0, numSamples);
-                    tempR.copyFrom(0, 0, buffer, 1, 0, numSamples);
-
-                    // L = L * dry + (L+R)/2 * crossfeed
-                    // R = R * dry + (L+R)/2 * crossfeed
-                    for (int ch = 0; ch < 2; ++ch)
-                    {
-                        buffer.applyGain(ch, 0, numSamples, dryAmount);
-                        buffer.addFrom(ch, 0, tempL, 0, 0, numSamples, crossfeed * 0.5f);
-                        buffer.addFrom(ch, 0, tempR, 0, 0, numSamples, crossfeed * 0.5f);
-                    }
-                }
-                break;
-            }
-
-            case RoutingMode::Bypass:
-                // Skip this module entirely
-                break;
-        }
-    }
 }
 
 //==============================================================================
@@ -352,24 +78,15 @@ void DspRoutingGraph::process(juce::AudioBuffer<float>& buffer)
 
 void DspRoutingGraph::buildPresetData()
 {
+    // Each preset's only live effect is which modules it bypasses; the fixed
+    // chains (processAncientWay/processResonantHalls/processBreathingStone)
+    // are what actually render the signal, identically regardless of preset.
     auto fillPreset = [this](
         RoutingPresetType preset,
-        std::initializer_list<RoutingConnection> connections,
         std::initializer_list<ModuleType> bypassed = {})
     {
         auto& data = presetData[static_cast<size_t>(preset)];
-        data.connectionCount = 0;
         data.bypass.fill(false);
-
-        for (const auto& connection : connections)
-        {
-            if (data.connectionCount >= kMaxRoutingConnections)
-            {
-                jassertfalse;
-                break;
-            }
-            data.connections[data.connectionCount++] = connection;
-        }
 
         for (const auto module : bypassed)
             data.bypass[static_cast<size_t>(module)] = true;
@@ -377,90 +94,15 @@ void DspRoutingGraph::buildPresetData()
         data.bypassMask = computeBypassMask(data.bypass);
     };
 
-    // Foundation → Pillars → Chambers → Weathering → Facade
-    fillPreset(RoutingPresetType::TraditionalCathedral, {
-        {ModuleType::Foundation, ModuleType::Pillars},
-        {ModuleType::Pillars, ModuleType::Chambers},
-        {ModuleType::Chambers, ModuleType::Weathering},
-        {ModuleType::Weathering, ModuleType::Facade}
-    });
-
-    // Foundation → Pillars → TubeRayTracer → Facade (bypass Chambers)
-    fillPreset(RoutingPresetType::MetallicGranular, {
-        {ModuleType::Foundation, ModuleType::Pillars},
-        {ModuleType::Pillars, ModuleType::TubeRayTracer},
-        {ModuleType::TubeRayTracer, ModuleType::Facade}
-    }, {ModuleType::Chambers});
-
-    // Foundation → Pillars → ElasticHallway → Chambers → AlienAmplification → Facade
-    RoutingConnection elasticFeedback{ModuleType::ElasticHallway, ModuleType::Pillars,
-                                      RoutingMode::Feedback};
-    elasticFeedback.feedbackGain = 0.3f;
-    fillPreset(RoutingPresetType::ElasticFeedbackDream, {
-        {ModuleType::Foundation, ModuleType::Pillars},
-        {ModuleType::Pillars, ModuleType::ElasticHallway},
-        {ModuleType::ElasticHallway, ModuleType::Chambers},
-        {ModuleType::Chambers, ModuleType::AlienAmplification},
-        {ModuleType::AlienAmplification, ModuleType::Facade},
-        elasticFeedback
-    });
-
-    // Foundation → Pillars → [Chambers + TubeRayTracer + ElasticHallway] parallel → Facade
-    RoutingConnection parallelChambers{ModuleType::Pillars, ModuleType::Chambers,
-                                       RoutingMode::Parallel};
-    parallelChambers.blendAmount = 0.33f;
-    RoutingConnection parallelTubes{ModuleType::Pillars, ModuleType::TubeRayTracer,
-                                    RoutingMode::Parallel};
-    parallelTubes.blendAmount = 0.33f;
-    RoutingConnection parallelElastic{ModuleType::Pillars, ModuleType::ElasticHallway,
-                                      RoutingMode::Parallel};
-    parallelElastic.blendAmount = 0.34f;
-    fillPreset(RoutingPresetType::ParallelWorlds, {
-        {ModuleType::Foundation, ModuleType::Pillars},
-        parallelChambers,
-        parallelTubes,
-        parallelElastic,
-        {ModuleType::Chambers, ModuleType::Facade}
-    });
-
-    // Foundation → Pillars → Chambers → AlienAmplification → Facade
-    RoutingConnection shimmerFeedback{ModuleType::AlienAmplification, ModuleType::Chambers,
-                                      RoutingMode::Feedback};
-    shimmerFeedback.feedbackGain = 0.4f;
-    fillPreset(RoutingPresetType::ShimmerInfinity, {
-        {ModuleType::Foundation, ModuleType::Pillars},
-        {ModuleType::Pillars, ModuleType::Chambers},
-        {ModuleType::Chambers, ModuleType::AlienAmplification},
-        {ModuleType::AlienAmplification, ModuleType::Facade},
-        shimmerFeedback
-    });
-
-    // Foundation → Pillars → AlienAmplification → TubeRayTracer → Chambers → Facade
-    fillPreset(RoutingPresetType::ImpossibleChaos, {
-        {ModuleType::Foundation, ModuleType::Pillars},
-        {ModuleType::Pillars, ModuleType::AlienAmplification},
-        {ModuleType::AlienAmplification, ModuleType::TubeRayTracer},
-        {ModuleType::TubeRayTracer, ModuleType::Chambers},
-        {ModuleType::Chambers, ModuleType::Facade}
-    });
-
-    // Foundation → Pillars → ElasticHallway → Weathering → Chambers → Facade
-    fillPreset(RoutingPresetType::OrganicBreathing, {
-        {ModuleType::Foundation, ModuleType::Pillars},
-        {ModuleType::Pillars, ModuleType::ElasticHallway},
-        {ModuleType::ElasticHallway, ModuleType::Weathering},
-        {ModuleType::Weathering, ModuleType::Chambers},
-        {ModuleType::Chambers, ModuleType::Facade}
-    });
-
-    // Foundation → Pillars → Facade (bypass reverb core)
-    fillPreset(RoutingPresetType::MinimalSparse, {
-        {ModuleType::Foundation, ModuleType::Pillars},
-        {ModuleType::Pillars, ModuleType::Facade}
-    }, {ModuleType::Chambers, ModuleType::Weathering});
-
-    // Custom routing (empty by default)
-    fillPreset(RoutingPresetType::Custom, {});
+    fillPreset(RoutingPresetType::TraditionalCathedral);
+    fillPreset(RoutingPresetType::MetallicGranular, {ModuleType::Chambers});
+    fillPreset(RoutingPresetType::ElasticFeedbackDream);
+    fillPreset(RoutingPresetType::ParallelWorlds);
+    fillPreset(RoutingPresetType::ShimmerInfinity);
+    fillPreset(RoutingPresetType::ImpossibleChaos);
+    fillPreset(RoutingPresetType::OrganicBreathing);
+    fillPreset(RoutingPresetType::MinimalSparse, {ModuleType::Chambers, ModuleType::Weathering});
+    fillPreset(RoutingPresetType::Custom);
 }
 
 uint32_t DspRoutingGraph::computeBypassMask(
@@ -473,28 +115,6 @@ uint32_t DspRoutingGraph::computeBypassMask(
             mask |= (1u << static_cast<uint32_t>(i));
     }
     return mask;
-}
-
-void DspRoutingGraph::updateRoutingCache(size_t presetIndex) const
-{
-    if (presetIndex >= presetData.size())
-        return;
-
-    const auto& data = presetData[presetIndex];
-
-    // Update vector for backward compatibility (not used in audio thread)
-    routingConnections.assign(data.connections.begin(),
-                              data.connections.begin() + data.connectionCount);
-    routingCachePresetIndex = presetIndex;
-}
-
-const std::vector<RoutingConnection>& DspRoutingGraph::getRouting() const noexcept
-{
-    const size_t presetIndex = activePresetIndex.load(std::memory_order_acquire);
-    if (presetIndex != routingCachePresetIndex)
-        updateRoutingCache(presetIndex);
-
-    return routingConnections;
 }
 
 void DspRoutingGraph::loadRoutingPreset(RoutingPresetType preset)
@@ -540,7 +160,7 @@ void DspRoutingGraph::setFoundationParams(float drive, [[maybe_unused]] float ti
 
 void DspRoutingGraph::setPillarsParams(float density, const ParameterBuffer& shape, float warp)
 {
-    // Store per-sample shape buffer for use in process()
+    // Store per-sample shape buffer (write-only cache; not currently read back)
     pillarsShapeBuffer = shape;
 
     if (pillars)
@@ -563,7 +183,7 @@ void DspRoutingGraph::setChambersParams(const ParameterBuffer& time,
                                          float feedbackSaturationAmount,
                                          float delayJitterAmount)
 {
-    // Store per-sample parameter buffers for use in process()
+    // Store per-sample parameter buffers (write-only cache; not currently read back)
     chambersTimeBuffer = time;
     chambersMassBuffer = mass;
     chambersDensityBuffer = density;
@@ -609,7 +229,7 @@ void DspRoutingGraph::setChambersParams(const ParameterBuffer& time,
 
 void DspRoutingGraph::setWeatheringParams(const ParameterBuffer& warp, const ParameterBuffer& drift)
 {
-    // Store per-sample parameter buffers for use in process()
+    // Store per-sample parameter buffers (write-only cache; not currently read back)
     weatheringWarpBuffer = warp;
     weatheringDriftBuffer = drift;
 
@@ -723,19 +343,6 @@ void DspRoutingGraph::processModule(ModuleType module, juce::AudioBuffer<float>&
             break;
         case ModuleType::Count:
             break;  // Invalid
-    }
-}
-
-void DspRoutingGraph::blendBuffers(juce::AudioBuffer<float>& destination,
-                                     const juce::AudioBuffer<float>& source,
-                                     float blendAmount)
-{
-    jassert(destination.getNumChannels() == source.getNumChannels());
-    jassert(destination.getNumSamples() == source.getNumSamples());
-
-    for (int ch = 0; ch < destination.getNumChannels(); ++ch)
-    {
-        destination.addFrom(ch, 0, source, ch, 0, destination.getNumSamples(), blendAmount);
     }
 }
 
