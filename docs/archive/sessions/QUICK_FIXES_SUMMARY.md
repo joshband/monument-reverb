@@ -9,7 +9,7 @@
 ## DELIVERED FILES
 
 ### 1. Comprehensive Analysis Report
-**File:** [docs/DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md)
+**File:** [docs/DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](../../DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md)
 - Complete inventory of all 22 DSP modules
 - Documentation vs implementation gap analysis
 - Performance metrics (12.89% CPU, 57% headroom)
@@ -17,7 +17,7 @@
 - Recommendations for next phase
 
 ### 2. Enhancement Patches Documentation
-**File:** [docs/EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md](EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md)
+**File:** [docs/EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md](experimental/EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md)
 - 4 detailed code patches with rationale
 - Implementation patterns for modulation routing
 - Testing procedures
@@ -110,7 +110,7 @@ Implement all 4 patches for full Memory + Modulation integration:
 - Adds organic floor oscillation
 - Implementation: Add to PluginProcessor::loadFactoryPreset()
 
-**See:** [EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md](EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md) for complete code
+**See:** [EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md](experimental/EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md) for complete code
 
 ---
 
@@ -189,8 +189,8 @@ After applying patches:
 
 ## FILES TO REVIEW
 
-1. **Analysis Report:** [DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md)
-2. **Patch Documentation:** [EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md](EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md)
+1. **Analysis Report:** [DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](../../DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md)
+2. **Patch Documentation:** [EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md](experimental/EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md)
 3. **Ready Patch:** [../patches/infinite_abyss_memory_fix.patch](../patches/infinite_abyss_memory_fix.patch)
 4. **This Summary:** QUICK_FIXES_SUMMARY.md
 
