@@ -56,8 +56,6 @@ target_sources(Monument
     plugin/PluginProcessor.cpp
     plugin/PresetManager.h
     plugin/PresetManager.cpp
-    plugin/PluginEditor.h
-    plugin/PluginEditor.cpp
     plugin/PluginEditorV2.h
     plugin/PluginEditorV2.cpp
     dsp/DspModule.h
@@ -211,19 +209,11 @@ endif()
 
 option(MONUMENT_ENABLE_TESTS "Build Monument legacy tests (DEPRECATED for DSP authority)" OFF)
 option(MONUMENT_ENABLE_MEMORY "Enable Memory Echoes in plugin" OFF)
-option(MONUMENT_LEGACY_UI "Use legacy UI layout" OFF)
 
 if(MONUMENT_ENABLE_MEMORY)
   target_compile_definitions(Monument
     PRIVATE
       MONUMENT_ENABLE_MEMORY=1
-  )
-endif()
-
-if(MONUMENT_LEGACY_UI)
-  target_compile_definitions(Monument
-    PRIVATE
-      MONUMENT_LEGACY_UI=1
   )
 endif()
 
