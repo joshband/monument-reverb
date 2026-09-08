@@ -2,6 +2,16 @@
 
 User interface design, implementation, and asset generation documentation for Monument Reverb.
 
+> **Note:** Much of this file (the "Current Direction" and "Master Plan"
+> sections below in particular) describes a macro-only UI direction that
+> was later superseded — the source documents it references have been
+> moved to [`docs/archive/ui/`](../archive/ui/). For what actually ships
+> today, see [`ARCHITECTURE.md`](../../ARCHITECTURE.md)'s "UI ownership"
+> section and [`docs/architecture/EDITOR_PARITY_FINDINGS.md`](../architecture/EDITOR_PARITY_FINDINGS.md).
+> See [UI_DESIGN_HISTORY.md](UI_DESIGN_HISTORY.md) for a short summary of
+> that pivot. The rest of this file has not been independently re-verified
+> against the current codebase.
+
 ## Current Direction (2026-01-07)
 
 **Macro-Only Control Surface:**
@@ -60,7 +70,7 @@ and `MONUMENT_LEGACY_UI` build option were retired).
 
 ## Master Plan
 
-**Primary Document:** [UI_MASTER_PLAN.md](UI_MASTER_PLAN.md)
+**Primary Document (archived, superseded — see [UI_DESIGN_HISTORY.md](UI_DESIGN_HISTORY.md)):** [UI_MASTER_PLAN.md](../archive/ui/UI_MASTER_PLAN.md)
 
 **Consolidated from:**
 - ENHANCED_UI_SUMMARY.md (current state)
@@ -256,7 +266,7 @@ public:
 
 ## Future Roadmap
 
-**See:** [UI_MASTER_PLAN.md - Section V](UI_MASTER_PLAN.md#v-future-roadmap)
+**See (archived):** [UI_MASTER_PLAN.md - Section V](../archive/ui/UI_MASTER_PLAN.md#v-future-roadmap)
 
 **6-Phase Enhancement Plan:** (4-6 weeks post-DSP)
 1. **Foundation** (Week 1) - Color palette, design system, toolbar redesign
@@ -271,11 +281,11 @@ public:
 ### Design References
 - [design-references/VINTAGE_CONTROL_PANEL_REFERENCES.md](design-references/VINTAGE_CONTROL_PANEL_REFERENCES.md) - Vintage industrial inspiration
 
-### Technical Guides
-- [LAYERED_KNOB_DESIGN.md](LAYERED_KNOB_DESIGN.md) - Architecture details
-- [LAYERED_KNOB_WORKFLOW.md](LAYERED_KNOB_WORKFLOW.md) - Original workflow
-- [JUCE_BLEND_MODES_RESEARCH.md](JUCE_BLEND_MODES_RESEARCH.md) - Rendering techniques
-- [LAYERCOMPOSITOR_INTEGRATION_SUMMARY.md](LAYERCOMPOSITOR_INTEGRATION_SUMMARY.md) - Layer compositing
+### Technical Guides (archived — see [UI_DESIGN_HISTORY.md](UI_DESIGN_HISTORY.md))
+- [LAYERED_KNOB_DESIGN.md](../archive/ui/LAYERED_KNOB_DESIGN.md) - Architecture details
+- [LAYERED_KNOB_WORKFLOW.md](../archive/ui/LAYERED_KNOB_WORKFLOW.md) - Original workflow (abandoned pipeline)
+- [JUCE_BLEND_MODES_RESEARCH.md](../archive/ui/JUCE_BLEND_MODES_RESEARCH.md) - Rendering techniques
+- [LAYERCOMPOSITOR_INTEGRATION_SUMMARY.md](../archive/ui/LAYERCOMPOSITOR_INTEGRATION_SUMMARY.md) - Layer compositing
 
 ## Performance Targets
 
