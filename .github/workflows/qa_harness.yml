@@ -18,7 +18,48 @@ jobs:
           submodules: recursive
           token: ${{ secrets.SUBMODULE_TOKEN != '' && secrets.SUBMODULE_TOKEN || github.token }}
 
+      - name: Determine if this change can affect DSP behavior
+        id: relevance
+        # This is a required status check (see branch protection), so this
+        # job must always run and report a result - it must NEVER be
+        # skipped via trigger-level path filtering, or GitHub will block
+        # merges waiting on a check that never starts. Instead, skip the
+        # expensive build+run steps below when only documentation changed;
+        # the job still completes and reports success either way.
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+
+          if [ -z "$BASE_SHA" ]; then
+            echo "No base SHA available (manual dispatch or new branch) - running the full suite to be safe."
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch --depth=1 origin "$BASE_SHA" 2>/dev/null || true
+
+          if ! git cat-file -e "$BASE_SHA" 2>/dev/null; then
+            echo "Base commit $BASE_SHA not available - running the full suite to be safe."
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "$BASE_SHA" HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          if echo "$CHANGED" | grep -qvE '^(docs/|LICENSE$|.*\.md$)'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "Only documentation changed - skipping DSP harness build/run."
+          fi
+
       - name: Cache JUCE FetchContent
+        if: steps.relevance.outputs.relevant == 'true'
         uses: actions/cache@v4
         with:
           path: build-qa/_deps
@@ -27,16 +68,19 @@ jobs:
             ${{ runner.os }}-juce-qa-
 
       - name: Configure QA build
+        if: steps.relevance.outputs.relevant == 'true'
         run: cmake -S . -B build-qa -DBUILD_QA_HARNESS=ON -DMONUMENT_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
       - name: Build QA executable
+        if: steps.relevance.outputs.relevant == 'true'
         run: cmake --build build-qa --config Release --target monument_qa
 
       - name: Run critical suite
+        if: steps.relevance.outputs.relevant == 'true'
         run: ./build-qa/monument_qa_artefacts/Release/monument_qa scenarios/monument/monument_critical_suite.json
 
       - name: Publish QA job summary
-        if: always()
+        if: always() && steps.relevance.outputs.relevant == 'true'
         run: |
           SUMMARY_PATH=""
           if [ -f qa_output/report/ci_summary.md ]; then
@@ -55,7 +99,7 @@ jobs:
           fi
 
       - name: Upload critical QA output
-        if: always()
+        if: always() && steps.relevance.outputs.relevant == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: monument-qa-critical-output
@@ -73,7 +117,42 @@ jobs:
           submodules: recursive
           token: ${{ secrets.SUBMODULE_TOKEN != '' && secrets.SUBMODULE_TOKEN || github.token }}
 
+      - name: Determine if this change can affect DSP behavior
+        id: relevance
+        # Not a required check, but kept as an in-job skip (rather than a
+        # trigger-level paths-ignore) for consistency with
+        # monument_harness_critical above, and so a future change to make
+        # this required doesn't silently reintroduce the stuck-pending trap.
+        run: |
+          BASE_SHA="${{ github.event.before }}"
+
+          if [ -z "$BASE_SHA" ]; then
+            echo "No base SHA available (manual dispatch or new branch) - running the full suite to be safe."
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch --depth=1 origin "$BASE_SHA" 2>/dev/null || true
+
+          if ! git cat-file -e "$BASE_SHA" 2>/dev/null; then
+            echo "Base commit $BASE_SHA not available - running the full suite to be safe."
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "$BASE_SHA" HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          if echo "$CHANGED" | grep -qvE '^(docs/|LICENSE$|.*\.md$)'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "Only documentation changed - skipping DSP harness build/run."
+          fi
+
       - name: Cache JUCE FetchContent
+        if: steps.relevance.outputs.relevant == 'true'
         uses: actions/cache@v4
         with:
           path: build-qa/_deps
@@ -82,16 +161,19 @@ jobs:
             ${{ runner.os }}-juce-qa-
 
       - name: Configure QA build
+        if: steps.relevance.outputs.relevant == 'true'
         run: cmake -S . -B build-qa -DBUILD_QA_HARNESS=ON -DMONUMENT_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
       - name: Build QA executable
+        if: steps.relevance.outputs.relevant == 'true'
         run: cmake --build build-qa --config Release --target monument_qa
 
       - name: Run full suite
+        if: steps.relevance.outputs.relevant == 'true'
         run: ./build-qa/monument_qa_artefacts/Release/monument_qa scenarios/monument/monument_suite.json
 
       - name: Publish QA job summary
-        if: always()
+        if: always() && steps.relevance.outputs.relevant == 'true'
         run: |
           SUMMARY_PATH=""
           if [ -f qa_output/report/ci_summary.md ]; then
@@ -110,7 +192,7 @@ jobs:
           fi
 
       - name: Upload full QA output
-        if: always()
+        if: always() && steps.relevance.outputs.relevant == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: monument-qa-full-output

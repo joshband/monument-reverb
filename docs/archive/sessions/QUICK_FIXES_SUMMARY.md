@@ -9,7 +9,7 @@
 ## DELIVERED FILES
 
 ### 1. Comprehensive Analysis Report
-**File:** [docs/DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](../../DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md)
+**File:** [docs/DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](../reviews/01092026-DspArchitectureComprehensiveReview.md) (archived)
 - Complete inventory of all 22 DSP modules
 - Documentation vs implementation gap analysis
 - Performance metrics (12.89% CPU, 57% headroom)
@@ -189,7 +189,7 @@ After applying patches:
 
 ## FILES TO REVIEW
 
-1. **Analysis Report:** [DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](../../DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md)
+1. **Analysis Report:** [DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](../reviews/01092026-DspArchitectureComprehensiveReview.md) (archived)
 2. **Patch Documentation:** [EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md](experimental/EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md)
 3. **Ready Patch:** [../patches/infinite_abyss_memory_fix.patch](../patches/infinite_abyss_memory_fix.patch)
 4. **This Summary:** QUICK_FIXES_SUMMARY.md
