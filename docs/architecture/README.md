@@ -7,7 +7,7 @@ Comprehensive architecture documentation for Monument Reverb's DSP system and im
 ### Overview Documents
 - [ARCHITECTURE_REVIEW.md](../archive/reviews/01042026-ArchitectureReview.md) - Complete architecture analysis and review (archived)
 - [ARCHITECTURE_QUICK_REFERENCE.md](ARCHITECTURE_QUICK_REFERENCE.md) - Quick reference guide (also in repo root)
-- [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) - Implementation patterns and guidelines
+- [IMPLEMENTATION_GUIDE.md](../archive/ui/IMPLEMENTATION_GUIDE.md) - Archived: implementation guide for an experimental redesign that was not shipped as described
 
 ### DSP Architecture (Complete Module Documentation)
 

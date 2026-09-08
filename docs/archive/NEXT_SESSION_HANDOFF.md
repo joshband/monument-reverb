@@ -23,13 +23,13 @@
 **Root Cause Analysis:**
 
 1. **Mix at 100%:** No dry signal to dampen feedback loops
-2. **Facade Output Gain:** Fixed at 1.0x regardless of mix level ([PluginProcessor.cpp:676](plugin/PluginProcessor.cpp#L676))
+2. **Facade Output Gain:** Fixed at 1.0x regardless of mix level ([PluginProcessor.cpp:676](../../plugin/PluginProcessor.cpp#L676))
 3. **Feedback Routing:** Signal cycles back through earlier stages at full gain
 4. **Energy Accumulation:** Without dampening, even 0.95 feedback gain causes slow buildup
 
 ### Fix Applied ✅
 
-**1. Mix-Dependent Attenuation** ([PluginProcessor.cpp:677-682](plugin/PluginProcessor.cpp#L677-L682))
+**1. Mix-Dependent Attenuation** ([PluginProcessor.cpp:677-682](../../plugin/PluginProcessor.cpp#L677-L682))
 
 ```cpp
 // FEEDBACK SAFETY: Apply attenuation at high mix levels to prevent feedback runaway
@@ -46,7 +46,7 @@ routingGraph.setFacadeParams(airModulated, juce::jmap(widthModulated, 0.0f, 2.0f
 - **Transparent:** -0.53 dB reduction is barely perceptible
 - **Standard technique:** Used in professional reverbs (Valhalla, FabFilter)
 
-**2. Per-Sample Gain Smoothing** ([DspModules.h:216](dsp/DspModules.h#L216), [DspModules.cpp:658-660,759,725,739](dsp/DspModules.cpp))
+**2. Per-Sample Gain Smoothing** ([DspModules.h:216](../../dsp/DspModules.h#L216), [DspModules.cpp:658-660,759,725,739](../../dsp/DspModules.cpp))
 
 Added `outputGainSmoother` to prevent zipper noise when mix parameter changes:
 
@@ -69,7 +69,7 @@ void Facade::setOutputGain(float gainLinear)
 const float outputGain = outputGainSmoother.getNextValue();  // Per-sample smoothed output gain
 ```
 
-**3. Regression Test Added** ([tests/FeedbackMixSafetyTest.cpp](tests/FeedbackMixSafetyTest.cpp), [CMakeLists.txt:666-704](CMakeLists.txt#L666-L704))
+**3. Regression Test Added** ([tests/FeedbackMixSafetyTest.cpp](../../tests/FeedbackMixSafetyTest.cpp), [CMakeLists.txt:666-704](../../CMakeLists.txt#L666-L704))
 
 Created comprehensive test to prevent regressions:
 
@@ -127,13 +127,13 @@ Total: 2 tests, 2 passed, 0 failed
 
 ### Core DSP
 
-1. **[plugin/PluginProcessor.cpp](plugin/PluginProcessor.cpp)** - Feedback safety gain calculation
+1. **[plugin/PluginProcessor.cpp](../../plugin/PluginProcessor.cpp)** - Feedback safety gain calculation
    - Lines 677-682: Mix-dependent attenuation logic
 
-2. **[dsp/DspModules.h](dsp/DspModules.h)** - Facade smoother declaration
+2. **[dsp/DspModules.h](../../dsp/DspModules.h)** - Facade smoother declaration
    - Line 216: Added `outputGainSmoother` member
 
-3. **[dsp/DspModules.cpp](dsp/DspModules.cpp)** - Facade smoothing implementation
+3. **[dsp/DspModules.cpp](../../dsp/DspModules.cpp)** - Facade smoothing implementation
    - Lines 658-660: Smoother initialization in `prepare()`
    - Line 759: Smoother target in `setOutputGain()`
    - Lines 700-706: Per-sample smoothed gain (mono path)
@@ -141,11 +141,11 @@ Total: 2 tests, 2 passed, 0 failed
 
 ### Testing
 
-4. **[tests/FeedbackMixSafetyTest.cpp](tests/FeedbackMixSafetyTest.cpp)** - New regression test (NEW FILE)
+4. **[tests/FeedbackMixSafetyTest.cpp](../../tests/FeedbackMixSafetyTest.cpp)** - New regression test (NEW FILE)
    - Test 1: Feedback stability at 100% mix (20s stress test)
    - Test 2: Facade gain smoothing (zipper noise prevention)
 
-5. **[CMakeLists.txt](CMakeLists.txt)** - Test integration
+5. **[CMakeLists.txt](../../CMakeLists.txt)** - Test integration
    - Lines 666-704: Added `monument_feedback_mix_safety_test` target
 
 ---
@@ -172,7 +172,7 @@ JUCE Assertion failure in juce_IIRFilter_Impl.h:107
 - Look for uninitialized `juce::dsp::IIR::Filter` instances
 
 **Candidate Modules:**
-- [dsp/DspRoutingGraph.cpp:79-83](dsp/DspRoutingGraph.cpp#L79-L83) - `feedbackLowpassL/R`
+- [dsp/DspRoutingGraph.cpp:79-83](../../dsp/DspRoutingGraph.cpp#L79-L83) - `feedbackLowpassL/R`
 - Any other modules using IIR filters for tone shaping
 
 ---
@@ -181,7 +181,7 @@ JUCE Assertion failure in juce_IIRFilter_Impl.h:107
 
 ### Current State: Tests Exist But Don't Catch Edge Cases
 
-**Existing Test:** [tests/DspRoutingGraphTest.cpp:184-241](tests/DspRoutingGraphTest.cpp) - `testFeedbackSafety()`
+**Existing Test:** [tests/DspRoutingGraphTest.cpp:184-241](../../tests/DspRoutingGraphTest.cpp) - `testFeedbackSafety()`
 - ✅ Tests feedback routing stability
 - ✅ Checks for runaway over 10 seconds
 - ❌ **Doesn't test 100% mix level** (isolated routing graph, not full plugin chain)
@@ -224,8 +224,8 @@ steps:
 ```
 
 **4. Test Documentation**
-- ✅ [TESTING.md](TESTING.md) entrypoint exists (canonical)
-- ✅ [docs/testing/TESTING_GUIDE.md](docs/testing/TESTING_GUIDE.md) exists
+- ✅ [TESTING.md](../../TESTING.md) entrypoint exists (canonical)
+- ✅ [docs/testing/TESTING_GUIDE.md](../testing/TESTING_GUIDE.md) exists
 - ⏳ **Update needed:** Add FeedbackMixSafetyTest to guide
 - ⏳ **Update needed:** Document edge case testing philosophy
 

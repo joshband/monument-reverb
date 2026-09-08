@@ -10,7 +10,7 @@
 
 This plan operationalizes MemoryEchoes (Strata) as a routable, macro-aware, and modulation-ready module while preserving the realtime-safe architecture defined in:
 
-- `docs/architecture/MEMORY_ECHOES_INTEGRATION.md`
+- `docs/archive/ui/MEMORY_ECHOES_INTEGRATION.md` (archived — see [docs/ui/UI_DESIGN_HISTORY.md](../ui/UI_DESIGN_HISTORY.md))
 - `docs/architecture/dsp/memory-system/11-strata.md`
 
 It also captures the product-facing "Memory Echoes" summary so the system can be described consistently in codex, README, or design docs.
@@ -45,7 +45,7 @@ Memory Echoes sits between experimental modular effects and deeply programmable 
 - Default injection path: recall is mixed back into the processing buffer with a gain scalar.
 - CPU/memory envelope: ~0.5% capture, ~1-2% recall active, ~39 MB total.
 
-**From `MEMORY_ECHOES_INTEGRATION.md` (integration expectations)**
+**From `docs/archive/ui/MEMORY_ECHOES_INTEGRATION.md` (archived; integration expectations)**
 - Make MemoryEchoes routable in `DspRoutingGraph`.
 - Map macros to memory parameters.
 - Add modulation destinations for memory controls.

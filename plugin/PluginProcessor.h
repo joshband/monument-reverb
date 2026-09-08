@@ -208,7 +208,7 @@ private:
     int memoryProvePulseInterval = 0;
     int memoryProvePulseRemaining = 0;
 #endif
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     bool testingLoggerRegistered{false};
 #endif
 

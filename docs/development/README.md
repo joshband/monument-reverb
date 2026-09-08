@@ -5,13 +5,13 @@ Development guides, build patterns, and workflow documentation for Monument Reve
 ## Quick Start Guides
 
 ### Essential Guides
-- [QUICK_START_BLENDER_KNOBS.md](QUICK_START_BLENDER_KNOBS.md) - Generate photorealistic knobs with Blender
-- [QUICK_START_MACRO_TESTING.md](QUICK_START_MACRO_TESTING.md) - Test macro control system
-- [BUILD_PATTERNS.md](BUILD_PATTERNS.md) - Build system patterns and best practices
+- [QUICK_START_BLENDER_KNOBS.md](../archive/ui/QUICK_START_BLENDER_KNOBS.md) - Archived: describes an abandoned Blender knob-asset pipeline (see [docs/ui/UI_DESIGN_HISTORY.md](../ui/UI_DESIGN_HISTORY.md))
+- [QUICK_START_MACRO_TESTING.md](../archive/sessions/QUICK_START_MACRO_TESTING.md) - Test macro control system
+- [BUILD_PATTERNS.md](../archive/sessions/BUILD_PATTERNS.md) - Build system patterns and best practices
 
 ### Token Optimization (AI-Assisted Development)
-- [TOKEN_OPTIMIZATION_STRATEGIES.md](TOKEN_OPTIMIZATION_STRATEGIES.md) - Cost management for Claude Code sessions
-- [CLAUDE_MD_OPTIMIZATION_RESULTS.md](CLAUDE_MD_OPTIMIZATION_RESULTS.md) - Optimization results and savings
+- [TOKEN_OPTIMIZATION_STRATEGIES.md](../archive/sessions/TOKEN_OPTIMIZATION_STRATEGIES.md) - Cost management for Claude Code sessions
+- [CLAUDE_MD_OPTIMIZATION_RESULTS.md](../archive/sessions/CLAUDE_MD_OPTIMIZATION_RESULTS.md) - Optimization results and savings
 
 ## Development Workflows
 
@@ -119,7 +119,7 @@ cmake -S . -B build -DCMAKE_CXX_FLAGS="-DMONUMENT_TESTING=1"
 
 ### CPU Targets
 - Total DSP: <15% at 48kHz, 512 samples (target: 10-12%)
-- Individual modules: See performance baselines in [../PERFORMANCE_BASELINE.md](../PERFORMANCE_BASELINE.md)
+- Individual modules: See performance baselines in [../PERFORMANCE_BASELINE.md](../archive/sessions/PERFORMANCE_BASELINE.md)
 
 ### Memory Targets
 - Total footprint: ~2.0 MB per instance
