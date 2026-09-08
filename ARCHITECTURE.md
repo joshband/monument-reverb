@@ -81,8 +81,9 @@ source-derived concurrency hazard, not something proven safe by absence of a
 
 - **TubeRayTracer** - metal-tube resonance modeling; `tubeCount`,
   `radiusVariation`, `metallicResonance`, `couplingStrength`. Changing tube
-  count triggers `reconfigureTubes()` on the audio thread, which allocates
-  (modal-frequency vector, IIR coefficients) — proven by
+  count triggers `reconfigureTubes()` on the audio thread; modal-frequency
+  computation writes into a fixed-size in-place buffer and coefficients use
+  `ArrayCoefficients` (non-allocating) — proven allocation-free by
   `tests/RealtimeAllocationCharacterizationTest.cpp` (see `TESTING.md`).
 - **ElasticHallway** - walls deform under acoustic pressure and slowly
   recover; `elasticity`, `recoveryTime`, `absorptionDrift`.
@@ -175,22 +176,23 @@ cmake --build build --target Monument_AU --config Release -j8
 ## Realtime-safety limitations (read before trusting a green check)
 
 - `MONUMENT_TESTING` is test-access/editor-suppression scaffolding, not a
-  production-equivalent build — it also enables string construction and file
-  logging inside the audio callback, which distorts any allocation
-  measurement taken under it.
+  production-equivalent build.
 - The QA harness's allocation counter wraps global `new`/`delete` only,
   including warmup; it does not cover `malloc`/`calloc` or every
   platform/thread allocation path. A prior defect let the harness report
   missing performance data as a passing measurement — fixed upstream (see
   `TESTING.md`); treat any performance PASS as meaningful only if it names
   actual measured values.
-- Two allocation paths are proven still present, without `MONUMENT_TESTING`,
-  by `tests/RealtimeAllocationCharacterizationTest.cpp`: the first
-  post-timeline-change `processBlock`, and every `TubeRayTracer` tube-count
-  boundary crossing. Both are open findings, not yet fixed — see `TESTING.md`.
-- No `SpinLock`/`std::mutex`/`CriticalSection` was found in the active DSP
-  sources, but that does not prove the modulation-matrix snapshot publication
-  (above) or transitive JUCE calls are safe under concurrent access.
+- `tests/RealtimeAllocationCharacterizationTest.cpp` (built without
+  `MONUMENT_TESTING`) proves the first post-timeline-change `processBlock`
+  and every `TubeRayTracer` tube-count boundary crossing are allocation-free.
+  Both paths previously allocated; both were fixed — see `TESTING.md`.
+- The modulation-matrix snapshot publication now uses an announce-then-verify
+  reader handshake (`ModulationMatrix.cpp`), proven race-free under
+  ThreadSanitizer by `tests/ModulationMatrixConcurrencyStressTest.cpp`. No
+  `SpinLock`/`std::mutex`/`CriticalSection` is used or needed for it, but that
+  alone does not prove every transitive JUCE call elsewhere is safe under
+  concurrent access.
 
 ---
 
