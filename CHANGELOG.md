@@ -432,8 +432,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Keyframe 2: MemoryDepth=0.65 (reduced feedback)
 - Keyframe 3: MemoryDrift=0.5 (increased drift for variation)
 - Keyframe 4: MemoryDepth=0.7, MemoryDrift=0.3 (loop point)
-- Updated documentation ([docs/EXPERIMENTAL_PRESETS.md](docs/EXPERIMENTAL_PRESETS.md)) with Memory parameter details
-- Updated quick fixes summary ([docs/QUICK_FIXES_SUMMARY.md](docs/QUICK_FIXES_SUMMARY.md)) to mark as completed
+- Updated documentation ([docs/archive/sessions/experimental/EXPERIMENTAL_PRESETS.md](docs/archive/sessions/experimental/EXPERIMENTAL_PRESETS.md)) with Memory parameter details
+- Updated quick fixes summary ([docs/archive/sessions/QUICK_FIXES_SUMMARY.md](docs/archive/sessions/QUICK_FIXES_SUMMARY.md)) to mark as completed
 
 **Expected Results**:
 
@@ -453,8 +453,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 **Documentation Created**:
 
 - [DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](docs/DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md) (600+ lines, all 22 modules)
-- [EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md](docs/EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md) (4 patches)
-- [QUICK_FIXES_SUMMARY.md](docs/QUICK_FIXES_SUMMARY.md) (quick reference)
+- [EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md](docs/archive/sessions/experimental/EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md) (4 patches)
+- [QUICK_FIXES_SUMMARY.md](docs/archive/sessions/QUICK_FIXES_SUMMARY.md) (quick reference)
 - [patches/infinite_abyss_memory_fix.patch](patches/infinite_abyss_memory_fix.patch) (git-style diff)
 
 **Next Steps** (Option B: 3-hour complete fix):
@@ -542,8 +542,8 @@ Time: ~20 min | Build: ✅ Success | Ready for DAW testing
   - Removed double smoothing (PluginProcessor smooths once, modules use directly)
   - Direct buffer access more cache-friendly than atomic parameter polls
   - Simple array indexing faster than exponential smoothing math
-- Updated [docs/PERFORMANCE_BASELINE.md](docs/PERFORMANCE_BASELINE.md) - Added Phase 4 comparison tables
-- Updated [NEXT_SESSION_HANDOFF.md](NEXT_SESSION_HANDOFF.md) - Step 7 complete, Step 8 next
+- Updated [docs/PERFORMANCE_BASELINE.md](docs/archive/sessions/PERFORMANCE_BASELINE.md) - Added Phase 4 comparison tables
+- Updated [NEXT_SESSION_HANDOFF.md](docs/archive/NEXT_SESSION_HANDOFF.md) - Step 7 complete, Step 8 next
 - Time: ~30 min | Tokens: ~25K (~$0.13)
 
 **Session 10 (2026-01-09)**: Test Regression Fixed (Step 6b Complete)
@@ -603,7 +603,7 @@ Time: ~20 min | Build: ✅ Success | Ready for DAW testing
 
 - Created [docs/STRESS_TEST_PLAN.md](docs/STRESS_TEST_PLAN.md) - Comprehensive 60-test plan across 6 categories
 - Created [tests/PerformanceBenchmarkTest.cpp](tests/PerformanceBenchmarkTest.cpp) - 629 lines, high-resolution timing
-- Created [docs/PERFORMANCE_BASELINE.md](docs/PERFORMANCE_BASELINE.md) - Full chain: 13.16% CPU (p99) with 56% headroom
+- Created [docs/PERFORMANCE_BASELINE.md](docs/archive/sessions/PERFORMANCE_BASELINE.md) - Full chain: 13.16% CPU (p99) with 56% headroom
 - Created [tests/ParameterStressTest.cpp](tests/ParameterStressTest.cpp) - 1078 lines, 15 stress tests
 - Identified 3 critical issues: PARAM-4 (zipper 13 dB), PARAM-5 (clicks 6.8 dB), PARAM-14 (clamping)
 - CMake integration for both test suites with CTest

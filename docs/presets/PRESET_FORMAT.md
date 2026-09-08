@@ -364,6 +364,7 @@ connections (format v3+) — this is no longer "not user-editable via JSON."
 - **Architecture:** [ARCHITECTURE.md](../../ARCHITECTURE.md)
 - **Modulation Matrix:** [ModulationMatrix.h](../../dsp/ModulationMatrix.h)
 - **Preset Gallery:** [PRESET_GALLERY.md](../PRESET_GALLERY.md)
+- **Macro System:** [QUICK_START_MACRO_TESTING.md](../archive/sessions/QUICK_START_MACRO_TESTING.md) (archived)
 
 ### Key Functions (see file for current line numbers; not repeated here to avoid drift)
 - `PresetManager::saveUserPreset()`

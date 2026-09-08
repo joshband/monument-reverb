@@ -524,6 +524,6 @@ cd /Users/noisebox/Documents/3_Development/Repos/monument-reverb
 ---
 
 **See Also:**
-- [tools/COMPREHENSIVE_TEST_PLAN.md](../tools/COMPREHENSIVE_TEST_PLAN.md) - Original test plan
+- [tools/COMPREHENSIVE_TEST_PLAN.md](../archive/phases/COMPREHENSIVE_TEST_PLAN.md) - Original test plan
 - [tools/TESTING_INFRASTRUCTURE.md](../tools/TESTING_INFRASTRUCTURE.md) - Detailed infrastructure docs
-- [NEXT_SESSION_HANDOFF.md](../NEXT_SESSION_HANDOFF.md) - Latest session progress
+- [NEXT_SESSION_HANDOFF.md](../archive/NEXT_SESSION_HANDOFF.md) - Latest session progress
