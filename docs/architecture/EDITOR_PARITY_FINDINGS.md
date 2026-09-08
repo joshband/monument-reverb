@@ -1,5 +1,15 @@
 # Editor Parity Findings: PluginEditor (legacy) vs. PluginEditorV2 (default)
 
+## Resolution (2026-09-07)
+
+The user made the call this document deliberately stopped short of: **keep
+`PluginEditorV2` as the one editor, retire the legacy `PluginEditor`.** The
+legacy editor (`plugin/PluginEditor.h`/`.cpp`) and the `MONUMENT_LEGACY_UI`
+CMake option have been deleted; `createEditor()` now unconditionally returns
+`MonumentAudioProcessorEditorV2`. See
+`chore/retire-legacy-editor-keep-v2-report-step10`. The characterization
+below is left as-is for historical record.
+
 Characterization only — this document does not recommend keeping, retiring,
 or merging either editor. It exists to give a human the evidence needed to
 make that call, per the repository reset report's "INVESTIGATE parity/usage

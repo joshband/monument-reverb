@@ -1,11 +1,10 @@
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
 #include "PluginEditorV2.h"
 #include "dsp/Chambers.h"
 #include "dsp/SequencePresets.h"
 
 #include <cmath>
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
 #include <mutex>
 #endif
 
@@ -84,7 +83,7 @@ int sanitizeChoice(float value, int minValue, int maxValue, int fallback) noexce
 constexpr int kMemoryProveStage = MONUMENT_MEMORY_PROVE_STAGE;
 #endif
 
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
 std::once_flag gTestingLoggerOnce;
 std::unique_ptr<juce::FileLogger> gTestingLogger;
 std::atomic<int> gTestingLoggerUsers{0};
@@ -120,7 +119,7 @@ MonumentAudioProcessor::MonumentAudioProcessor()
 
 MonumentAudioProcessor::~MonumentAudioProcessor()
 {
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     if (testingLoggerRegistered)
     {
         if (gTestingLoggerUsers.fetch_sub(1, std::memory_order_acq_rel) == 1)
@@ -185,7 +184,7 @@ void MonumentAudioProcessor::changeProgramName(int, const juce::String&)
 
 void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     ensureTestingLogger();
     if (!testingLoggerRegistered)
     {
@@ -377,7 +376,7 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
 {
     juce::ScopedNoDenormals noDenormals;
 
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     const auto blockStartTicks = juce::Time::getHighResolutionTicks();
 #endif
 
@@ -1082,7 +1081,7 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     memoryEchoes.setFreeze(freezeEffective);
 #endif
 
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     // DEBUG: Log mix values (every 100 blocks to avoid flooding)
     static int mixLogCounter = 0;
     if (++mixLogCounter % 100 == 0)
@@ -1276,7 +1275,7 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
         outputRms = juce::jmax(outputRms, buffer.getRMSLevel(channel, 0, levelSamples));
     outputLevel.store(outputRms, std::memory_order_relaxed);
 
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     float peak = 0.0f;
     for (int channel = 0; channel < numChannels; ++channel)
     {
@@ -1304,11 +1303,7 @@ juce::AudioProcessorEditor* MonumentAudioProcessor::createEditor()
 #if defined(MONUMENT_TESTING) && !defined(MONUMENT_TESTING_UI)
     return nullptr;
 #else
-  #if defined(MONUMENT_LEGACY_UI)
-    return new MonumentAudioProcessorEditor(*this);
-  #else
     return new MonumentAudioProcessorEditorV2(*this);
-  #endif
 #endif
 }
 
@@ -1325,14 +1320,63 @@ void MonumentAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
+
+    // Report step 7: modulation-matrix connections live outside the APVTS
+    // tree, so they need their own child element to survive host session
+    // save/restore. Reuses PresetManager's Connection<->string mapping so
+    // host state and user-preset JSON stay consistent with each other.
+    auto* modulationXml = xml->createNewChildElement("MODULATION_CONNECTIONS");
+    for (const auto& conn : modulationMatrix.getConnections())
+    {
+        if (!conn.enabled)
+            continue;
+
+        auto* connXml = modulationXml->createNewChildElement("CONNECTION");
+        connXml->setAttribute("source", PresetManager::sourceTypeToString(conn.source));
+        connXml->setAttribute("destination", PresetManager::destinationTypeToString(conn.destination));
+        connXml->setAttribute("sourceAxis", conn.sourceAxis);
+        connXml->setAttribute("depth", static_cast<double>(conn.depth));
+        connXml->setAttribute("smoothingMs", static_cast<double>(conn.smoothingMs));
+        connXml->setAttribute("curveType", PresetManager::curveTypeToString(conn.curveType));
+        connXml->setAttribute("curveAmount", static_cast<double>(conn.curveAmount));
+    }
+
     copyXmlToBinary(*xml, destData);
 }
 
 void MonumentAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
-    if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    if (xmlState == nullptr || !xmlState->hasTagName(parameters.state.getType()))
+        return;
+
+    // Modulation connections are a sibling element of the APVTS tree, not
+    // part of it, so extract (and remove) them before handing the rest to
+    // replaceState() - an older saved state simply won't have this element,
+    // in which case connections are left as whatever they already were
+    // (matching replaceState()'s own "missing parameter keeps its current
+    // value" behavior).
+    if (auto* modulationXml = xmlState->getChildByName("MODULATION_CONNECTIONS"))
+    {
+        std::vector<monument::dsp::ModulationMatrix::Connection> connections;
+        for (auto* connXml : modulationXml->getChildIterator())
+        {
+            monument::dsp::ModulationMatrix::Connection conn;
+            conn.source = PresetManager::stringToSourceType(connXml->getStringAttribute("source"));
+            conn.destination = PresetManager::stringToDestinationType(connXml->getStringAttribute("destination"));
+            conn.sourceAxis = connXml->getIntAttribute("sourceAxis");
+            conn.depth = static_cast<float>(connXml->getDoubleAttribute("depth"));
+            conn.smoothingMs = static_cast<float>(connXml->getDoubleAttribute("smoothingMs"));
+            conn.curveType = PresetManager::stringToCurveType(connXml->getStringAttribute("curveType"));
+            conn.curveAmount = static_cast<float>(connXml->getDoubleAttribute("curveAmount"));
+            conn.enabled = true;
+            connections.push_back(conn);
+        }
+        modulationMatrix.setConnections(connections);
+        xmlState->removeChildElement(modulationXml, true);
+    }
+
+    parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
 }
 
 MonumentAudioProcessor::APVTS& MonumentAudioProcessor::getAPVTS()
