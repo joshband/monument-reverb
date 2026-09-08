@@ -452,7 +452,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 **Documentation Created**:
 
-- [DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](docs/DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md) (600+ lines, all 22 modules)
+- [DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](docs/archive/reviews/01092026-DspArchitectureComprehensiveReview.md) (600+ lines, all 22 modules; archived)
 - [EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md](docs/EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md) (4 patches)
 - [QUICK_FIXES_SUMMARY.md](docs/QUICK_FIXES_SUMMARY.md) (quick reference)
 - [patches/infinite_abyss_memory_fix.patch](patches/infinite_abyss_memory_fix.patch) (git-style diff)
@@ -572,7 +572,7 @@ Time: ~20 min | Build: ✅ Success | Ready for DAW testing
 
 **Sessions 7-8 (2026-01-09)**: Chambers Module Refactored + Architecture Documentation
 
-- Created [docs/ARCHITECTURE_REVIEW.md](docs/ARCHITECTURE_REVIEW.md) - 3,500+ line comprehensive DSP analysis with Mermaid diagrams
+- Created [docs/ARCHITECTURE_REVIEW.md](docs/archive/reviews/01092026-ArchitectureReviewDspAnalysis.md) - 3,500+ line comprehensive DSP analysis with Mermaid diagrams (archived)
 - Updated DspRoutingGraph interface to accept ParameterBuffer references
 - Refactored Chambers module to eliminate double smoothing (5 parameters)
 - Replaced ParameterSmoother members with ParameterBuffer views

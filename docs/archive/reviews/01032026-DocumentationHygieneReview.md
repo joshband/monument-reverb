@@ -4,7 +4,7 @@
 **Reviewer:** Claude (Automated Review)
 **Status:** Complete
 
-> **Superseded:** See [01072026-ArchitectureReview.md](../01072026-ArchitectureReview.md) for the latest doc alignment notes.
+> **Superseded:** See [01072026-ArchitectureReview.md](01072026-ArchitectureReview.md) for the latest doc alignment notes.
 
 ---
 
@@ -29,28 +29,28 @@ Monument's documentation has evolved through 4 major development phases. This re
 ### ✅ CURRENT & ACCURATE
 
 **Root Documentation:**
-- [README.md](../README.md) - Updated 2026-01-03 ✅
+- [README.md](../../../README.md) - Updated 2026-01-03 ✅
   - Phase 4 status: 90% complete
   - ModMatrix panel documented
   - All parameters accurate
-- [ARCHITECTURE.md](../ARCHITECTURE.md) - Updated 2026-01-03 ✅
+- [ARCHITECTURE.md](../../../ARCHITECTURE.md) - Updated 2026-01-03 ✅
   - Development phases current
   - Project structure includes ModMatrixPanel
   - Modulation matrix description accurate
-- [CHANGELOG.md](../CHANGELOG.md) - Updated 2026-01-03 ✅
+- [CHANGELOG.md](../../../CHANGELOG.md) - Updated 2026-01-03 ✅
   - Phase 4 ModMatrixPanel fully documented
   - HIGH priority fixes logged
   - Version history complete
-- [MANIFEST.md](../MANIFEST.md) - Current ✅
+- [MANIFEST.md](../../../MANIFEST.md) - Current ✅
   - Timeless design philosophy
   - No version-specific details
-- [ARCHITECTURE_QUICK_REFERENCE.md](../ARCHITECTURE_QUICK_REFERENCE.md) - Current ✅
+- [ARCHITECTURE_QUICK_REFERENCE.md](../../../ARCHITECTURE_QUICK_REFERENCE.md) - Current ✅
   - Visual diagrams remain accurate
-- [STANDARD_BUILD_WORKFLOW.md](../STANDARD_BUILD_WORKFLOW.md) - Current ✅
+- [STANDARD_BUILD_WORKFLOW.md](../../../STANDARD_BUILD_WORKFLOW.md) - Current ✅
   - Build commands verified working
 
 **Session Tracking:**
-- [NEXT_SESSION_HANDOFF.md](../NEXT_SESSION_HANDOFF.md) - Updated 2026-01-03 ✅
+- [NEXT_SESSION_HANDOFF.md](../../../NEXT_SESSION_HANDOFF.md) - Updated 2026-01-03 ✅
   - Latest session fully documented
   - Clear next steps
 

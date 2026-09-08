@@ -1171,7 +1171,7 @@ When adding new scripts:
 - [TESTING.md](../TESTING.md) - Testing hub (canonical)
 - [docs/BUILD_PATTERNS.md](../docs/BUILD_PATTERNS.md) - Build system architecture
 - [tools/plugin-analyzer/README.md](../tools/plugin-analyzer/README.md) - Plugin analyzer documentation
-- [docs/testing/TESTING_AUDIT.md](../docs/testing/TESTING_AUDIT.md) - Testing infrastructure audit
+- [docs/testing/TESTING_AUDIT.md](../docs/archive/reviews/01082026-TestingAudit.md) - Testing infrastructure audit (archived)
 
 ---
 

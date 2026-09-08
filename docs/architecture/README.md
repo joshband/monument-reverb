@@ -5,7 +5,7 @@ Comprehensive architecture documentation for Monument Reverb's DSP system and im
 ## Quick Navigation
 
 ### Overview Documents
-- [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md) - Complete architecture analysis and review
+- [ARCHITECTURE_REVIEW.md](../archive/reviews/01042026-ArchitectureReview.md) - Complete architecture analysis and review (archived)
 - [ARCHITECTURE_QUICK_REFERENCE.md](ARCHITECTURE_QUICK_REFERENCE.md) - Quick reference guide (also in repo root)
 - [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) - Implementation patterns and guidelines
 
@@ -41,9 +41,9 @@ All 17 DSP modules fully documented in [dsp/](dsp/) subfolder:
 - 00: [Ancient Monuments](dsp/control-systems/00-ancient-monuments.md) - Thematic macro controls
 
 ### Real-Time Safety & Performance
-- [DSP_REALTIME_SAFETY_AUDIT.md](DSP_REALTIME_SAFETY_AUDIT.md) - RT-safety audit
-- [DSP_REALTIME_SAFETY_FIX_PLAN.md](DSP_REALTIME_SAFETY_FIX_PLAN.md) - Fix plan for RT issues
-- [DSP_CLICK_ANALYSIS_REPORT.md](DSP_CLICK_ANALYSIS_REPORT.md) - Audio glitch analysis
+- [DSP_REALTIME_SAFETY_AUDIT.md](../archive/reviews/01042026-DspRealtimeSafetyAudit.md) - RT-safety audit (archived)
+- [DSP_REALTIME_SAFETY_FIX_PLAN.md](../archive/reviews/01042026-DspRealtimeSafetyFixPlan.md) - Fix plan for RT issues (archived)
+- [DSP_CLICK_ANALYSIS_REPORT.md](../archive/reviews/01032026-DspClickAnalysisReport.md) - Audio glitch analysis (archived)
 - [PARAMETER_BEHAVIOR.md](PARAMETER_BEHAVIOR.md) - Parameter smoothing and behavior
 
 ### Experimental & Design

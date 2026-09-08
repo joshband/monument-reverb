@@ -105,7 +105,7 @@ All parameter values are **normalized floats** in the range `[0.0, 1.0]`.
 | `chaosIntensity` | 0.0–1.0 | 0.0 | Stable → Chaotic behavior |
 | `elasticityDecay` | 0.0–1.0 | 0.0 | Instant recovery → Slow deformation |
 
-**Note:** Macro parameters control multiple base parameters simultaneously through the MacroMapper system. See [ARCHITECTURE_REVIEW.md](../architecture/ARCHITECTURE_REVIEW.md) for mapping details.
+**Note:** Macro parameters control multiple base parameters simultaneously through the MacroMapper system. See [ARCHITECTURE_REVIEW.md](../archive/reviews/01042026-ArchitectureReview.md) for mapping details (archived).
 
 ---
 
@@ -263,7 +263,7 @@ if (presetManager.loadUserPreset(presetFile)) {
 ### Related Files
 - **Implementation:** [PresetManager.cpp](../../plugin/PresetManager.cpp)
 - **Header:** [PresetManager.h](../../plugin/PresetManager.h)
-- **Architecture:** [ARCHITECTURE_REVIEW.md](../architecture/ARCHITECTURE_REVIEW.md)
+- **Architecture:** [ARCHITECTURE_REVIEW.md](../archive/reviews/01042026-ArchitectureReview.md) (archived)
 - **Macro System:** [QUICK_START_MACRO_TESTING.md](../development/QUICK_START_MACRO_TESTING.md)
 
 ### Key Functions

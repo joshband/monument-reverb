@@ -832,7 +832,7 @@ When updating schemas:
 
 ## See Also
 
-- [testing/TESTING_AUDIT.md](../testing/TESTING_AUDIT.md) - Testing infrastructure audit
+- [testing/TESTING_AUDIT.md](../archive/reviews/01082026-TestingAudit.md) - Testing infrastructure audit (archived)
 - [testing/README.md](../testing/README.md) - Testing hub
 - [tools/compare_baseline.py](../tools/compare_baseline.py) - Regression detection tool
 - [JSON Schema Specification](https://json-schema.org/) - JSON Schema documentation
