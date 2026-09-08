@@ -4,7 +4,7 @@
 #include "dsp/SequencePresets.h"
 
 #include <cmath>
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
 #include <mutex>
 #endif
 
@@ -83,7 +83,7 @@ int sanitizeChoice(float value, int minValue, int maxValue, int fallback) noexce
 constexpr int kMemoryProveStage = MONUMENT_MEMORY_PROVE_STAGE;
 #endif
 
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
 std::once_flag gTestingLoggerOnce;
 std::unique_ptr<juce::FileLogger> gTestingLogger;
 std::atomic<int> gTestingLoggerUsers{0};
@@ -119,7 +119,7 @@ MonumentAudioProcessor::MonumentAudioProcessor()
 
 MonumentAudioProcessor::~MonumentAudioProcessor()
 {
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     if (testingLoggerRegistered)
     {
         if (gTestingLoggerUsers.fetch_sub(1, std::memory_order_acq_rel) == 1)
@@ -184,7 +184,7 @@ void MonumentAudioProcessor::changeProgramName(int, const juce::String&)
 
 void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     ensureTestingLogger();
     if (!testingLoggerRegistered)
     {
@@ -376,7 +376,7 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
 {
     juce::ScopedNoDenormals noDenormals;
 
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     const auto blockStartTicks = juce::Time::getHighResolutionTicks();
 #endif
 
@@ -1081,7 +1081,7 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     memoryEchoes.setFreeze(freezeEffective);
 #endif
 
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     // DEBUG: Log mix values (every 100 blocks to avoid flooding)
     static int mixLogCounter = 0;
     if (++mixLogCounter % 100 == 0)
@@ -1275,7 +1275,7 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
         outputRms = juce::jmax(outputRms, buffer.getRMSLevel(channel, 0, levelSamples));
     outputLevel.store(outputRms, std::memory_order_relaxed);
 
-#if defined(MONUMENT_TESTING) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
     float peak = 0.0f;
     for (int channel = 0; channel < numChannels; ++channel)
     {
