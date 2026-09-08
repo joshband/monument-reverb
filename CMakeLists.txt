@@ -89,8 +89,6 @@ target_sources(Monument
     dsp/AlienAmplification.cpp
     dsp/DspRoutingGraph.h
     dsp/DspRoutingGraph.cpp
-    dsp/ExperimentalModulation.h
-    dsp/ExperimentalModulation.cpp
     # UI components will be added here as needed
 )
 
@@ -138,8 +136,6 @@ set(DSP_SOURCES
   dsp/AlienAmplification.cpp
   dsp/DspRoutingGraph.h
   dsp/DspRoutingGraph.cpp
-  dsp/ExperimentalModulation.h
-  dsp/ExperimentalModulation.cpp
 )
 
 target_include_directories(Monument
