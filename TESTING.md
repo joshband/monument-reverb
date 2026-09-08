@@ -349,6 +349,40 @@ CTest list:
 
 ## Continuous Integration
 
+### CI/CD Architecture
+
+Three GitHub Actions workflow files split CI along a **required vs. informational** line,
+not by file type or team ownership. Understanding that line explains why the split exists:
+
+| Workflow | Job(s) | Required to merge? | What it proves |
+|---|---|---|---|
+| `qa_harness.yml` | `monument_harness_critical` | **Yes** — the only required status check on `main` | The 8-scenario critical DSP QA suite still passes. This is the actual audio-correctness gate. |
+| `qa_harness.yml` | `monument_harness_full` | No (runs on `main` pushes and manual dispatch only) | The full DSP QA suite, for deeper regression visibility without blocking every PR on its longer runtime. |
+| `ci.yml` | `build-macos` | No | The plugin builds and its CTest suite runs — a general compile/smoke gate. |
+| `local_check_gate.yml` | `local-check-gate` | No | `./scripts/check.sh` — the exact bounded command documented in Quick Start — still passes in CI, catching drift between what a developer runs locally and what CI runs. |
+
+Branch protection on `main` names exactly one required context, `monument_harness_critical`,
+with `strict` mode on (a PR's branch must be up to date with `main` before merging). Nothing
+else is required by GitHub itself — `build-macos` and `local-check-gate` are diagnostic, not
+gating, so a red result there is a signal to fix, not a merge blocker enforced by the platform.
+
+**Why a required check can never use trigger-level path filtering.** GitHub's branch protection
+waits indefinitely for a required check's *first* run on a commit; if a workflow's own `on:`
+trigger excludes that commit (e.g. via `paths-ignore`), the check simply never reports, and the
+PR is permanently blocked with no error to act on. That trap is why `qa_harness.yml` — the home
+of the one required check — always triggers on every push and PR, then decides internally
+whether to actually do the expensive work: a `relevance` step diffs the incoming commit against
+the PR base (or the previous push) and skips the build/run steps with `if:` conditions when
+nothing outside `docs/`, `*.md`, or `LICENSE` changed. The job still reports a (fast) pass,
+satisfying branch protection, without spending 15+ minutes rebuilding JUCE for a typo fix in a
+markdown file.
+
+`ci.yml` and `local_check_gate.yml` carry no such constraint since neither is required, so both
+use ordinary trigger-level filtering instead of in-job skipping: `ci.yml` sets `paths-ignore` for
+docs/markdown, and `local_check_gate.yml` is scoped narrowly to `scripts/**`, `CMakeLists.txt`,
+and its own workflow file — it only needs to run when the tooling it's exercising actually
+changes.
+
 ### CI Workflow
 
 ```bash
