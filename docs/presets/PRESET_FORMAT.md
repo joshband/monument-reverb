@@ -175,7 +175,7 @@ Factory presets in [PresetManager.cpp](../../plugin/PresetManager.cpp) support m
 | `smoothingMs` | Float | Smoothing time in milliseconds |
 | `enabled` | Boolean | Enable/disable connection |
 
-**Implementation:** See [ModulationMatrix.h](../../plugin/dsp/ModulationMatrix.h) for full source/destination enum definitions.
+**Implementation:** See [ModulationMatrix.h](../../dsp/ModulationMatrix.h) for full source/destination enum definitions.
 
 ---
 
