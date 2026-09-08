@@ -264,7 +264,7 @@ if (presetManager.loadUserPreset(presetFile)) {
 - **Implementation:** [PresetManager.cpp](../../plugin/PresetManager.cpp)
 - **Header:** [PresetManager.h](../../plugin/PresetManager.h)
 - **Architecture:** [ARCHITECTURE_REVIEW.md](../architecture/ARCHITECTURE_REVIEW.md)
-- **Macro System:** [QUICK_START_MACRO_TESTING.md](../development/QUICK_START_MACRO_TESTING.md)
+- **Macro System:** [QUICK_START_MACRO_TESTING.md](../archive/sessions/QUICK_START_MACRO_TESTING.md)
 
 ### Key Functions
 - `PresetManager::saveUserPreset()` — Line 200

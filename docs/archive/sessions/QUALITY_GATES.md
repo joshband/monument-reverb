@@ -38,7 +38,7 @@ Quality gates **fail immediately** when violations are detected, preventing bad 
 ## Gate 1: Audio Stability Check ✅
 
 **Status:** 🔴 Critical - Always Active
-**Tool:** [`tools/check_audio_stability.py`](../tools/check_audio_stability.py)
+**Tool:** [`tools/check_audio_stability.py`](../../../tools/check_audio_stability.py)
 **CI Step:** Step 7 of 9
 **Duration:** ~1 second (all 37 presets)
 
@@ -181,7 +181,7 @@ fi
 ## Gate 2: CPU Performance Thresholds ⚙️
 
 **Status:** ⚙️ Optional - Enabled if CPU profile exists
-**Tool:** [`tools/check_cpu_thresholds.py`](../tools/check_cpu_thresholds.py)
+**Tool:** [`tools/check_cpu_thresholds.py`](../../../tools/check_cpu_thresholds.py)
 **CI Step:** Step 8 of 9 (conditional)
 **Duration:** ~1 second (profile analysis)
 
@@ -352,7 +352,7 @@ When a module exceeds its budget:
 ## Gate 3: Real-Time Allocation Detection 🔍
 
 **Status:** 🔍 Optional - Environment-controlled (macOS only)
-**Tool:** [`tools/check_rt_allocations.sh`](../tools/check_rt_allocations.sh)
+**Tool:** [`tools/check_rt_allocations.sh`](../../../tools/check_rt_allocations.sh)
 **CI Step:** Step 9 of 9 (conditional)
 **Duration:** ~60 seconds (30s recording + 30s analysis)
 
@@ -765,8 +765,8 @@ python3 scripts/analyze_profile.py monument_profile_export.xml
 ## References
 
 - **Implementation:** [docs/PHASE_3_STEP_2_QUALITY_GATES_COMPLETE.md](PHASE_3_STEP_2_QUALITY_GATES_COMPLETE.md)
-- **Tool Docs:** [scripts/README.md#quality-gate-scripts](../scripts/README.md#quality-gate-scripts)
-- **Testing Guide:** [testing/TESTING_GUIDE.md#quality-gates](testing/TESTING_GUIDE.md#quality-gates)
+- **Tool Docs:** [scripts/README.md#quality-gate-scripts](../../../scripts/README.md#quality-gate-scripts)
+- **Testing Guide:** [testing/TESTING_GUIDE.md#quality-gates](../../testing/TESTING_GUIDE.md#quality-gates)
 
 ---
 

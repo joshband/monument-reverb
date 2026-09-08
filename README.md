@@ -73,7 +73,7 @@ ctest --test-dir build -C Release
 - [ROADMAP.md](ROADMAP.md) - Long-term vision and future enhancements
 - [MANIFEST.md](MANIFEST.md) - Project manifesto and design philosophy
 - [STANDARD_BUILD_WORKFLOW.md](STANDARD_BUILD_WORKFLOW.md) - Build commands and workflows
-- [docs/STATUS.md](docs/STATUS.md) - Implementation status (historical; may lag `git log`)
+- [docs/STATUS.md](docs/archive/sessions/STATUS.md) - Implementation status (historical; may lag `git log`)
 - [CHANGELOG.md](CHANGELOG.md) - Detailed session history
 
 **Detailed Documentation:**
