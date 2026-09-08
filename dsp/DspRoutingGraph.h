@@ -43,20 +43,15 @@ enum class ModuleType
 };
 
 /**
- * @brief Routing modes for connecting modules
- */
-enum class RoutingMode
-{
-    Series,           // A → B (signal flows through B after A)
-    Parallel,         // A + B (both process dry signal, outputs blended)
-    ParallelMix,      // Dry + (A + B) (both process, blend with dry)
-    Feedback,         // B output → A input (with gain control)
-    Crossfeed,        // L→R, R→L channel swap
-    Bypass            // Skip this module entirely
-};
-
-/**
- * @brief Routing preset templates for instant sonic diversity
+ * @brief Named routing-preset identities and their per-module bypass mask.
+ *
+ * These no longer select a distinct signal topology (the generic
+ * series/parallel/feedback/crossfeed graph executor that once interpreted
+ * them was dead code — nothing in the plugin ever called it — and has been
+ * removed). Only the bypass mask each preset carries is live: it's what the
+ * fixed chains (processAncientWay/processResonantHalls/processBreathingStone)
+ * honor via processModule(). Preset names describe historical intent, not
+ * rendered topology.
  */
 enum class RoutingPresetType
 {
@@ -72,48 +67,13 @@ enum class RoutingPresetType
 };
 
 /**
- * @brief A single connection between two modules
- */
-struct RoutingConnection
-{
-    ModuleType source{ModuleType::Foundation};
-    ModuleType destination{ModuleType::Facade};
-    RoutingMode mode{RoutingMode::Series};
-
-    float blendAmount{0.5f};        // For parallel modes (0.0-1.0)
-    float feedbackGain{0.3f};       // For feedback mode (0.0-0.95)
-    float crossfeedAmount{0.5f};    // For crossfeed mode (0.0-1.0)
-
-    bool enabled{true};
-
-    RoutingConnection() = default;
-    RoutingConnection(ModuleType src, ModuleType dst, RoutingMode m = RoutingMode::Series)
-        : source(src), destination(dst), mode(m) {}
-};
-
-/**
- * @brief Flexible DSP routing graph for dramatic sonic diversity
+ * @brief Dispatches audio through Monument's fixed DSP signal chains.
  *
- * This class replaces the fixed serial chain with a flexible routing system.
- * Modules can be connected in series, parallel, feedback loops, or bypassed entirely.
- *
- * Key Features:
- * - Series: Traditional signal flow (A → B)
- * - Parallel: Multiple paths blended (A + B)
- * - Feedback: Module output routed back to input (B → A)
- * - Crossfeed: L/R channel swapping
- * - Bypass: Skip modules for CPU savings
- *
- * Routing Presets:
- * - "Traditional Cathedral": Foundation → Pillars → Chambers → Weathering → Facade
- * - "Metallic Granular": Bypass Chambers, use TubeRayTracer + heavy diffusion
- * - "Elastic Feedback Dream": ElasticHallway with feedback to Pillars
- * - "Parallel Worlds": Chambers + Tubes + Elastic all in parallel
- *
- * Real-Time Safety:
- * - No allocations in process()
- * - Pre-allocated temp buffers for parallel processing
- * - Feedback loops use delay to prevent instant recursion
+ * Three fixed-chain implementations exist (processAncientWay,
+ * processResonantHalls, processBreathingStone); PluginProcessor selects
+ * one via ProcessingMode. Each preset in RoutingPresetType carries a
+ * per-module bypass mask that all three chains honor identically via
+ * setModuleBypass()/isModuleBypassed().
  */
 class DspRoutingGraph final
 {
@@ -130,18 +90,6 @@ public:
      * @brief Reset all module states
      */
     void reset();
-
-    /**
-     * @brief Process audio block through the routing graph
-     *
-     * This function executes the current routing topology:
-     * 1. Evaluate routing graph (topological sort)
-     * 2. Process modules in dependency order
-     * 3. Handle parallel blending and feedback
-     *
-     * @param buffer Audio buffer (modified in-place)
-     */
-    void process(juce::AudioBuffer<float>& buffer);
 
     /**
      * @brief Process buffer using Ancient Way routing (Traditional)
@@ -183,11 +131,6 @@ public:
      * @param preset Routing preset type
      */
     void loadRoutingPreset(RoutingPresetType preset);
-
-    /**
-     * @brief Get current routing connections (for save/load)
-     */
-    const std::vector<RoutingConnection>& getRouting() const noexcept;
 
     /**
      * @brief Get active preset index (lock-free, audio-thread safe)
@@ -284,15 +227,11 @@ private:
     // Module bypass states (lock-free)
     std::atomic<uint32_t> bypassMask{0};
 
-    // Routing preset cache (avoid allocations on preset swaps)
-    static constexpr size_t kMaxRoutingConnections = 16;
     static constexpr size_t kRoutingPresetCount =
         static_cast<size_t>(RoutingPresetType::Custom) + 1;
 
     struct PresetRoutingData
     {
-        std::array<RoutingConnection, kMaxRoutingConnections> connections{};
-        size_t connectionCount{0};
         std::array<bool, static_cast<size_t>(ModuleType::Count)> bypass{};
         uint32_t bypassMask{0};
     };
@@ -300,28 +239,13 @@ private:
     std::array<PresetRoutingData, kRoutingPresetCount> presetData{};
     std::atomic<size_t> activePresetIndex{0};  // Lock-free preset switching
 
-    // Current routing (kept for backward compatibility with getRouting)
-    mutable std::vector<RoutingConnection> routingConnections;
-    mutable size_t routingCachePresetIndex{static_cast<size_t>(-1)};
-
-    // Temp buffers for parallel processing (pre-allocated in prepare())
-    std::array<juce::AudioBuffer<float>, static_cast<size_t>(ModuleType::Count)> tempBuffers;
-    std::array<juce::AudioBuffer<float>, static_cast<size_t>(ModuleType::Count)> moduleOutputBuffers;
-    juce::AudioBuffer<float> feedbackBuffer;  // For feedback loops (1 block delay)
-    juce::AudioBuffer<float> dryBuffer;       // Dry signal storage for parallel modes
-
-    // Feedback safety: smoothed gains and low-pass filtering
-    juce::SmoothedValue<float> feedbackGainSmoothed;
-    juce::dsp::IIR::Filter<float> feedbackLowpassL, feedbackLowpassR;
-    static constexpr float kMaxFeedbackGain = 0.95f;  // Safety limit
-
     double sampleRateHz{48000.0};
     int maxBlockSizeInternal{2048};
     int numChannelsInternal{2};
     bool isPrepared{false};
 
     // Parameter buffer storage (references to PluginProcessor's parameter pools)
-    // These are set via setXXXParams() and used during process()
+    // These are set via setXXXParams()
     // Chambers critical parameters (per-sample)
     ParameterBuffer chambersTimeBuffer;
     ParameterBuffer chambersMassBuffer;
@@ -339,14 +263,8 @@ private:
     // Helper: Get module processor by type
     void processModule(ModuleType module, juce::AudioBuffer<float>& buffer, uint32_t bypassMask);
 
-    // Helper: Blend two buffers for parallel modes
-    void blendBuffers(juce::AudioBuffer<float>& destination,
-                      const juce::AudioBuffer<float>& source,
-                      float blendAmount);
-
-    // Helper: Build/apply preset routing data
+    // Helper: Build each preset's bypass mask
     void buildPresetData();
-    void updateRoutingCache(size_t presetIndex) const;
 
     static constexpr uint32_t moduleBit(ModuleType module) noexcept
     {

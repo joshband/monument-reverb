@@ -35,15 +35,15 @@ found outside the initialized default, so `AncientWay` (above) is the only
 demonstrated ordinary runtime path — treat the other two as unverified.
 (`dsp/DspRoutingGraph.cpp`, `processAncientWay()`.)
 
-**Routing preset vs. routing graph — do not conflate these:** the
-host-visible `routingPreset` parameter publishes an index and a bypass mask
-that the fixed chains honor (some modules can be bypassed). It does **not**
-select or execute `DspRoutingGraph`'s generic graph executor
-(`DspRoutingGraph::process()`, which implements series/parallel/feedback/
-crossfeed topologies) — the processor never calls that path. A routing
-preset's name (e.g. "Parallel Universe") describes an unused topology, not
-the topology actually rendered; only its bypass effect is real, and that
-effect is a preserved behavioral contract even where the name overstates it.
+**Routing preset — bypass mask only:** the host-visible `routingPreset`
+parameter publishes an index and a bypass mask that the fixed chains honor
+(some modules can be bypassed). `DspRoutingGraph` previously also carried a
+generic graph executor (`DspRoutingGraph::process()`, implementing
+series/parallel/feedback/crossfeed topologies) that a routing preset's name
+(e.g. "Parallel Universe") described but the processor never called — it was
+removed as dead code, since nothing in the plugin ever executed that path.
+A routing preset's name is now purely historical/cosmetic; only its bypass
+effect is real, and that effect remains a preserved behavioral contract.
 
 **Memory Echoes is reached, wired around Chambers:** `DspRoutingGraph` holds
 a non-owning `MemoryEchoes*` (set once via `setMemoryEchoes()`, called from
@@ -141,7 +141,7 @@ monument-reverb/
 │   └── PresetManager.cpp/h
 ├── ui/                      # Reusable UI controls (PhotorealisticKnob, etc.)
 ├── dsp/                     # DSP algorithms and routing graph
-│   ├── DspRoutingGraph.cpp/h  # fixed-chain dispatch + unused generic executor
+│   ├── DspRoutingGraph.cpp/h  # fixed-chain dispatch + preset bypass-mask
 │   ├── MacroMapper.h/cpp       # Ancient macros
 │   ├── ExpressiveMacroMapper.h/cpp
 │   ├── ModulationMatrix.h/cpp
