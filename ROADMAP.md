@@ -8,21 +8,24 @@
 
 ## Current Phase (Stable Foundation)
 
-**Status:** DSP architecture complete (15/17 modules documented), core tests passing (81%)
+**Status:** DSP architecture complete (15/17 modules documented). See
+[TESTING.md](TESTING.md) for current test status — don't infer it from this
+file, which tracks vision/ideation, not test counts.
 
-**Focus:** Documentation completion, RT-safety fixes, performance optimization
+**Focus:** Documentation completion, performance optimization
 
 ### Near-Term Milestones (0-2 Months)
 
 **Critical RT-Safety Fixes** (from 2026-01-07/08 reviews):
 
 1. ✅ **Playhead null check** - Fixed in plugin/PluginProcessor.cpp:270-273
-2. ⏳ **Routing preset RT-safety** - Precompute configurations, atomic swap
-   - Current: Allocates on audio thread (50-500µs stalls)
-   - Target: Lock-free preset changes
-3. ⏳ **ModulationMatrix lock-free** - Replace SpinLock with double-buffering
-   - Current: Priority inversion risk
-   - Target: Lock-free connection updates
+2. ✅ **Timeline-preset / TubeRayTracer allocation on the audio thread** -
+   Fixed; proven allocation-free by
+   `monument_realtime_allocation_characterization_test` (see `TESTING.md`).
+3. ✅ **ModulationMatrix lock-free** - Fixed with an announce-then-verify
+   reader handshake over rotating snapshot slots (no `SpinLock`); proven
+   race-free under ThreadSanitizer by
+   `tests/ModulationMatrixConcurrencyStressTest.cpp` (see `ARCHITECTURE.md`).
 
 **Documentation Completion:**
 
@@ -35,7 +38,7 @@
 - ✅ CTest config-aware paths
 - ⏳ Particle system RTTI removal (if playground becomes production UI)
 - ⏳ Fast particle removal (swap-pop instead of O(n) removal)
-- **Target:** 21/21 tests passing (100%)
+- **Target:** all registered CTest targets green — see [TESTING.md](TESTING.md) for the current inventory and status, not a fixed count here
 
 **Asset Pipeline Decision:**
 
