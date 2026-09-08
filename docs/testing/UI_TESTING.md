@@ -133,9 +133,6 @@ For headless CI (GitHub Actions, etc.), UI tests are automatically skipped.
    cmake --build build --target Monument_Standalone
 # Optional: lock UI size for deterministic captures
 # cmake -S . -B build -G Xcode -DCMAKE_CXX_FLAGS="-DMONUMENT_TESTING=1 -DMONUMENT_TESTING_UI=1"
-#
-# Optional: build legacy UI instead of photorealistic UI
-# cmake -S . -B build -DMONUMENT_LEGACY_UI=1
    ```
 
 3. **Capture baseline:**
