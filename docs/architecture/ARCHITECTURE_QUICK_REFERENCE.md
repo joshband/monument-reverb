@@ -140,9 +140,21 @@ INPUT
   ↓
 [Facade]
   ↓
-[MemoryEchoes]
-  ↓
+[MemoryEchoes]  ← see caveat below: prepared/reset every block, but process() is
+  ↓               not called in ordinary builds (disconnected from render path)
 [Mix] → OUTPUT
+
+> **⚠️ Memory Echoes is prepared but not reached.** `MemoryEchoes::prepare/reset`
+> and its parameter setters run every block, and its host parameter IDs remain
+> a compatibility surface, but `memoryEchoes.process()` is never called in
+> ordinary builds — its recall buffer is only mixed to output behind the
+> non-production `MONUMENT_MEMORY_PROVE` debug flag
+> (`plugin/PluginProcessor.cpp` around the memory parameter setters and the
+> `#if defined(MONUMENT_MEMORY_PROVE)` block). Do not describe Memory Echoes as
+> part of the rendered sound, and do not remove it as "dead code" without a
+> separate product decision — it is disconnected, not deleted. See
+> [ARCHITECTURE.md](../../ARCHITECTURE.md#reachable-signal-chain-ancientway-the-default)'s
+> "Reachable signal chain" section for the authoritative statement.
 
 CONTROL LAYERS (run once per block):
 ┌─────────────────────────────────────┐
