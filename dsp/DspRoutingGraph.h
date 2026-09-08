@@ -175,17 +175,6 @@ public:
     void processBreathingStone(juce::AudioBuffer<float>& buffer);
 
     /**
-     * @brief Set custom routing connections
-     *
-     * Replaces current routing with provided connections.
-     * Automatically validates for cycles (except intentional feedback).
-     *
-     * @param connections Vector of routing connections
-     * @return bool True if routing is valid, false if cycles detected
-     */
-    bool setRouting(const std::vector<RoutingConnection>& connections);
-
-    /**
      * @brief Load a preset routing template
      *
      * Instantly reconfigures the graph for dramatic sonic diversity.
@@ -296,7 +285,7 @@ private:
     std::array<PresetRoutingData, kRoutingPresetCount> presetData{};
     std::atomic<size_t> activePresetIndex{0};  // Lock-free preset switching
 
-    // Current routing (kept for backward compatibility with setRouting/getRouting)
+    // Current routing (kept for backward compatibility with getRouting)
     mutable std::vector<RoutingConnection> routingConnections;
     mutable size_t routingCachePresetIndex{static_cast<size_t>(-1)};
 
@@ -339,9 +328,6 @@ private:
     void blendBuffers(juce::AudioBuffer<float>& destination,
                       const juce::AudioBuffer<float>& source,
                       float blendAmount);
-
-    // Helper: Validate routing (detect cycles)
-    bool isRoutingValid(const std::vector<RoutingConnection>& connections) const;
 
     // Helper: Build/apply preset routing data
     void buildPresetData();
