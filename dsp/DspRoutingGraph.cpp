@@ -509,36 +509,6 @@ void DspRoutingGraph::loadRoutingPreset(RoutingPresetType preset)
     bypassMask.store(presetData[presetIndex].bypassMask, std::memory_order_release);
 }
 
-bool DspRoutingGraph::setRouting(const std::vector<RoutingConnection>& connections)
-{
-    // Validate routing (check for cycles except intentional feedback)
-    if (!isRoutingValid(connections))
-        return false;
-
-    routingConnections = connections;
-    routingCachePresetIndex = static_cast<size_t>(RoutingPresetType::Custom);
-    auto& data = presetData[static_cast<size_t>(RoutingPresetType::Custom)];
-    data.connectionCount = 0;
-    const uint32_t currentBypassMask = bypassMask.load(std::memory_order_acquire);
-    for (size_t i = 0; i < data.bypass.size(); ++i)
-        data.bypass[i] = (currentBypassMask & moduleBit(static_cast<ModuleType>(i))) != 0;
-    data.bypassMask = currentBypassMask;
-
-    for (const auto& connection : connections)
-    {
-        if (data.connectionCount >= kMaxRoutingConnections)
-        {
-            jassertfalse;
-            break;
-        }
-        data.connections[data.connectionCount++] = connection;
-    }
-
-    activePresetIndex.store(static_cast<size_t>(RoutingPresetType::Custom),
-                            std::memory_order_release);
-    return true;
-}
-
 //==============================================================================
 // Module Control
 //==============================================================================
@@ -767,14 +737,6 @@ void DspRoutingGraph::blendBuffers(juce::AudioBuffer<float>& destination,
     {
         destination.addFrom(ch, 0, source, ch, 0, destination.getNumSamples(), blendAmount);
     }
-}
-
-bool DspRoutingGraph::isRoutingValid([[maybe_unused]] const std::vector<RoutingConnection>& connections) const
-{
-    // TODO: Implement cycle detection (for now, trust the preset definitions)
-    // Allow feedback modes as intentional cycles
-    // Note: 'connections' parameter will be used when cycle detection is implemented
-    return true;
 }
 
 // ============================================================================
