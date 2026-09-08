@@ -198,7 +198,10 @@ Set `BUILD_DIR=build-ninja` to point the harness at a Ninja build directory.
 
 ## UI Prototype
 
+Opt-in debug shell, off by default — configure with the flag before building:
+
 ```bash
+cmake -S . -B build -DMONUMENT_BUILD_UI_PROTOTYPE=ON
 cmake --build build --config Debug --target monument_ui_prototype
 ```
 
@@ -230,9 +233,8 @@ monument-reverb/
 ## Development Roadmap
 
 Development history lives in `git log` and [CHANGELOG.md](CHANGELOG.md), not a
-phase checklist. Known open realtime-safety work — timeline-preset and
-TubeRayTracer allocation on the audio thread — is tracked as a deliberately
-failing characterization test; see [TESTING.md](TESTING.md).
+phase checklist. See [TESTING.md](TESTING.md) for current test status and
+known limitations.
 
 **For long-term vision, see [ROADMAP.md](ROADMAP.md)**
 

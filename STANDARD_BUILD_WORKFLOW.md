@@ -13,7 +13,7 @@
 ./scripts/open_xcode.sh
 cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64
 cmake --build build --config Release
-ctest --test-dir build -C Release
+ctest --test-dir build -C Release  # registers zero tests unless configured with -DMONUMENT_ENABLE_TESTS=ON -DBUILD_TESTING=ON (both OFF by default)
 ```
 
 ## Initial Setup (First Time Only)
@@ -122,10 +122,16 @@ cmake --build build --target Monument_AU --config Release -j8
 - `Monument_AU` - Audio Unit plugin
 - `Monument_VST3` - VST3 plugin
 - `Monument` - Shared code (auto-built as dependency)
-- `MonumentAssets` - Binary data (auto-built as dependency)
+
+**Note:** the `MonumentAssets` binary-data target referenced in the Knob
+Development Workflow below is currently commented out in `CMakeLists.txt`.
+Knob layer PNGs are loaded from disk at runtime (environment-selected
+directories), not bundled via `BinaryData` — see `ARCHITECTURE.md`'s UI
+ownership section. Re-enabling binary embedding is an unimplemented option
+from that workflow, not the current build's behavior.
 
 ## Tests
 
 ```bash
-ctest --test-dir build -C Release
+ctest --test-dir build -C Release  # registers zero tests unless configured with -DMONUMENT_ENABLE_TESTS=ON -DBUILD_TESTING=ON (both OFF by default)
 ```
