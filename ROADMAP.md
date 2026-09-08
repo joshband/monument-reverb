@@ -410,8 +410,8 @@ Interaction Model:
 
 ---
 
-**For current session tracking, see [NEXT_SESSION_HANDOFF.md](NEXT_SESSION_HANDOFF.md)**
+**For current session tracking, see [NEXT_SESSION_HANDOFF.md](docs/archive/NEXT_SESSION_HANDOFF.md)**
 
-**For implementation status, see [docs/STATUS.md](docs/STATUS.md)**
+**For implementation status, see [docs/STATUS.md](docs/archive/sessions/STATUS.md)**
 
 **For detailed session history, see [CHANGELOG.md](CHANGELOG.md)**

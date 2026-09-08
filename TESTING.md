@@ -36,6 +36,15 @@ cmake --build build --config Release --target monument_plugin_analyzer
 # Python deps for audio analysis (one-time)
 python3 -m pip install -r tools/plugin-analyzer/python/requirements.txt
 
+# Bounded local QA gate: curated CTest selection + harness critical suite,
+# built explicitly with tests/harness ON (fails loudly instead of silently
+# skipping work). Not the authoritative DSP gate above, but the same command
+# CI runs in ci.yml's local-check-gate job.
+./scripts/check.sh
+
+# Same, but also runs the 22-scenario full suite
+./scripts/check.sh --full
+
 # Full local diagnostic wrapper (CTest + audio regression + quality gates; not the authoritative DSP gate above)
 ./scripts/run_ci_tests.sh
 
@@ -78,11 +87,12 @@ For GitHub Actions, define `SUBMODULE_TOKEN` with read access to `joshband/audio
 ## Tooling Catalog (By Location)
 
 **Core entrypoints:**
+- `scripts/check.sh` - Bounded local QA gate (curated CTest selection + harness critical suite, `--full` adds the full suite); fails loudly rather than skipping silently. Same command `ci.yml`'s `local-check-gate` job runs.
 - `scripts/run_ci_tests.sh` - Local diagnostic wrapper (CTest + audio regression + quality gates + optional UI/RT checks); non-authoritative, see policy above.
 - `ctest --test-dir build -C Release` - Runs registered C++ tests (empty unless the build was configured with `-DMONUMENT_ENABLE_TESTS=ON -DBUILD_TESTING=ON`).
 - `.github/workflows/qa_harness.yml` - Authoritative DSP harness CI (critical + full suites).
 - `.github/workflows/qa_legacy_shadow.yml` - Optional legacy DSP diagnostic CI (non-blocking).
-- `.github/workflows/ci.yml` - General build + CTest smoke (non-authoritative for DSP QA).
+- `.github/workflows/ci.yml` - General build + CTest smoke, plus a `local-check-gate` job running `scripts/check.sh` (non-authoritative for DSP QA).
 
 **Audio regression pipeline:**
 - `scripts/capture_all_presets.sh` - Render IRs for all presets.
@@ -343,6 +353,14 @@ CTest list:
 # - Reports pass/fail status
 # - Logs errors for debugging
 ```
+
+`.github/workflows/ci.yml`'s `local-check-gate` job runs `./scripts/check.sh` verbatim — the
+same bounded command documented in Quick Start above (curated CTest selection + the 8-scenario
+harness critical suite, built with `MONUMENT_ENABLE_TESTS`/`BUILD_TESTING` explicitly `ON`).
+It exists to prove that the exact command a developer runs locally also passes in CI, catching
+drift between the two. It is deliberately not a third authoritative gate: `qa_harness.yml`'s
+`monument_harness_critical`/`monument_harness_full` jobs remain the authoritative DSP QA gate
+per the policy above, and `local-check-gate` is not a required branch-protection check.
 
 ### Pre-Commit Checks
 

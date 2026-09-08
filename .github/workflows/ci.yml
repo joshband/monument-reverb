@@ -55,3 +55,32 @@ jobs:
       - name: Test
         if: steps.ctest.outputs.has_tests == 'true'
         run: ctest --test-dir build --output-on-failure
+
+  local-check-gate:
+    # Runs the exact `./scripts/check.sh` command documented in TESTING.md's
+    # Quick Start as the local bounded QA gate: curated CTest selection +
+    # harness critical suite, built with MONUMENT_ENABLE_TESTS/BUILD_TESTING
+    # explicitly ON. This proves the command developers run locally also
+    # passes in CI, catching drift between the two. It is intentionally
+    # separate from qa_harness.yml's monument_harness_critical/full jobs,
+    # which remain the authoritative, wider-scope DSP QA gate (see
+    # TESTING.md's DSP QA Authority Policy) and are not modified here.
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_TOKEN != '' && secrets.SUBMODULE_TOKEN || github.token }}
+
+      - name: Cache JUCE FetchContent
+        uses: actions/cache@v4
+        with:
+          path: build-check/_deps
+          key: ${{ runner.os }}-juce-check-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-juce-check-
+
+      - name: Run scripts/check.sh
+        run: ./scripts/check.sh

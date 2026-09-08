@@ -110,9 +110,11 @@ source-derived concurrency hazard, not something proven safe by absence of a
 
 ## UI ownership
 
-`createEditor()` defaults to `MonumentAudioProcessorEditorV2`
-(`plugin/PluginProcessor.cpp`); `MONUMENT_LEGACY_UI` selects the older
-`PluginEditor` instead. V2 exposes parameter, modulation, and timeline
+`createEditor()` unconditionally returns `MonumentAudioProcessorEditorV2`
+(`plugin/PluginProcessor.cpp`). The legacy `PluginEditor` and the
+`MONUMENT_LEGACY_UI` build option were removed (see
+`docs/architecture/EDITOR_PARITY_FINDINGS.md` for the parity investigation
+that preceded the decision); V2 exposes parameter, modulation, and timeline
 sections and dynamically loads knob-layer assets from environment-selected
 directories at runtime (not bundled via `BinaryData`) — packaging must be
 verified against a real installed build, not assumed from source layout.
@@ -124,10 +126,9 @@ Do not add a third editor generation or treat `plugin/PluginEditor_NEW.h`
 
 ```
 monument-reverb/
-├── plugin/                 # JUCE processor, preset manager, both editors
+├── plugin/                 # JUCE processor, preset manager, editor
 │   ├── PluginProcessor.cpp/h
-│   ├── PluginEditorV2.cpp/h  # default editor
-│   ├── PluginEditor.cpp/h    # legacy editor (MONUMENT_LEGACY_UI)
+│   ├── PluginEditorV2.cpp/h  # the only editor
 │   └── PresetManager.cpp/h
 ├── ui/                      # Reusable UI controls (PhotorealisticKnob, etc.)
 ├── dsp/                     # DSP algorithms and routing graph

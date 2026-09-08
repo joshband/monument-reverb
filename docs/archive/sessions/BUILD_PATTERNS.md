@@ -18,7 +18,7 @@
 
 **Use When:** Testing a single DSP class with minimal dependencies
 
-**Example:** [tests/DopplerShiftTest.cpp](../tests/DopplerShiftTest.cpp)
+**Example:** [tests/DopplerShiftTest.cpp](../../../tests/DopplerShiftTest.cpp)
 
 ```cmake
 # Simple executable with just the DSP files needed
@@ -58,7 +58,7 @@ endif()
 
 **Use When:** DSP classes include `<JuceHeader.h>` but don't need full plugin
 
-**Example:** [tests/SequenceSchedulerTest.cpp](../tests/SequenceSchedulerTest.cpp)
+**Example:** [tests/SequenceSchedulerTest.cpp](../../../tests/SequenceSchedulerTest.cpp)
 
 ```cmake
 # Must use juce_add_console_app to generate JuceHeader.h
@@ -176,7 +176,7 @@ endif()
 
 **Use When:** Testing RT60, frequency response, preset loading, audio regression
 
-**Example:** [scripts/run_ci_tests.sh](../scripts/run_ci_tests.sh)
+**Example:** [scripts/run_ci_tests.sh](../../../scripts/run_ci_tests.sh)
 
 ```bash
 #!/bin/bash
@@ -393,6 +393,6 @@ cmake --build build --target monument_sequence_scheduler_test -j8
 ---
 
 **See Also:**
-- [testing/README.md](testing/README.md) - Testing hub
-- [STANDARD_BUILD_WORKFLOW.md](../STANDARD_BUILD_WORKFLOW.md) - Build workflow
-- [tools/COMPREHENSIVE_TEST_PLAN.md](../tools/COMPREHENSIVE_TEST_PLAN.md) - Original test plan
+- [testing/README.md](../../testing/README.md) - Testing hub
+- [STANDARD_BUILD_WORKFLOW.md](../../../STANDARD_BUILD_WORKFLOW.md) - Build workflow
+- [tools/COMPREHENSIVE_TEST_PLAN.md](../phases/COMPREHENSIVE_TEST_PLAN.md) - Original test plan
