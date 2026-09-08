@@ -59,7 +59,7 @@ TestResult testDistanceAttenuation()
         // Position line 2 at distance 2.0 (should be 1/4 the gain of line 1)
         spatial.setPosition(2, 2.0f, 0.0f, 0.0f);
 
-        spatial.process();
+        spatial.process(kBlockSize);
 
         float gain0 = spatial.getAttenuationGain(0);
         float gain1 = spatial.getAttenuationGain(1);
@@ -128,7 +128,7 @@ TestResult testDopplerShiftCalculation()
         spatial.setPosition(1, 0.0f, 0.0f, 0.0f);
         spatial.setVelocity(1, -1.0f);
 
-        spatial.process();
+        spatial.process(kBlockSize);
 
         float doppler0 = spatial.getDopplerShift(0);
         float doppler1 = spatial.getDopplerShift(1);
@@ -193,7 +193,7 @@ TestResult testEnergyInvariance()
             float angle = (i / (float)kNumLines) * 2.0f * juce::MathConstants<float>::pi;
             spatial.setPosition(i, std::cos(angle), std::sin(angle), 0.5f);
         }
-        spatial.process();
+        spatial.process(kBlockSize);
 
         float totalEnergyA = 0.0f;
         for (int i = 0; i < kNumLines; ++i)
@@ -207,7 +207,7 @@ TestResult testEnergyInvariance()
         {
             spatial.setPosition(i, 0.0f, 0.0f, i / (float)kNumLines);
         }
-        spatial.process();
+        spatial.process(kBlockSize);
 
         float totalEnergyB = 0.0f;
         for (int i = 0; i < kNumLines; ++i)
@@ -267,7 +267,7 @@ TestResult testNumericalStability()
                 spatial.setVelocity(i, vx);
             }
 
-            spatial.process();
+            spatial.process(kBlockSize);
 
             // Check for NaN/Inf
             for (int i = 0; i < kNumLines; ++i)
@@ -316,11 +316,11 @@ TestResult testResetBehavior()
             spatial.setPosition(i, 1.0f, 0.5f, 0.25f);
             spatial.setVelocity(i, 0.5f);
         }
-        spatial.process();
+        spatial.process(kBlockSize);
 
         // Reset should restore defaults
         spatial.reset();
-        spatial.process();
+        spatial.process(kBlockSize);
 
         // Check that all gains are at default (should be similar for centered positions)
         float firstGain = spatial.getAttenuationGain(0);

@@ -35,12 +35,12 @@ static void testDopplerShiftBounds()
 
     // Test maximum positive velocity (moving away)
     spatial.setVelocity(0, 1.0f);
-    spatial.process();
+    spatial.process(kBlockSize);
     float shiftAway = spatial.getDopplerShift(0);
 
     // Test maximum negative velocity (moving toward)
     spatial.setVelocity(1, -1.0f);
-    spatial.process();
+    spatial.process(kBlockSize);
     float shiftToward = spatial.getDopplerShift(1);
 
     // Verify shifts are within expected bounds
@@ -72,17 +72,17 @@ static void testDopplerShiftScaling()
 
     // Test at 100% scale
     spatial.setDopplerScale(1.0f);
-    spatial.process();
+    spatial.process(kBlockSize);
     float shift100 = spatial.getDopplerShift(0);
 
     // Test at 50% scale
     spatial.setDopplerScale(0.5f);
-    spatial.process();
+    spatial.process(kBlockSize);
     float shift50 = spatial.getDopplerShift(0);
 
     // Test at 0% scale (disabled)
     spatial.setDopplerScale(0.0f);
-    spatial.process();
+    spatial.process(kBlockSize);
     float shift0 = spatial.getDopplerShift(0);
 
     // Verify scaling relationship
@@ -104,7 +104,7 @@ static void testDopplerShiftDisabled()
     spatial.setEnabled(false); // Disable spatial processing
     spatial.setVelocity(0, 1.0f);
     spatial.setDopplerScale(1.0f);
-    spatial.process();
+    spatial.process(kBlockSize);
 
     float shift = spatial.getDopplerShift(0);
 
@@ -132,7 +132,7 @@ static void testDopplerShiftStability()
 
     for (int i = 0; i < kNumBlocks; ++i)
     {
-        spatial.process();
+        spatial.process(kBlockSize);
         float shift = spatial.getDopplerShift(0);
 
         if (i == 0)
@@ -169,7 +169,7 @@ static void testDopplerShiftPerLine()
         spatial.setVelocity(i, velocity);
     }
 
-    spatial.process();
+    spatial.process(kBlockSize);
 
     // Verify each line has independent shift
     for (int i = 0; i < kNumLines; ++i)
@@ -201,7 +201,7 @@ static void testDopplerShiftClipping()
 
     // Test beyond valid velocity range (should be clamped internally)
     spatial.setVelocity(0, 2.0f); // Beyond [−1, +1]
-    spatial.process();
+    spatial.process(kBlockSize);
     float shiftOverflow = spatial.getDopplerShift(0);
 
     // Should not exceed maximum shift

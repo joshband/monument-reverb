@@ -1,10 +1,27 @@
 # 11 - Strata (MemoryEchoes - Temporal Feedback System)
 
 **Category:** Memory System / Temporal Processing
-**Status:** ✅ Production-Ready
+**Status:** ⚠️ Disconnected from the render path in ordinary builds (see caveat below) — algorithm and unit-level behavior described here are accurate
 **CPU Usage:** Variable (depends on buffer size) - **Good Efficiency**
 **Complexity:** 🔴 HIGH
-**File:** [`dsp/MemoryEchoes.{h,cpp}`](../../../dsp/MemoryEchoes.h)
+**File:** [`dsp/MemoryEchoes.{h,cpp}`](../../../../dsp/MemoryEchoes.h)
+
+---
+
+> **⚠️ Not part of the rendered sound in ordinary builds.** `MemoryEchoes::prepare()/reset()`
+> and its parameter setters run every block, and its host parameter IDs remain
+> a compatibility surface, but `memoryEchoes.process()` is never called in
+> ordinary builds — its recall buffer is only mixed to output behind the
+> non-production `MONUMENT_MEMORY_PROVE` debug flag
+> (`plugin/PluginProcessor.cpp` around the memory parameter setters and the
+> `#if defined(MONUMENT_MEMORY_PROVE)` block). Do not describe Memory Echoes as
+> part of the rendered sound, and do not remove it as "dead code" without a
+> separate product decision — it is disconnected, not deleted. This matches
+> the framing in [ARCHITECTURE.md](../../../../ARCHITECTURE.md#reachable-signal-chain-ancientway-the-default)'s
+> "Reachable signal chain" section — treat that section as authoritative if
+> the two ever disagree. Everything below describes how the module works
+> internally (algorithm, buffers, state machine); it does not imply the
+> module is reached by `processBlock()` in a normal build.
 
 ---
 
@@ -813,7 +830,7 @@ const juce::AudioBuffer<float>& getRecallBuffer() const;
 
 ### Unit Tests
 
-**File:** [tests/MemoryEchoesTest.cpp](../../../tests/MemoryEchoesTest.cpp) (hypothetical)
+**File:** [tests/MemoryEchoesTest.cpp](../../../../tests/MemoryEchoesTest.cpp) (registered as `monument_memory_echoes_test`)
 
 **Test Cases:**
 
@@ -854,7 +871,7 @@ const juce::AudioBuffer<float>& getRecallBuffer() const;
 
 ### Integration Tests
 
-**File:** [tests/DspInitializationTest.cpp](../../../tests/DspInitializationTest.cpp)
+**File:** [tests/DspInitializationTest.cpp](../../../../tests/DspInitializationTest.cpp)
 
 **Test Cases:**
 
@@ -884,7 +901,7 @@ const juce::AudioBuffer<float>& getRecallBuffer() const;
 
 ### Performance Tests
 
-**File:** [tests/PerformanceBenchmarkTest.cpp](../../../tests/PerformanceBenchmarkTest.cpp)
+**File:** [tests/PerformanceBenchmarkTest.cpp](../../../../tests/PerformanceBenchmarkTest.cpp)
 
 **Benchmarks:**
 
@@ -1347,10 +1364,10 @@ void setLongMemoryDuration(float seconds) {
 
 ### Implementation Files
 
-- **Header:** [dsp/MemoryEchoes.h](../../../dsp/MemoryEchoes.h) (126 lines)
-- **Implementation:** [dsp/MemoryEchoes.cpp](../../../dsp/MemoryEchoes.cpp) (740 lines)
-- **Tests:** [tests/DspInitializationTest.cpp](../../../tests/DspInitializationTest.cpp)
-- **Benchmarks:** [tests/PerformanceBenchmarkTest.cpp](../../../tests/PerformanceBenchmarkTest.cpp)
+- **Header:** [dsp/MemoryEchoes.h](../../../../dsp/MemoryEchoes.h)
+- **Implementation:** [dsp/MemoryEchoes.cpp](../../../../dsp/MemoryEchoes.cpp)
+- **Tests:** [tests/DspInitializationTest.cpp](../../../../tests/DspInitializationTest.cpp)
+- **Benchmarks:** [tests/PerformanceBenchmarkTest.cpp](../../../../tests/PerformanceBenchmarkTest.cpp)
 
 ### Academic References
 
@@ -1376,8 +1393,8 @@ void setLongMemoryDuration(float seconds) {
 - [09-living-stone.md](../physical-modeling/09-living-stone.md) - ElasticHallway (temporal-geometric coupling)
 - [08-resonance.md](../physical-modeling/08-resonance.md) - TubeRayTracer (metallic coloration of memories)
 - [10-impossible-geometry.md](../physical-modeling/10-impossible-geometry.md) - AlienAmplification (non-linear time)
-- [docs/PERFORMANCE_BASELINE.md](../../PERFORMANCE_BASELINE.md) - Complete CPU profiling data
-- [docs/EXPERIMENTAL_PRESETS.md](../../EXPERIMENTAL_PRESETS.md) - Preset usage examples
+- [docs/PERFORMANCE_BASELINE.md](../../../PERFORMANCE_BASELINE.md) - Complete CPU profiling data
+- [docs/EXPERIMENTAL_PRESETS.md](../../../EXPERIMENTAL_PRESETS.md) - Preset usage examples
 
 ### JUCE API References
 

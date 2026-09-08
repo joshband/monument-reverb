@@ -1,6 +1,6 @@
 # Monument Preset Gallery
 
-**Total Presets:** 37 factory presets across 4 categories
+**Total Presets:** 37 factory presets across 3 categories
 
 Monument ships with a comprehensive collection of presets exploring architectural reverbs, living modulation, and physical modeling.
 
@@ -39,9 +39,9 @@ Classic architectural reverbs without modulation. Perfect starting points for so
 
 ---
 
-## 🌊 Living Spaces (Presets 19-32)
+## 🌊 Living Spaces (Presets 19-23 and 29-37)
 
-Dynamic reverbs with modulation routing. Parameters evolve in response to input or internal modulators.
+Dynamic reverbs with modulation routing. Parameters evolve in response to input or internal modulators. These 14 presets are **not** a single contiguous range in the factory preset array — the 5 Physical Modeling presets (24-28, below) sit between the two Living Spaces groups.
 
 ### Phase 3 Living Presets (19-23)
 
@@ -139,6 +139,6 @@ Presets featuring TubeRayTracer, ElasticHallway, and AlienAmplification modules.
 
 For detailed modulation routing and parameter specifications, see:
 
-- [MODULATION_TESTING_GUIDE.md](../testing/MODULATION_TESTING_GUIDE.md)
-- [PARAMETER_BEHAVIOR.md](../architecture/PARAMETER_BEHAVIOR.md)
-- [DSP_ARCHITECTURE.md](../architecture/DSP_ARCHITECTURE.md)
+- [MODULATION_TESTING_GUIDE.md](testing/MODULATION_TESTING_GUIDE.md)
+- [PARAMETER_BEHAVIOR.md](architecture/PARAMETER_BEHAVIOR.md)
+- [DSP_ARCHITECTURE.md](architecture/DSP_ARCHITECTURE.md)
