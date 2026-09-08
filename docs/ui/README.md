@@ -64,8 +64,9 @@ Run the app at:
 build/monument_ui_prototype_artefacts/Debug/Monument UI Prototype.app
 ```
 
-This prototype uses the same editor as the plugin and respects the
-`MONUMENT_LEGACY_UI` build option.
+This prototype uses the same editor as the plugin
+(`MonumentAudioProcessorEditorV2`, the only editor since the legacy editor
+and `MONUMENT_LEGACY_UI` build option were retired).
 
 ## Master Plan
 
