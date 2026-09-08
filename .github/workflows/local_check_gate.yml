@@ -1,0 +1,55 @@
+name: Local Check Gate
+
+# Runs the exact `./scripts/check.sh` command documented in TESTING.md's
+# Quick Start as the local bounded QA gate: curated CTest selection +
+# harness critical suite, built with MONUMENT_ENABLE_TESTS/BUILD_TESTING
+# explicitly ON. This proves the command developers run locally also
+# passes in CI, catching drift between the two - specifically drift in the
+# build/check tooling itself (CMake targets, the harness pin, the script),
+# not general DSP correctness (that's qa_harness.yml's
+# monument_harness_critical/full jobs, the authoritative, wider-scope DSP
+# QA gate per TESTING.md's DSP QA Authority Policy - unmodified here).
+#
+# Scoped to only the files whose changes this job can actually say
+# something new about; ordinary DSP/plugin source changes are already
+# covered by monument_harness_critical and don't need this job to
+# re-validate the same critical suite through a second entrypoint.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/local_check_gate.yml'
+      - 'external/audio-dsp-qa-harness'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/local_check_gate.yml'
+      - 'external/audio-dsp-qa-harness'
+  workflow_dispatch:
+
+jobs:
+  local-check-gate:
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_TOKEN != '' && secrets.SUBMODULE_TOKEN || github.token }}
+
+      - name: Cache JUCE FetchContent
+        uses: actions/cache@v4
+        with:
+          path: build-check/_deps
+          key: ${{ runner.os }}-juce-check-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-juce-check-
+
+      - name: Run scripts/check.sh
+        run: ./scripts/check.sh
