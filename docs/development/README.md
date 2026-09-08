@@ -5,7 +5,7 @@ Development guides, build patterns, and workflow documentation for Monument Reve
 ## Quick Start Guides
 
 ### Essential Guides
-- [QUICK_START_BLENDER_KNOBS.md](QUICK_START_BLENDER_KNOBS.md) - Generate photorealistic knobs with Blender
+- [QUICK_START_BLENDER_KNOBS.md](../archive/ui/QUICK_START_BLENDER_KNOBS.md) - Archived: describes an abandoned Blender knob-asset pipeline (see [docs/ui/UI_DESIGN_HISTORY.md](../ui/UI_DESIGN_HISTORY.md))
 - [QUICK_START_MACRO_TESTING.md](../archive/sessions/QUICK_START_MACRO_TESTING.md) - Test macro control system
 - [BUILD_PATTERNS.md](../archive/sessions/BUILD_PATTERNS.md) - Build system patterns and best practices
 
