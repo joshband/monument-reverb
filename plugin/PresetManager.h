@@ -40,6 +40,22 @@ public:
         float corona = 0.5f;
         float breath = 0.0f;
 
+        // Report step 7: previously-omitted Expressive Macros, routing and
+        // timeline selection, and macro-mode. Defaults match each
+        // parameter's own factory default (see PluginProcessor.cpp's
+        // kDefaultCharacter etc.) so presets saved before this field existed
+        // migrate onto the same values a fresh instance would already have,
+        // rather than an arbitrary/wrong value.
+        float character = 0.5f;
+        float spaceType = 0.3f;
+        float energy = 0.1f;
+        float motion = 0.2f;
+        float color = 0.5f;
+        float dimension = 0.5f;
+        float routingPreset = 0.0f;   // normalized; index 0 = TraditionalCathedral
+        float timelinePreset = 0.0f;  // normalized; index 0
+        float macroMode = 0.0f;       // normalized; index 0 = Ancient Monuments
+
         // Phase 3: Modulation connections for "living" presets
         std::vector<monument::dsp::ModulationMatrix::Connection> modulationConnections;
     };
@@ -77,6 +93,17 @@ public:
     static constexpr size_t kNumFactoryPresets = 37;  // 18 original + 5 "Living" (Phase 3) + 5 Physical Modeling (Phase 5) + 9 "Living" (Phase 6/Task 3)
     static const std::array<Preset, kNumFactoryPresets>& getFactoryPresets();
 
+    // Enum-to-string conversion helpers for modulation Connection fields.
+    // Public so other serialization contracts (host XML state, see
+    // MonumentAudioProcessor::getStateInformation/setStateInformation) can
+    // reuse the exact same string mapping instead of duplicating it.
+    static juce::String sourceTypeToString(monument::dsp::ModulationMatrix::SourceType type);
+    static juce::String destinationTypeToString(monument::dsp::ModulationMatrix::DestinationType type);
+    static monument::dsp::ModulationMatrix::SourceType stringToSourceType(const juce::String& str);
+    static monument::dsp::ModulationMatrix::DestinationType stringToDestinationType(const juce::String& str);
+    static juce::String curveTypeToString(monument::dsp::ModulationMatrix::CurveType type);
+    static monument::dsp::ModulationMatrix::CurveType stringToCurveType(const juce::String& str);
+
 private:
     PresetValues captureCurrentValues() const;
     void applyPreset(const PresetValues& values);
@@ -88,12 +115,4 @@ private:
 
     // Phase 3: Cache modulation connections from last loaded preset
     std::vector<monument::dsp::ModulationMatrix::Connection> lastLoadedModulationConnections;
-
-    // Phase 3: Enum-to-string conversion helpers
-    static juce::String sourceTypeToString(monument::dsp::ModulationMatrix::SourceType type);
-    static juce::String destinationTypeToString(monument::dsp::ModulationMatrix::DestinationType type);
-    static monument::dsp::ModulationMatrix::SourceType stringToSourceType(const juce::String& str);
-    static monument::dsp::ModulationMatrix::DestinationType stringToDestinationType(const juce::String& str);
-    static juce::String curveTypeToString(monument::dsp::ModulationMatrix::CurveType type);
-    static monument::dsp::ModulationMatrix::CurveType stringToCurveType(const juce::String& str);
 };

@@ -396,6 +396,17 @@ void PresetManager::saveUserPreset(const juce::File& targetFile,
     params->setProperty("corona", values.corona);
     params->setProperty("breath", values.breath);
 
+    // Report step 7: Expressive Macros, routing/timeline selection, macro mode
+    params->setProperty("character", values.character);
+    params->setProperty("spaceType", values.spaceType);
+    params->setProperty("energy", values.energy);
+    params->setProperty("motion", values.motion);
+    params->setProperty("color", values.color);
+    params->setProperty("dimension", values.dimension);
+    params->setProperty("routingPreset", values.routingPreset);
+    params->setProperty("timelinePreset", values.timelinePreset);
+    params->setProperty("macroMode", values.macroMode);
+
     root->setProperty("parameters", params.release());
 
     // Phase 3: Save modulation connections
@@ -473,6 +484,19 @@ bool PresetManager::loadUserPreset(const juce::File& sourceFile)
     values.abyss = readFloatProperty(paramsObject, "abyss", 0.5f);
     values.corona = readFloatProperty(paramsObject, "corona", 0.5f);
     values.breath = readFloatProperty(paramsObject, "breath", 0.0f);
+
+    // Report step 7: Expressive Macros, routing/timeline selection, macro
+    // mode (with migration defaults matching each parameter's own factory
+    // default, for presets saved before this field existed).
+    values.character = readFloatProperty(paramsObject, "character", 0.5f);
+    values.spaceType = readFloatProperty(paramsObject, "spaceType", 0.3f);
+    values.energy = readFloatProperty(paramsObject, "energy", 0.1f);
+    values.motion = readFloatProperty(paramsObject, "motion", 0.2f);
+    values.color = readFloatProperty(paramsObject, "color", 0.5f);
+    values.dimension = readFloatProperty(paramsObject, "dimension", 0.5f);
+    values.routingPreset = readFloatProperty(paramsObject, "routingPreset", 0.0f);
+    values.timelinePreset = readFloatProperty(paramsObject, "timelinePreset", 0.0f);
+    values.macroMode = readFloatProperty(paramsObject, "macroMode", 0.0f);
 
     // Phase 3: Load modulation connections
     values.modulationConnections.clear();
@@ -555,6 +579,17 @@ PresetManager::PresetValues PresetManager::captureCurrentValues() const
     values.corona = readParam("corona", values.corona);
     values.breath = readParam("breath", values.breath);
 
+    // Report step 7: Expressive Macros, routing/timeline selection, macro mode
+    values.character = readParam("character", values.character);
+    values.spaceType = readParam("spaceType", values.spaceType);
+    values.energy = readParam("energy", values.energy);
+    values.motion = readParam("motion", values.motion);
+    values.color = readParam("color", values.color);
+    values.dimension = readParam("dimension", values.dimension);
+    values.routingPreset = readParam("routingPreset", values.routingPreset);
+    values.timelinePreset = readParam("timelinePreset", values.timelinePreset);
+    values.macroMode = readParam("macroMode", values.macroMode);
+
     return values;
 }
 
@@ -603,6 +638,17 @@ void PresetManager::applyPreset(const PresetValues& values)
     setParamNormalized(parameters, "abyss", values.abyss);
     setParamNormalized(parameters, "corona", values.corona);
     setParamNormalized(parameters, "breath", values.breath);
+
+    // Report step 7: Expressive Macros, routing/timeline selection, macro mode
+    setParamNormalized(parameters, "character", values.character);
+    setParamNormalized(parameters, "spaceType", values.spaceType);
+    setParamNormalized(parameters, "energy", values.energy);
+    setParamNormalized(parameters, "motion", values.motion);
+    setParamNormalized(parameters, "color", values.color);
+    setParamNormalized(parameters, "dimension", values.dimension);
+    setParamNormalized(parameters, "routingPreset", values.routingPreset);
+    setParamNormalized(parameters, "timelinePreset", values.timelinePreset);
+    setParamNormalized(parameters, "macroMode", values.macroMode);
 }
 
 juce::File PresetManager::resolveUserPresetFile(const juce::File& targetFile, const juce::String& name) const
