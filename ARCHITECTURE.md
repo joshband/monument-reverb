@@ -2,7 +2,7 @@
 
 > **Quick Reference**: See [docs/architecture/ARCHITECTURE_QUICK_REFERENCE.md](docs/architecture/ARCHITECTURE_QUICK_REFERENCE.md) for visual diagrams and fast navigation.
 >
-> **Detailed Review**: See [docs/architecture/ARCHITECTURE_REVIEW.md](docs/architecture/ARCHITECTURE_REVIEW.md) for a deeper architectural review. Long-form docs under `docs/` describe code and sometimes drift from it faster than this file does — when they disagree, trust the source and this file's citations.
+> **Detailed Review**: See [docs/archive/reviews/01042026-ArchitectureReview.md](docs/archive/reviews/01042026-ArchitectureReview.md) for an archived, historical architectural review. Long-form docs under `docs/` describe code and sometimes drift from it faster than this file does — when they disagree, trust the source and this file's citations.
 
 ---
 
@@ -204,7 +204,7 @@ cmake --build build --target Monument_AU --config Release -j8
 
 **Architecture**:
 - [docs/architecture/ARCHITECTURE_QUICK_REFERENCE.md](docs/architecture/ARCHITECTURE_QUICK_REFERENCE.md) - Visual diagrams & fast navigation
-- [docs/architecture/ARCHITECTURE_REVIEW.md](docs/architecture/ARCHITECTURE_REVIEW.md) - Detailed review
+- [docs/archive/reviews/01042026-ArchitectureReview.md](docs/archive/reviews/01042026-ArchitectureReview.md) - Detailed review (archived, historical)
 - [docs/architecture/PARAMETER_BEHAVIOR.md](docs/architecture/PARAMETER_BEHAVIOR.md) - Parameter contracts
 - [docs/presets/PRESET_FORMAT.md](docs/presets/PRESET_FORMAT.md) - Preset JSON format contract
 

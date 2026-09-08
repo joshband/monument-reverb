@@ -952,7 +952,7 @@ Monument features an **interactive 4×15 grid panel** for visual modulation edit
 
 **Detailed Technical Documentation:**
 - [DSP_ARCHITECTURE.md](architecture/DSP_ARCHITECTURE.md) - Complete technical specs
-- [ARCHITECTURE_REVIEW.md](architecture/ARCHITECTURE_REVIEW.md) - Senior engineer review
+- [ARCHITECTURE_REVIEW.md](archive/reviews/01042026-ArchitectureReview.md) - Senior engineer review (archived)
 - [PARAMETER_BEHAVIOR.md](architecture/PARAMETER_BEHAVIOR.md) - Parameter mappings
 
 **Testing & Validation:**
