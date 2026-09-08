@@ -23,6 +23,7 @@ class ElasticHallway;
 class AlienAmplification;
 class Buttress;
 class Facade;
+class MemoryEchoes;
 
 /**
  * @brief DSP module types available for routing
@@ -254,6 +255,17 @@ public:
      */
     Chambers* getChambers() noexcept { return chambers.get(); }
 
+    /**
+     * @brief Wire in the MemoryEchoes instance owned by PluginProcessor.
+     *
+     * processAncientWay() calls memoryEchoes->process() immediately before
+     * Chambers (injecting recalled material into the buffer Chambers will
+     * reverberate) and memoryEchoes->captureWet() immediately after
+     * (capturing Chambers' wet output for future recall). Non-owning:
+     * DspRoutingGraph does not prepare/reset/own this pointer's lifetime.
+     */
+    void setMemoryEchoes(MemoryEchoes* memory) noexcept { memoryEchoes = memory; }
+
 private:
     // Module instances (allocated once in constructor)
     std::unique_ptr<Foundation> foundation;
@@ -265,6 +277,9 @@ private:
     std::unique_ptr<AlienAmplification> alienAmplification;
     std::unique_ptr<Buttress> buttress;
     std::unique_ptr<Facade> facade;
+
+    // Non-owning: set via setMemoryEchoes(), owned/prepared/reset by PluginProcessor.
+    MemoryEchoes* memoryEchoes = nullptr;
 
     // Module bypass states (lock-free)
     std::atomic<uint32_t> bypassMask{0};

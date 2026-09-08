@@ -45,15 +45,24 @@ preset's name (e.g. "Parallel Universe") describes an unused topology, not
 the topology actually rendered; only its bypass effect is real, and that
 effect is a preserved behavioral contract even where the name overstates it.
 
-**Memory Echoes is prepared but not reached:** `MemoryEchoes::prepare/reset`
-and its parameter setters run every block, and its host parameter IDs remain
-a compatibility surface, but `memoryEchoes.process()` is never called in
-ordinary builds — its recall buffer is only mixed to output behind the
-non-production `MONUMENT_MEMORY_PROVE` debug flag
-(`plugin/PluginProcessor.cpp` around the memory parameter setters and the
-`#if defined(MONUMENT_MEMORY_PROVE)` block). Do not describe Memory Echoes as
-part of the rendered sound, and do not remove it as "dead code" without a
-separate product decision — it is disconnected, not deleted.
+**Memory Echoes is reached, wired around Chambers:** `DspRoutingGraph` holds
+a non-owning `MemoryEchoes*` (set once via `setMemoryEchoes()`, called from
+`MonumentAudioProcessor`'s constructor with the processor's own
+`memoryEchoes` member). `processAncientWay()` calls
+`memoryEchoes->process(buffer)` immediately before Chambers — this surfaces
+recalled material and injects it into the buffer Chambers is about to
+reverberate, scaled by the `chambersInputGain` derived from `density` — and
+`memoryEchoes->captureWet(buffer)` immediately after, capturing Chambers' wet
+output as future recall material. Both calls run unconditionally (independent
+of Chambers' own bypass bit), so recalled material stays audible even when a
+routing preset bypasses Chambers itself. There is no separate output-mix step
+for Memory Echoes: because it injects pre-Chambers, its contribution reaches
+output through the same chain as everything else. The former
+`MONUMENT_ENABLE_MEMORY` build flag and `MONUMENT_MEMORY_PROVE` manual
+bring-up harness have both been removed — this is permanent, always-on
+behavior, not opt-in. See `tests/MemoryEchoesRoutingIntegrationTest.cpp` for
+the test proving recall reaches `processAncientWay()`'s output when `memory`
+> 0 and stays silent when `memory` == 0.
 
 ### Macro control (two independently selectable systems, `macroMode` parameter)
 
