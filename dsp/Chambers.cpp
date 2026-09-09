@@ -4,43 +4,106 @@
 
 namespace
 {
-constexpr float kInvSqrt8 = 0.3535533905932738f;
-using Matrix8 = std::array<std::array<float, 8>, 8>;
+// Feedback matrix order. Must match Chambers::kNumLines.
+constexpr size_t kMatrixSize = 12;
+using MatrixN = std::array<std::array<float, kMatrixSize>, kMatrixSize>;
 constexpr size_t kSimdAlignment = juce::dsp::SIMDRegister<float>::SIMDRegisterSize;
 
-constexpr float kHouseholderDiag = 0.75f;
-constexpr float kHouseholderOff = -0.25f;
+// Householder reflection H = I - (2/N)*ones(N,N) across the all-ones vector.
+// Exactly orthogonal for any N (H^T H = I algebraically), so this generalizes
+// from 8 to 12 lines without needing a re-derivation.
+constexpr float kHouseholderDiag = 1.0f - 2.0f / static_cast<float>(kMatrixSize);
+constexpr float kHouseholderOff = -2.0f / static_cast<float>(kMatrixSize);
 
-alignas(kSimdAlignment) constexpr Matrix8 kMatrixHadamard{{
-    {{ kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8 }},
-    {{ kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8 }},
-    {{ kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8 }},
-    {{ kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8 }},
-    {{ kInvSqrt8,  kInvSqrt8,  kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8, -kInvSqrt8, -kInvSqrt8 }},
-    {{ kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8,  kInvSqrt8 }},
-    {{ kInvSqrt8,  kInvSqrt8, -kInvSqrt8, -kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8,  kInvSqrt8 }},
-    {{ kInvSqrt8, -kInvSqrt8, -kInvSqrt8,  kInvSqrt8, -kInvSqrt8,  kInvSqrt8,  kInvSqrt8, -kInvSqrt8 }}
+// Order-12 Hadamard matrix (Paley type-I construction over GF(11), 11 ≡ 3 mod 4),
+// normalized by 1/sqrt(12). Verified H*H^T == 12*I. Order-8 Sylvester-style
+// Hadamard matrices don't extend to order 12 (12 isn't a power of 2), so this
+// is a different, independently-verified construction rather than a resize.
+constexpr float kInvSqrt12 = 0.2886751345948129f;
+alignas(kSimdAlignment) constexpr MatrixN kMatrixHadamard{{
+    {{  kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12 }},
+    {{ -kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12, -kInvSqrt12, -kInvSqrt12,  kInvSqrt12, -kInvSqrt12 }},
+    {{ -kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12, -kInvSqrt12, -kInvSqrt12,  kInvSqrt12 }},
+    {{ -kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12, -kInvSqrt12, -kInvSqrt12 }},
+    {{ -kInvSqrt12, -kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12, -kInvSqrt12 }},
+    {{ -kInvSqrt12, -kInvSqrt12, -kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12 }},
+    {{ -kInvSqrt12, -kInvSqrt12, -kInvSqrt12, -kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12 }},
+    {{ -kInvSqrt12,  kInvSqrt12, -kInvSqrt12, -kInvSqrt12, -kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12 }},
+    {{ -kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12, -kInvSqrt12, -kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12 }},
+    {{ -kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12, -kInvSqrt12, -kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12 }},
+    {{ -kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12, -kInvSqrt12, -kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12 }},
+    {{ -kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12,  kInvSqrt12,  kInvSqrt12, -kInvSqrt12, -kInvSqrt12, -kInvSqrt12,  kInvSqrt12, -kInvSqrt12,  kInvSqrt12 }}
 }};
 
-alignas(kSimdAlignment) constexpr Matrix8 kMatrixHouseholder{{
-    {{ kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
-    {{ kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
-    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
-    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
-    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
-    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff }},
-    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff }},
-    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag }}
+alignas(kSimdAlignment) constexpr MatrixN kMatrixHouseholder{{
+    {{ kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff,  kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag, kHouseholderOff }},
+    {{ kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderOff,  kHouseholderDiag }}
 }};
 
-// Delay lengths in samples at 48 kHz.
-// Chosen as primes (>5) to avoid common factors with 48 kHz (2^7 * 3 * 5^3),
-// and spread from ~50 ms to ~1.23 s for a large, non-repeating late field.
-constexpr std::array<int, 8> kDelaySamples48k{
-    2411, 4201, 7001, 11003, 17011, 26003, 39019, 59009
+// Delay lengths in samples at 48 kHz, spread from ~50ms to ~6.5s.
+// Prime-based for incommensurate ratios; harmonic variants computed at runtime.
+constexpr std::array<int, 12> kDelaySamples48k{
+    2411, 4201, 7001, 11003, 17011, 26003, 39019, 59009, 89003, 135007, 205003, 310019
 };
 
-// Input diffusion delays (48 kHz), 1–5 ms range and incommensurate.
+// Harmonic clustering delay ratios: multiply the base delays above to create
+// musical relationships between lines, for resonant, pitched reverb character.
+//
+// Applied against a single shared fundamental (kDelaySamples48k[0], the
+// shortest base delay) rather than each line's own already-large,
+// widely-varying base delay (which itself spans ~129x across the 12 lines).
+// Multiplying per-line bases by these ratios would compound the two ranges
+// (e.g. OctaveStack's 2048x against the longest base is ~635M samples --
+// no realistic buffer holds that, so nearly every line would clamp to the
+// same maximum and lose the intended distinct spacing). A shared fundamental
+// is also what "harmonic"/"octave" relationships actually mean musically:
+// integer or power-of-2 multiples of one reference pitch, not of twelve
+// unrelated ones.
+constexpr std::array<float, 12> kHarmonic2xRatios{
+    1.0f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f, 9.0f, 12.0f, 16.0f, 18.0f, 24.0f, 32.0f
+};
+
+constexpr std::array<float, 12> kHarmonic3xRatios{
+    1.0f, 3.0f, 5.0f, 7.0f, 9.0f, 11.0f, 13.0f, 15.0f, 17.0f, 19.0f, 21.0f, 23.0f
+};
+
+// Spans -2 to +9 octaves from the fundamental (some lines shorter than it,
+// most longer) rather than 0 to +11 (all longer): capped at 2^9 instead of
+// the original 2^11 so the longest resulting delay (fundamental * 512) fits
+// a bounded delay-buffer budget (see kHarmonicMaxGrowth) instead of the
+// ~635M-sample worst case the uncapped per-line-base scheme produced.
+constexpr std::array<float, 12> kOctaveRatios{
+    0.25f, 0.5f, 1.0f, 2.0f, 4.0f, 8.0f, 16.0f, 32.0f, 64.0f, 128.0f, 256.0f, 512.0f
+};
+// Longest delay any harmonic-clustering mode can produce, as a multiple of
+// the fundamental (kOctaveRatios' max is the largest of the three tables).
+// prepare() sizes delayBufferLength to fit this alongside the Incommensurate
+// case, so a mode switch never needs to (RT-unsafe) reallocate the buffer.
+constexpr float kHarmonicMaxGrowth = 512.0f;
+
+// Density evolution range: negative shifts density down over the decay
+// (grainy -> smooth), positive shifts it up (smooth -> grainy).
+constexpr float kDensityEvolutionMin = -1.0f;
+constexpr float kDensityEvolutionMax = 1.0f;
+constexpr float kDensityEvolutionRate = 0.001f;  // Per-sample smoothing rate at 48kHz
+
+constexpr float kAttackTimeMaxSeconds = 10.0f;    // Longest slow-attack swell time
+// Below this normalized value (10ms of the 10s max range), attack time is
+// treated as instant. Expressed in normalized units so every call site
+// checks the same threshold; a stray 0.01f compared directly against
+// normalized attackTimeTarget in one place and against attackSeconds
+// (target * kAttackTimeMaxSeconds) in another is a real 10x unit mismatch.
+constexpr float kAttackTimeActiveThreshold = 0.001f;
 constexpr std::array<int, 2> kInputDiffuserSamples48k{149, 223};
 
 // Output decorrelation delays/coefficients (48 kHz): fixed, incommensurate
@@ -49,48 +112,52 @@ constexpr std::array<int, 2> kOutputDecorrelatorSamples48k{211, 337};
 constexpr std::array<float, 2> kOutputDecorrelatorCoeff{0.35f, 0.5f};
 
 // Late diffusion delays (48 kHz), sub-10 ms, incommensurate across lines.
-constexpr std::array<int, 8> kLateDiffuserSamples48k{
-    157, 173, 197, 223, 251, 281, 313, 347
+constexpr std::array<int, 12> kLateDiffuserSamples48k{
+    157, 173, 197, 223, 251, 281, 313, 347, 383, 421, 463, 509
 };
 
 // Feedback diffusion delays (48 kHz), short taps for extra density inside the loop.
-constexpr std::array<int, 8> kFeedbackDiffuserSamples48k{
-    59, 73, 89, 97, 113, 131, 149, 167
+constexpr std::array<int, 12> kFeedbackDiffuserSamples48k{
+    59, 73, 89, 97, 113, 131, 149, 167, 191, 211, 233, 257
 };
 
-constexpr std::array<float, 8> kDampingOffsets{
-    -0.035f, -0.025f, -0.015f, -0.005f, 0.005f, 0.015f, 0.025f, 0.035f
+// Per-line damping offset from the shared damping base, spreading tonal
+// character (brighter/darker) across lines instead of one uniform filter.
+constexpr std::array<float, 12> kDampingOffsets{
+    -0.045f, -0.035f, -0.025f, -0.015f, -0.005f, 0.005f, 0.015f, 0.025f, 0.035f, 0.045f, 0.055f, 0.065f
 };
 
-constexpr std::array<float, 8> kLateDiffuserCoeffOffsets{
-    -0.06f, -0.045f, -0.03f, -0.015f, 0.015f, 0.03f, 0.045f, 0.06f
+constexpr std::array<float, 12> kLateDiffuserCoeffOffsets{
+    -0.07f, -0.055f, -0.04f, -0.025f, -0.01f, 0.01f, 0.025f, 0.04f, 0.055f, 0.07f, 0.085f, 0.1f
 };
 
-constexpr std::array<float, 8> kFeedbackDiffuserCoeffOffsets{
-    -0.04f, -0.03f, -0.02f, -0.01f, 0.01f, 0.02f, 0.03f, 0.04f
+constexpr std::array<float, 12> kFeedbackDiffuserCoeffOffsets{
+    -0.05f, -0.04f, -0.03f, -0.02f, -0.01f, 0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f, 0.07f
 };
 
-constexpr std::array<float, 8> kInputMid{
-    1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f
+// Mid/side injection sign patterns: which lines receive the mid vs. side
+// component in-phase vs. inverted, for stereo image spread across the FDN.
+constexpr std::array<float, 12> kInputMid{
+    1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f
 };
 
-constexpr std::array<float, 8> kInputSide{
-    1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f
+constexpr std::array<float, 12> kInputSide{
+    1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f
 };
 
 // Constant-power pan weights per line (no sign flips) so mono sum keeps all taps.
-// Pan positions: {-0.9, 0.9, -0.7, 0.7, -0.5, 0.5, -0.3, 0.3}.
-constexpr std::array<float, 8> kOutputLeft{
-    0.9969173f, 0.0784591f, 0.9723699f, 0.2334454f,
-    0.9238795f, 0.3826834f, 0.8526402f, 0.5224986f
+// Pan positions: {-0.95, 0.95, -0.85, 0.85, -0.75, 0.75, -0.65, 0.65, -0.55, 0.55, -0.45, 0.45}
+constexpr std::array<float, 12> kOutputLeft{
+    0.99968f, 0.0316f, 0.99452f, 0.10453f, 0.97629f, 0.21644f,
+    0.94388f, 0.33043f, 0.89879f, 0.43837f, 0.84125f, 0.54064f
 };
 
-constexpr std::array<float, 8> kOutputRight{
-    0.0784591f, 0.9969173f, 0.2334454f, 0.9723699f,
-    0.3826834f, 0.9238795f, 0.5224986f, 0.8526402f
+constexpr std::array<float, 12> kOutputRight{
+    0.0316f, 0.99968f, 0.10453f, 0.99452f, 0.21644f, 0.97629f,
+    0.33043f, 0.94388f, 0.43837f, 0.89879f, 0.54064f, 0.84125f
 };
 
-constexpr float kOutputGain = 0.5f; // sum(L^2) == sum(R^2) == 4.0 -> normalize to unity.
+constexpr float kOutputGain = 0.408f; // sum(L^2) == sum(R^2) == 6.0 for 12 lines -> normalize to unity
 
 constexpr float kGravityCutoffMinHz = 20.0f;
 constexpr float kGravityCutoffMaxHz = 200.0f;
@@ -163,71 +230,51 @@ inline float sanitizeNormalizedParameter(float value, float fallback, const char
     return value;
 }
 
-inline void blendMatrices(const Matrix8& a, const Matrix8& b, float blend, Matrix8& dest)
+inline void blendMatrices(const MatrixN& a, const MatrixN& b, float blend, MatrixN& dest)
 {
     const float invBlend = 1.0f - blend;
-    for (size_t row = 0; row < 8; ++row)
-        for (size_t col = 0; col < 8; ++col)
+    for (size_t row = 0; row < kMatrixSize; ++row)
+        for (size_t col = 0; col < kMatrixSize; ++col)
             dest[row][col] = invBlend * a[row][col] + blend * b[row][col];
 }
 
-inline void normalizeColumns(Matrix8& matrix)
+inline void normalizeColumns(MatrixN& matrix)
 {
-    for (size_t col = 0; col < 8; ++col)
+    for (size_t col = 0; col < kMatrixSize; ++col)
     {
         float norm = 0.0f;
-        for (size_t row = 0; row < 8; ++row)
+        for (size_t row = 0; row < kMatrixSize; ++row)
             norm += matrix[row][col] * matrix[row][col];
         if (norm > kMatrixNormEpsilon)
         {
             const float invNorm = 1.0f / std::sqrt(norm);
-            for (size_t row = 0; row < 8; ++row)
+            for (size_t row = 0; row < kMatrixSize; ++row)
                 matrix[row][col] *= invNorm;
         }
     }
 }
 
-inline void computeWarpMatrix(float warp, Matrix8& dest)
+inline void computeWarpMatrix(float warp, MatrixN& dest)
 {
     // Warp morphs between orthogonal feedback topologies while keeping column energy stable.
     blendMatrices(kMatrixHadamard, kMatrixHouseholder, warp, dest);
     normalizeColumns(dest);
 }
 
-inline void applyMatrix(const Matrix8& matrix, const float* input, float* output)
+inline void applyMatrix(const MatrixN& matrix, const float* input, float* output)
 {
-    using Vec = juce::dsp::SIMDRegister<float>;
-    constexpr size_t simdWidth = Vec::SIMDNumElements;
-
-    if constexpr (simdWidth == 8)
+    // Plain scalar loop (144 mults/sample) rather than a vectorized kernel.
+    // kMatrixSize (12) doesn't divide evenly into an 8-wide SIMD register,
+    // though it would into three 4-wide groups (as the 8-line version did for
+    // 4-wide targets) -- that path was dropped for simplicity rather than
+    // rewritten, since the scalar cost is already within the module's CPU
+    // budget; revisit if profiling shows it matters.
+    for (size_t row = 0; row < kMatrixSize; ++row)
     {
-        const Vec in = Vec::fromRawArray(input);
-        for (size_t row = 0; row < 8; ++row)
-        {
-            const Vec rowVec = Vec::fromRawArray(matrix[row].data());
-            output[row] = (rowVec * in).sum();
-        }
-    }
-    else if constexpr (simdWidth == 4)
-    {
-        const Vec in0 = Vec::fromRawArray(input);
-        const Vec in1 = Vec::fromRawArray(input + simdWidth);
-        for (size_t row = 0; row < 8; ++row)
-        {
-            const Vec row0 = Vec::fromRawArray(matrix[row].data());
-            const Vec row1 = Vec::fromRawArray(matrix[row].data() + simdWidth);
-            output[row] = (row0 * in0 + row1 * in1).sum();
-        }
-    }
-    else
-    {
-        for (size_t row = 0; row < 8; ++row)
-        {
-            float sum = 0.0f;
-            for (size_t col = 0; col < 8; ++col)
-                sum += matrix[row][col] * input[col];
-            output[row] = sum;
-        }
+        float sum = 0.0f;
+        for (size_t col = 0; col < kMatrixSize; ++col)
+            sum += matrix[row][col] * input[col];
+        output[row] = sum;
     }
 }
 
@@ -271,7 +318,13 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
         delaySum += delaySamples[i];
     }
 
-    delayBufferLength = juce::jmax(1, static_cast<int>(std::ceil(maxDelay)) + 2);
+    // Sized for the longer of the two worst cases -- plain Incommensurate
+    // delays, or a harmonic-clustering mode's fundamental * kHarmonicMaxGrowth
+    // -- so switching modes later never needs to (RT-unsafe) reallocate.
+    const float fundamentalDelay = juce::jmax(1.0f, static_cast<float>(kDelaySamples48k[0]) * scale);
+    const float harmonicMaxDelay = fundamentalDelay * kHarmonicMaxGrowth;
+    delayBufferLength = juce::jmax(1,
+        static_cast<int>(std::ceil(juce::jmax(maxDelay, harmonicMaxDelay))) + 2);
     meanDelaySeconds = (delaySum / static_cast<float>(kNumLines))
         / static_cast<float>(sampleRateHz);
     delayLines.setSize(kNumLines, delayBufferLength);
@@ -360,6 +413,33 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
     adaptiveWarpOffsetSmoother.reset(sampleRateHz, kAdaptiveWarpSmoothingMs / 1000.0f);
     adaptiveWarpOffsetSmoother.setCurrentAndTargetValue(0.0f);
 
+    // Initialize ambient reverb shaping smoothers
+    densityEvolutionSmoother.reset(sampleRateHz, kDensityEvolutionRate);
+    densityEvolutionSmoother.setCurrentAndTargetValue(0.0f);
+    
+    attackTimeSmoother.reset(sampleRateHz, 0.1f);  // 100ms smoothing for attack parameter
+    attackTimeSmoother.setCurrentAndTargetValue(0.0f);
+    attackEnvelopeValue = 1.0f;
+    attackEnvelopeRate = 0.0f;
+    densityEvolutionFactor = 1.0f;
+
+    // 5ms half-window (10ms total: fade out, swap, fade in) around a
+    // warp-clustering mode change -- long enough to be click-free, short
+    // enough that a mode switch still feels immediate.
+    warpClusteringMuteHalfSamples = juce::jmax(1, static_cast<int>(sampleRateHz * 0.005));
+    warpClusteringMuteCounter = -1;
+    warpClusteringMuteGain = 1.0f;
+    // Re-apply whatever mode was last selected (defaults to Incommensurate on
+    // the very first prepare()) against the delaySamples/delayBufferLength
+    // just computed above for the new sample rate -- otherwise a re-prepare
+    // (sample rate or block size change) would silently drop back to
+    // Incommensurate spacing despite warpClusteringMode still saying
+    // otherwise, and a mode-switch mute already in flight would be abandoned
+    // mid-fade by the delayLines.clear() above.
+    applyWarpClusteringMode(warpClusteringMode);
+    lastRequestedWarpClusteringMode = warpClusteringMode;
+    pendingWarpClusteringMode = warpClusteringMode;
+
     // Initialize diffuser coefficient smoothers (8ms = fast but click-free)
     for (auto& smoother : inputDiffuserCoeffSmoothers)
         smoother.reset(sampleRateHz, 0.008);
@@ -423,6 +503,27 @@ void Chambers::reset()
     for (auto& smoother : jitterSmoothers)
         smoother.setCurrentAndTargetValue(0.0f);
     jitterTargets.fill(0.0f);
+    
+    // Reset ambient reverb shaping state. Preserves the caller's last
+    // setDensityEvolution()/setAttackTime() targets (matching warpSmoothed's
+    // preservation of warpTarget above) rather than silently reverting them
+    // to their defaults on every reset().
+    densityEvolutionSmoother.setCurrentAndTargetValue(densityEvolutionTarget);
+    attackTimeSmoother.setCurrentAndTargetValue(attackTimeTarget);
+    // Abandon any in-flight warp-clustering mode-switch crossfade cleanly
+    // rather than leaving it counting down through a reset, and re-sync
+    // pending/lastRequested to the mode actually in effect (delaySamples[]
+    // itself is untouched here, unlike in prepare(), since reset() doesn't
+    // recompute delayBufferLength).
+    warpClusteringMuteCounter = -1;
+    warpClusteringMuteGain = 1.0f;
+    lastRequestedWarpClusteringMode = warpClusteringMode;
+    pendingWarpClusteringMode = warpClusteringMode;
+    attackEnvelopeValue = 1.0f;
+    attackEnvelopeRate = attackTimeTarget > kAttackTimeActiveThreshold
+        ? 1.0f / (attackTimeTarget * kAttackTimeMaxSeconds * static_cast<float>(sampleRateHz))
+        : 1.0f;
+    densityEvolutionFactor = 1.0f;
 
     // Reset spatial processor
     if (spatialProcessor)
@@ -522,6 +623,12 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
 
         warpSmoother.reset(warpTarget);
         driftSmoother.reset(driftTarget);
+        // Prime to the caller's already-set target instead of ramping in
+        // from the prepare()-time default (0) -- matches warp/drift above, and
+        // avoids a spurious multi-hundred-ms delay before setDensityEvolution()/
+        // setAttackTime() take effect on the first block after prepare().
+        densityEvolutionSmoother.setCurrentAndTargetValue(densityEvolutionTarget);
+        attackTimeSmoother.setCurrentAndTargetValue(attackTimeTarget);
 
         // Initialize diffuser coefficient smoothers with current density from first buffer sample
         // Default to 0.5 if buffer is empty (will be set properly on first setDensity call)
@@ -617,7 +724,13 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         // Eliminates double smoothing and reduces CPU overhead
         const float timeNorm = juce::jlimit(0.0f, 1.0f, timeBuffer[sample]);
         const float massNorm = juce::jlimit(0.0f, 1.0f, massBuffer[sample]);
-        const float densityNorm = juce::jlimit(0.0f, 1.0f, densityBuffer[sample]);
+        const float densityNormRaw = juce::jlimit(0.0f, 1.0f, densityBuffer[sample]);
+        // Apply the density evolution factor computed from the previous
+        // sample's envelope time (see below) -- this sample's diffusion-strength
+        // calculations are the first consumer of densityNorm, so the factor must
+        // already be known by this point; a strict same-sample dependency would
+        // require reordering the freeze/envelope-trigger logic that decides it.
+        const float densityNorm = juce::jlimit(0.0f, 1.0f, densityNormRaw * densityEvolutionFactor);
         const float gravityNorm = juce::jlimit(0.0f, 1.0f, gravityBuffer[sample]);
         const float bloomNorm = juce::jlimit(0.0f, 1.0f, bloomBuffer[sample]);
         // Drift subtly modulates delay lengths; depth ramps with freezeBlend and phases pause on freeze/ramp.
@@ -708,7 +821,7 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         const float inputGainLocal = densityInputGain;
         const float earlyMixLocal = juce::jlimit(0.0f, 0.7f, densityEarlyMix * freezeBlend);
 
-        const float inputScale = inputGainLocal * kInvSqrt8;
+        const float inputScale = inputGainLocal * kInvSqrt12;
         const float gravityCoeff = juce::jlimit(
             0.0f, 1.0f, juce::jmap(gravityNorm, gravityCoeffMin, gravityCoeffMax));
 
@@ -728,6 +841,11 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
                 envelopeTimeSeconds = 0.0f;
                 envelopeValue = 1.0f;
                 envelopeTriggerArmed = false;
+                // Start the slow-attack swell from silence on each new
+                // transient. Without this, attackEnvelopeValue never leaves its
+                // initial 1.0 and the attackTime parameter has no audible effect
+                // (the per-sample ramp below only fires while it's still < 1.0).
+                attackEnvelopeValue = 0.0f;
             }
             else if (envelopeInputMagnitude <= envelopeResetThreshold)
             {
@@ -735,6 +853,54 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             }
 
             envelopeTimeSeconds += static_cast<float>(1.0 / sampleRateHz);
+            
+            // Density evolution over time: shifts echo density up or down as the
+            // decay progresses, rather than staying constant. Computes the factor
+            // densityNorm will be multiplied by on the *next*
+            // sample (see the top of this loop) -- this sample's own densityNorm
+            // was already consumed by the diffusion-strength calculations above
+            // before envelopeTimeSeconds was known for this sample.
+            const float densityEvolution = densityEvolutionSmoother.getNextValue();
+            // Clamped to keep the factor from growing unbounded (or flipping sign)
+            // on very long, un-retriggered decays/freezes; the final densityNorm
+            // is clamped to [0,1] separately where the factor is applied above.
+            densityEvolutionFactor = juce::jlimit(0.0f, 2.0f,
+                1.0f + densityEvolution * (envelopeTimeSeconds / kEnvelopeMaxTimeSeconds));
+            
+            // Slow-attack envelope: ramps the wet signal in gradually instead
+            // of letting it hit full level instantly.
+            const float attackNorm = attackTimeSmoother.getNextValue();
+            if (attackNorm > kAttackTimeActiveThreshold && attackEnvelopeValue < 1.0f)
+            {
+                attackEnvelopeValue = juce::jmin(1.0f, attackEnvelopeValue + attackEnvelopeRate);
+            }
+            else if (attackNorm <= kAttackTimeActiveThreshold)
+            {
+                attackEnvelopeValue = 1.0f;  // Instant attack
+            }
+        }
+
+        // Warp-clustering mode-switch click guard: ramps the output down,
+        // swaps delaySamples[] to the pending mode at the window's midpoint
+        // (when fully muted), then ramps back up. Runs regardless of freeze,
+        // since frozen playback reads the same delaySamples[] array.
+        if (warpClusteringMuteCounter >= 0)
+        {
+            const int totalWindow = warpClusteringMuteHalfSamples * 2;
+            if (warpClusteringMuteCounter == warpClusteringMuteHalfSamples)
+                applyWarpClusteringMode(pendingWarpClusteringMode);
+
+            const int elapsed = totalWindow - warpClusteringMuteCounter;
+            warpClusteringMuteGain = elapsed <= warpClusteringMuteHalfSamples
+                ? 1.0f - static_cast<float>(elapsed) / static_cast<float>(warpClusteringMuteHalfSamples)
+                : static_cast<float>(elapsed - warpClusteringMuteHalfSamples)
+                    / static_cast<float>(warpClusteringMuteHalfSamples);
+            warpClusteringMuteGain = juce::jlimit(0.0f, 1.0f, warpClusteringMuteGain);
+            --warpClusteringMuteCounter;
+        }
+        else
+        {
+            warpClusteringMuteGain = 1.0f;
         }
 
         // Input diffusion is pre-FDN to build density without altering the feedback topology.
@@ -861,11 +1027,11 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
             wetFrozenL += (outFrozen[i] * airGain) * outputLeftGains[i];
             wetFrozenR += (outFrozen[i] * airGain) * outputRightGains[i];
         }
-        wetLiveL *= outputScale * envelopeValue;
-        wetLiveR *= outputScale * envelopeValue;
+        wetLiveL *= outputScale * envelopeValue * attackEnvelopeValue * warpClusteringMuteGain;
+        wetLiveR *= outputScale * envelopeValue * attackEnvelopeValue * warpClusteringMuteGain;
         // Preserve the captured Bloom envelope during freeze crossfades.
-        wetFrozenL *= outputScale * envelopeValue;
-        wetFrozenR *= outputScale * envelopeValue;
+        wetFrozenL *= outputScale * envelopeValue * attackEnvelopeValue * warpClusteringMuteGain;
+        wetFrozenR *= outputScale * envelopeValue * attackEnvelopeValue * warpClusteringMuteGain;
 
         // Decorrelate the live wet signal only, before the live/frozen blend,
         // and only while fully unfrozen. Deliberately excluded from freeze
@@ -897,7 +1063,7 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
                 * inputScale * freezeBlend;
             const float memoryInjection = hasExternalInjection
                 ? (memoryMid * kInputMid[i] + memorySide * kInputSide[i])
-                    * kInvSqrt8 * kMemoryInjectionGain * freezeBlend
+                    * kInvSqrt12 * kMemoryInjectionGain * freezeBlend
                 : 0.0f;
             float feedbackSample = feedback[i] * feedbackLocal;
             if (feedbackDiffusionMix > 0.0f)
@@ -1050,6 +1216,90 @@ void Chambers::setFeedbackSaturation(float amount)
 void Chambers::setDelayJitter(float amount)
 {
     delayJitterAmount = juce::jlimit(0.0f, 1.0f, amount);
+}
+
+// ============================================================================
+// Ambient reverb shaping controls
+// ============================================================================
+
+void Chambers::applyWarpClusteringMode(WarpClusteringMode mode)
+{
+    warpClusteringMode = mode;
+    const float scale = static_cast<float>(sampleRateHz / 48000.0);
+    // delayBufferLength is sized in prepare() to fit either case; -2 matches
+    // its own margin. The clamp is a last-resort safety net (it should never
+    // actually bind given kHarmonicMaxGrowth), not the mechanism keeping
+    // lines distinct -- that's the fundamental-based scheme below.
+    const float maxDelaySamples = static_cast<float>(juce::jmax(1, delayBufferLength - 2));
+
+    if (warpClusteringMode == WarpClusteringMode::Incommensurate)
+    {
+        // Each line keeps its own prime-based base delay, unrelated to the
+        // others -- the non-repeating, diffuse default.
+        for (size_t i = 0; i < kNumLines; ++i)
+        {
+            delaySamples[i] = juce::jlimit(1.0f, maxDelaySamples,
+                static_cast<float>(kDelaySamples48k[i]) * scale);
+        }
+        return;
+    }
+
+    // Harmonic/octave modes: every line is a ratio of one shared fundamental
+    // (the shortest base delay), not of its own base -- see kOctaveRatios'
+    // comment for why compounding against twelve already-different bases
+    // doesn't work. This is also what "harmonic"/"octave" actually means:
+    // multiples of a single reference, not of unrelated references.
+    const float fundamentalDelay = juce::jmax(1.0f, static_cast<float>(kDelaySamples48k[0]) * scale);
+    const std::array<float, 12>* ratios = nullptr;
+    switch (warpClusteringMode)
+    {
+        case WarpClusteringMode::Harmonic2x:  ratios = &kHarmonic2xRatios; break;
+        case WarpClusteringMode::Harmonic3x:  ratios = &kHarmonic3xRatios; break;
+        case WarpClusteringMode::OctaveStack: ratios = &kOctaveRatios;     break;
+        default: break; // unreachable: Incommensurate returned above
+    }
+    for (size_t i = 0; i < kNumLines; ++i)
+    {
+        delaySamples[i] = juce::jlimit(1.0f, maxDelaySamples,
+            fundamentalDelay * (*ratios)[i]);
+    }
+}
+
+void Chambers::setWarpClusteringMode(WarpClusteringMode mode)
+{
+    if (mode == lastRequestedWarpClusteringMode)
+        return;
+    lastRequestedWarpClusteringMode = mode;
+    pendingWarpClusteringMode = mode;
+    // Restart the mute window even if one is already in progress (e.g. rapid
+    // automation): the in-flight target is superseded by this newer request.
+    warpClusteringMuteCounter = warpClusteringMuteHalfSamples * 2;
+}
+
+void Chambers::setDensityEvolution(float evolution)
+{
+    // Density evolution controls how echo density changes over time
+    // evolution = -1: decreasing density (smooth → grainy)
+    // evolution = 0: constant density (traditional reverb)
+    // evolution = +1: increasing density (grainy → smooth)
+    densityEvolutionTarget = juce::jlimit(kDensityEvolutionMin, kDensityEvolutionMax, evolution);
+    densityEvolutionSmoother.setTargetValue(densityEvolutionTarget);
+}
+
+void Chambers::setAttackTime(float attackTimeNorm)
+{
+    // Slow-attack reverb: a gradual ambient swell instead of an instant onset.
+    // attackTimeNorm = 0: instant attack (traditional)
+    // attackTimeNorm = 1: ~10 second slow attack (ambient swell)
+    attackTimeTarget = juce::jlimit(0.0f, 1.0f, attackTimeNorm);
+    attackTimeSmoother.setTargetValue(attackTimeTarget);
+    
+    // Compute attack envelope rate
+    const float attackSeconds = attackTimeTarget * kAttackTimeMaxSeconds;
+    if (attackTimeTarget > kAttackTimeActiveThreshold)
+        attackEnvelopeRate = 1.0f / (attackSeconds * sampleRateHz);
+    else
+        attackEnvelopeRate = 1.0f;  // Instant attack
 }
 
 } // namespace dsp

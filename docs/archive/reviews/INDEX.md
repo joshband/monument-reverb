@@ -27,6 +27,9 @@ Automated pass grading doc accuracy across the repo (~75% accurate at the time),
 **[01032026-DspClickAnalysisReport.md](01032026-DspClickAnalysisReport.md)**
 Root-caused audible clicks/pops on Viscosity/Topology macro changes to unsmoothed coefficients and tap-delay discontinuities. **Fixed at the time**: the report documents Priority 1–2 smoothing fixes and deferred tap-layout updates as implemented, with only a lower-severity Priority 3 (mode filter coefficients) left open.
 
+**[Monument_v1.0_Pre-Memory_Validation.md](Monument_v1.0_Pre-Memory_Validation.md)**
+Pre-release hardening checklist (Freeze, presets, parameter extremes, Pillars bounds) captured while Memory Echoes lived in a separate repo "pending future reintegration." **Superseded**: Memory Echoes has since shipped and is wired into `DspRoutingGraph` — moved here from `docs/testing/` where it was no longer accurate as living documentation.
+
 ## 2026-01-04
 
 **[01042026-ArchitectureReview.md](01042026-ArchitectureReview.md)**

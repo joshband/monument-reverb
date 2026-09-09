@@ -12,7 +12,7 @@ hub is `TESTING.md` in the repo root.
 - `docs/testing/PARAMETER_STRESS_RESULTS.md` - parameter stress results
 - `docs/testing/STRESS_TEST_PLAN.md` - long-form stress plan
 - `docs/testing/MODULATION_TESTING_GUIDE.md` - modulation validation
-- `docs/testing/TESTING_AUDIT.md` - audit and recommendations
+- `docs/archive/reviews/01082026-TestingAudit.md` - historical audit and recommendations (archived)
 
 ## Outputs
 

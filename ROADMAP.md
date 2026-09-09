@@ -1,451 +1,377 @@
 # Monument Reverb - Project Roadmap
 
-**Purpose:** Long-term vision, future enhancements, and module ideation
+**Purpose:** Prioritized task queue for parallel async development
+**Last Updated:** 2026-01-09
+**Format:** Agent-ready task definitions with acceptance criteria
 
 ---
 
-## Current Phase (Stable Foundation)
+## Task Priority Legend
 
-**Status:** DSP architecture documentation is substantially complete — see
-[docs/architecture/dsp/00-index.md](docs/architecture/dsp/00-index.md) for the
-authoritative per-module list and completion state; don't infer a module
-count from this file. See [TESTING.md](TESTING.md) for current test status —
-don't infer it from this file either, which tracks vision/ideation, not test
-counts.
+| Priority | Label | Definition | Max Parallel Agents |
+|----------|-------|------------|---------------------|
+| **P0** | Critical | Blocks release, safety issues, data loss | 1 (sequential) |
+| **P1** | High | Core functionality, major quality improvements | 4-6 |
+| **P2** | Medium | Quality of life, polish, documentation | 8-10 |
+| **P3** | Low | Nice-to-have, experimental, future vision | Unlimited |
 
-**Focus:** Documentation completion, performance optimization
-
-### Near-Term Milestones (0-2 Months)
-
-**Critical RT-Safety Fixes** (from 2026-01-07/08 reviews):
-
-1. ✅ **Playhead null check** - `getPlayHead()` in `plugin/PluginProcessor.cpp`'s
-   `processBlock()` is guarded before use (guards against a null playhead by
-   falling back to an empty `PositionInfo`) — file line numbers drift as the
-   file grows, so no line reference is pinned here; verify against source.
-2. ✅ **Timeline-preset / TubeRayTracer allocation on the audio thread** -
-   Fixed; proven allocation-free by
-   `monument_realtime_allocation_characterization_test` (see `TESTING.md`).
-3. ✅ **ModulationMatrix lock-free** - Fixed with an announce-then-verify
-   reader handshake over rotating snapshot slots (no `SpinLock`); proven
-   race-free under ThreadSanitizer by
-   `tests/ModulationMatrixConcurrencyStressTest.cpp` (see `ARCHITECTURE.md`).
-
-**Documentation Completion:**
-
-- Both DSP module docs that were previously outstanding now exist and are
-  substantial: Chambers
-  ([docs/architecture/dsp/core-modules/03-chambers.md](docs/architecture/dsp/core-modules/03-chambers.md))
-  and Ancient Monuments
-  ([docs/architecture/dsp/control-systems/00-ancient-monuments.md](docs/architecture/dsp/control-systems/00-ancient-monuments.md) —
-  note it lives under `control-systems/` as `00-`, not the `07-` core-module
-  numbering once assumed for it).
-- Remaining documentation gaps (if any) are tracked in
-  [docs/architecture/dsp/00-index.md](docs/architecture/dsp/00-index.md)
-  itself, not here — that index carries a per-module status column and is
-  the source of truth, since a count hardcoded into this vision doc will
-  only go stale again.
-
-**Build & Test Hygiene:**
-
-- ✅ CTest config-aware paths
-- ✅ Dead code removal: deleted the unused `ExperimentalModulation` module
-  (never wired into the shipped plugin) and `DspRoutingGraph`'s generic
-  series/parallel/feedback/crossfeed graph executor (the host-visible
-  `routingPreset` parameter only ever drove its bypass mask, never that
-  executor) — see `ARCHITECTURE.md`.
-- ⏳ Particle system RTTI removal (if playground becomes production UI) - no
-  particle system currently exists in this repository; this stays
-  conditional on that playground work happening at all.
-- ⏳ Fast particle removal (swap-pop instead of O(n) removal) - same caveat
-  as above.
-- **Target:** all registered CTest targets green — see [TESTING.md](TESTING.md) for the current inventory and status, not a fixed count here
-
-**Asset Pipeline Decision (unmade — not planned work):**
-
-- No decision has been made yet. This is an open question sitting in front
-  of the team, not a scheduled task with an owner or timeline.
-- Current: Split between binary-embedded (knobs) and file-based (presets)
-- Options:
-  - Binary-embedded: Larger plugin, no file dependencies
-  - File-based: Smaller plugin, requires resource installation
-  - Hybrid: Core assets embedded, expansions file-based
-- **Action Required:** Make the decision, then document and implement the
-  chosen strategy. Until that happens, treat the current binary/file split
-  as unintentional, not as an endorsed hybrid design.
+**Domain Tags:** `[DSP]` `[UI]` `[TEST]` `[DOC]` `[BUILD]` `[PERF]` `[PRESET]`
 
 ---
 
-## Phase Ideation (Not Yet Planned)
+## P0: Critical Tasks (Sequential)
 
-### Phase 5: Performance & Optimization (Future)
+> ⚠️ **Do not parallelize** — These tasks require sequential completion and review
 
-**Goal:** Achieve production-grade CPU efficiency and real-time safety
+### P0-01: RT-Safety Verification Sweep
+**Domain:** `[DSP] [PERF]` | **Effort:** 4h | **Status:** ✅ Complete
 
-**Enhancements:**
+Verify all audio-thread code paths are allocation-free and lock-free.
 
-1. **SIMD Vectorization** - 15-25% CPU reduction
-   - AVX-optimized matrix multiplication (8×8 FDN)
-   - Vectorized fractional delay interpolation
-   - Batch spatial distance calculations
-   
-2. **Further Lock-Free Hardening** - Extend lock-free patterns beyond what
-   already shipped (ModulationMatrix's own announce-then-verify rotating
-   snapshot handshake is done — see Near-Term Milestones above — so this is
-   about what's left, not a restatement of it)
-   - Pre-allocated routing configurations with atomic swap (for routing
-     preset switching)
-   - Lock-free parameter updates
+**Acceptance Criteria:**
+- [ ] `monument_realtime_allocation_characterization_test` passes green
+- [ ] No `malloc`/`new` in `processBlock()` paths (verified via Instruments/ASan)
+- [ ] All shared state uses atomic or lock-free patterns
+- [ ] Denormal prevention active (`juce::ScopedNoDenormals`)
 
-3. **Memory Optimization**
-   - Relaxed memory ordering for independent parameters
-   - Bitmask-based smoother tracking
-   - Cache-aligned buffer allocation
-
-**Target:** <6% CPU @ 64 samples, zero audio dropouts
+**Dependencies:** None
 
 ---
 
-### Phase 6: UI Enhancement (Ideation)
+## P1: High Priority Tasks (Parallelizable: 4-6 agents)
 
-**Goal:** Production-ready plugin UI with visualizations
+### P1-01: Ambient Reverb Quality Alignment
+**Domain:** `[DSP]` | **Effort:** 8h | **Status:** ✅ Complete (see [docs/development/P1-01_AMBIENT_REVERB_IMPLEMENTATION.md](docs/development/P1-01_AMBIENT_REVERB_IMPLEMENTATION.md))
 
-**Options Under Consideration:**
+Align Monument's ambient reverb characteristics with Valhalla Supermassive, BigSky MX, and NightSky.
 
-1. **Option A: Macro-Only Interface** (from 2026-01-07 implementation plan)
-   - 3 macro knobs (Scale, Character, Breath)
-   - Preset browser with visual profiles
-   - Minimal CPU overhead
-   - Fast development timeline
+**Delivered, with deviations from the original spec noted:**
+- [x] FDN delay lines: 8 → **12** (spec said 12-16; 12 was the size actually implemented and is what all the matrix/buffer work below is verified against)
+- [x] Max delay time: ~1.23s → **~6.5s** at the base (Incommensurate) setting
+- [x] Warp-style harmonic delay clustering: **Harmonic2x/Harmonic3x/OctaveStack** modes, each line a ratio of one shared fundamental delay (not spec'd this way originally, but is what makes "harmonic"/"octave" relationships musically real rather than the initial per-line-base design, which collapsed most of the 12 lines onto an identical clamped delay)
+- [x] Explicit density-evolution control: `densityEvolution` parameter, -1 (decreasing/grainy→smooth) to +1 (increasing/smooth→grainy)
+- [ ] RT60 range 4s-120s: **not delivered as spec'd** — the WIP that attempted this (`kMaxFeedbackAmbient`) was dead code, never wired into the feedback calculation; removed rather than half-implemented. RT60 today is unchanged from pre-P1-01 (2-35s range, verified in `monument_reverb_dsp_test`)
+- [ ] Density curves matching reference presets within 15%: not measured — no reference-preset comparison harness exists for this
+- [x] (Not in original spec) Slow-attack reverb: `attackTime` parameter, 0 (instant) to 1 (~10s ambient swell)
+- [x] (Not in original spec) All three new controls wired to host-automatable APVTS parameters (`warpClustering`, `densityEvolution`, `attackTime`)
 
-2. **Option B: Full Parameter Interface**
-   - All 25+ parameters exposed
-   - Advanced users can dive deep
-   - Complexity management challenge
+**Dependencies:** P0-01 complete
 
-3. **Option C: Hybrid Interface** (Recommended)
-   - Default: Macro-only view
-   - Advanced: Expandable parameter sections
-   - Best of both worlds
+---
 
-**UI Component System (from implementation plan):**
+### P1-02: Tail Decay & Modulation Enhancement
+**Domain:** `[DSP]` | **Effort:** 6h | **Agents:** 2 (parallel)
 
-Components:
-- `LayeredKnob` - Variants: geode/metal/industrial; States: default/hover/dragging
-- `ParticleField` - States: off/idle/reactive; Variants: embers/smoke/sparks
-- `StatusBar` - Shows audio state and metrics
-- `MacroCluster` - 10 macros, macro-only layout with labels
-- `MacroVisualOverlay` - OpenGL rings + glyph hints from JSON profiles
+**Subtasks (parallel):**
+- **P1-02a: Extreme Decay Modes**
+  - Add "Andromeda/Orion" style modes (decay >1000 seconds)
+  - Implement slow-attack reverbs (Centaurus/Sagittarius-style)
+  - Non-exponential decay curves (plateau → exponential)
+  - Acceptance: 3+ new decay profiles in `Chambers.cpp`
 
-Interaction Model:
-- **States:** idle, editing (dragging), reactive (audio peaks), debug (visualization overlays)
-- **Transitions:**
-  - Hover → highlight ring
-  - Drag → knob rotates with velocity smoothing
-  - Audio peak → particle burst + glow intensification
-  - Cursor move → emitter follows with soft easing
+- **P1-02b: Advanced Modulation**
+  - Multi-phase sinusoidal modulation (Supermassive-style)
+  - Warp-induced artifacts (harmonic delays, cascading shifts)
+  - Sidechain modulation target (NightSky-style)
+  - Acceptance: Modulation rates 0.06Hz-12Hz, depth 0-100%
 
-**Design Tokens (W3C-compliant):**
+**Dependencies:** P0-01 complete
 
-```json
-{
-  "color": {
-    "surface": { "value": "#0B0D10" },
-    "surfaceAlt": { "value": "#14181F" },
-    "textPrimary": { "value": "#F2F2F2" },
-    "textSecondary": { "value": "#B7B9C2" },
-    "accentWarm": { "value": "#E07A3F" },
-    "accentCool": { "value": "#57B7C7" }
-  },
-  "space": {
-    "xs": { "value": "4px" },
-    "sm": { "value": "8px" },
-    "md": { "value": "16px" },
-    "lg": { "value": "24px" }
-  },
-  "radius": {
-    "sm": { "value": "6px" },
-    "md": { "value": "10px" },
-    "lg": { "value": "16px" }
-  },
-  "motion": {
-    "fast": { "value": "120ms" },
-    "base": { "value": "180ms" },
-    "slow": { "value": "300ms" }
-  }
-}
+---
+
+### P1-03: Pitch-Shifted Reverb Core
+**Domain:** `[DSP]` | **Effort:** 6h | **Agents:** 1
+
+Implement NightSky-style variable process rate pitch manipulation.
+
+**Acceptance Criteria:**
+- [ ] Continuous SIZE/PITCH control (2.5 octave range)
+- [ ] Quantize modes: Smooth, Half-Step, 11 scale types
+- [ ] Glide/smoothing between pitch steps
+- [ ] Regenerative shimmer (feedback pitch shift)
+- [ ] No artifacts at extreme pitch values
+
+**Dependencies:** P1-02 complete
+
+---
+
+### P1-04: Dual-Engine Layering System
+**Domain:** `[DSP]` | **Effort:** 6h | **Agents:** 1
+
+Implement BigSky MX-style parallel/series dual reverb engine routing.
+
+**Acceptance Criteria:**
+- [ ] Parallel mode: Input → [Engine A + Engine B] → Sum
+- [ ] Series modes: A→B and B→A
+- [ ] Split L|R mode: A→Left, B→Right
+- [ ] Independent parameter sets per engine
+- [ ] Cross-engine modulation (A modulates B's parameters)
+
+**Dependencies:** P0-01 complete
+
+---
+
+### P1-05: Test Coverage Expansion
+**Domain:** `[TEST]` | **Effort:** 8h | **Agents:** 2 (parallel)
+
+**Subtasks (parallel):**
+- **P1-05a: DSP Algorithm Tests**
+  - FDN matrix orthogonality tests
+  - Diffusion coefficient stability tests
+  - Modulation phase coherence tests
+  - Acceptance: 95%+ DSP function coverage
+
+- **P1-05b: Audio Regression Suite**
+  - Preset capture for all 37+ presets
+  - RT60/frequency/spatial metrics comparison
+  - Automated baseline drift detection (>3% change fails)
+  - Acceptance: CI runs on every PR
+
+**Dependencies:** None (can run parallel to DSP work)
+
+---
+
+### P1-06: Documentation Completion
+**Domain:** `[DOC]` | **Effort:** 6h | **Agents:** 2 (parallel)
+
+**Subtasks (parallel):**
+- **P1-06a: Module Documentation**
+  - Update `docs/architecture/dsp/00-index.md` with completion status
+  - Add signal flow diagrams for all 9 modules
+  - Document parameter ranges and DSP mappings
+  - Acceptance: All modules have ≥500 word descriptions
+
+- **P1-06b: User Documentation**
+  - Quick start guide (setup, first sounds)
+  - Preset gallery with audio examples
+  - Macro mapping reference
+  - Acceptance: README.md updated with current feature set
+
+**Dependencies:** None (can run parallel to all work)
+
+---
+
+## P2: Medium Priority Tasks (Parallelizable: 8-10 agents)
+
+### P2-01: UI Component System
+**Domain:** `[UI]` | **Effort:** 12h | **Agents:** 3 (parallel)
+
+**Subtasks (parallel):**
+- **P2-01a: LayeredKnob Component**
+  - Variants: geode/metal/industrial
+  - States: default/hover/dragging/focus
+  - Accessibility: keyboard navigation, screen reader
+  - Acceptance: All knobs replace existing sliders
+
+- **P2-01b: ParticleField Visualizer**
+  - States: off/idle/reactive/audio-peak
+  - Variants: embers/smoke/sparks
+  - Performance: toggleable, <2% CPU at 60fps
+  - Acceptance: Particles respond to RMS/peak levels
+
+- **P2-01c: MacroCluster Layout**
+  - 10-macro circular/linear arrangement
+  - Visual profiles (colors from preset JSON)
+  - Glyph hints and labels
+  - Acceptance: Macros visible at 800×600 minimum
+
+---
+
+### P2-02: Preset Expansion
+**Domain:** `[PRESET]` | **Effort:** 10h | **Agents:** 3 (parallel)
+
+**Subtasks (parallel):**
+- **P2-02a: Spaces Category (10 presets)**
+  - Cathedral, Hall, Chamber, Room, Plate variants
+  - Realistic architectural simulations
+  - Acceptance: RT60 matches target space within 20%
+
+- **P2-02b: Creative Category (10 presets)**
+  - Shimmer, Reverse, Infinite, Freeze effects
+  - Experimental/musical sound design
+  - Acceptance: Each preset has unique macro mappings
+
+- **P2-02c: Physical Category (8 presets)**
+  - Spring, Tube, Elastic, Alien modeling
+  - Showcase physical modules
+  - Acceptance: Demonstrates module-specific features
+
+---
+
+### P2-03: Performance Optimization
+**Domain:** `[PERF]` | **Effort:** 10h | **Agents:** 2 (parallel)
+
+**Subtasks (parallel):**
+- **P2-03a: SIMD Vectorization**
+  - AVX-optimized 8×8 matrix multiplication
+  - Vectorized fractional delay interpolation
+  - Batch spatial calculations
+  - Acceptance: 15-25% CPU reduction measured
+
+- **P2-03b: Memory Optimization**
+  - Cache-aligned buffer allocation
+  - Relaxed memory ordering for independent params
+  - Bitmask-based smoother tracking
+  - Acceptance: <6% CPU @ 64 samples, zero dropouts
+
+---
+
+### P2-04: Advanced DSP Modules
+**Domain:** `[DSP]` | **Effort:** 12h | **Agents:** 3 (parallel)
+
+**Subtasks (parallel):**
+- **P2-04a: Spectral Freeze Module**
+  - FFT-based reverb tail manipulation
+  - Harmonic freezing/morphing
+  - Integration with MemoryEchoes
+  - Acceptance: <3% CPU overhead at 44.1kHz
+
+- **P2-04b: Convolution Layer**
+  - Short IRs for early reflections
+  - Algorithmic tail for infinite decay
+  - IR morphing capabilities
+  - Acceptance: IR load <100ms, memory <10MB
+
+- **P2-04c: Multiband Processing**
+  - 3-band crossover (user-configurable)
+  - Independent decay per band
+  - Tonal shaping controls
+  - Acceptance: Crossover slopes 6/12/24 dB/oct
+
+---
+
+### P2-05: Testing Infrastructure
+**Domain:** `[TEST]` | **Effort:** 8h | **Agents:** 2 (parallel)
+
+**Subtasks (parallel):**
+- **P2-05a: Visual Regression Testing**
+  - UI screenshot capture (baseline/current)
+  - Pixel-diff comparison with threshold
+  - CI integration with failure reporting
+  - Acceptance: Detects 1px changes, ignores anti-aliasing
+
+- **P2-05b: Plugin Validation Suite**
+  - pluginval integration (all strictness levels)
+  - Parameter automation tests
+  - State serialization tests
+  - Acceptance: 100% pluginval tests pass
+
+---
+
+## P3: Low Priority / Experimental (Unlimited parallelization)
+
+### P3-01: Machine Learning Features
+**Domain:** `[DSP] [PERF]` | **Effort:** 20h+ | **Agents:** Unlimited
+
+- Room IR prediction from parameters
+- Preset recommendation system
+- Adaptive processing based on input content
+- ML-based denoising in reverb tail
+
+**Status:** Research phase — no implementation started
+
+---
+
+### P3-02: Physical Modeling Expansion
+**Domain:** `[DSP]` | **Effort:** 15h+ | **Agents:** Unlimited
+
+- String/membrane resonators
+- Waveguide networks
+- Finite element room modeling
+- Karplus-Strong integration
+
+**Status:** Ideation — requires research
+
+---
+
+### P3-03: Cloud Ecosystem
+**Domain:** `[BUILD]` | **Effort:** 25h+ | **Agents:** Unlimited
+
+- Preset cloud sync
+- Community preset sharing
+- Collaborative sound design
+- Versioned preset library
+
+**Status:** Not started — depends on distribution strategy
+
+---
+
+### P3-04: Plugin Suite Expansion
+**Domain:** `[DSP]` | **Effort:** 50h+ | **Agents:** Unlimited
+
+**Monument Suite Family:**
+- Monument Delay (advanced delay network)
+- Monument Modulation (creative effects)
+- Monument Spatial (3D audio processor)
+- Monument Live (performance-optimized)
+- Monument Creative (experimental, no stability guarantees)
+
+**Status:** Long-term vision (2-5 years)
+
+---
+
+## Task Execution Model
+
+### For Parallel Agents
+
+1. **Pick a task** from the highest priority level with available agent slots
+2. **Read dependencies** — ensure prerequisite tasks are complete
+3. **Implement** with test coverage ≥80%
+4. **Run local tests** before submitting
+5. **Update task status** in this document
+
+### Task Status Format
+
+```markdown
+### TASK-ID: Task Name
+**Domain:** `[TAG]` | **Effort:** Xh | **Agents:** N (parallel)
+**Status:** `pending` | `in_progress` | `review` | `complete`
+**Assignee:** @agent-id (optional)
+**PR:** #XXX (when created)
 ```
 
-**Accessibility:**
-- Keyboard focus traversal for knobs
-- Visible focus ring
-- Screen reader support (JUCE accessibility API)
-- Status text for mode changes
+### Completion Checklist
 
-**Performance Targets:**
-- 60fps UI refresh rate
-- Particles toggleable for low-power systems
-- Audio-reactive bursts correlated with RMS/peak
+For each task marked `complete`:
 
-**Failure Modes:**
-- Missing asset packs → fallback test pattern, disable pack switching
-- High CPU load → particle throttling and glow clamp
-- UI/Audio mismatch → status banner with update indicators
+- [ ] Code changes committed with conventional commit message
+- [ ] Tests added/updated (if applicable)
+- [ ] Documentation updated (if applicable)
+- [ ] No new compiler warnings
+- [ ] No new audio-thread allocations (verified)
+- [ ] PR reviewed and merged (if applicable)
 
 ---
 
-### Phase 7: Advanced DSP Modules (Ideation)
+## Current Session Context
 
-**New Module Ideas:**
+**Active Tasks:** Reverb quality alignment with ambient references (Supermassive, BigSky MX, NightSky)
 
-1. **Spectral Freeze** - Frequency-domain delay network
-   - FFT-based reverb tail manipulation
-   - Harmonic freezing and morphing
-   - Integration with MemoryEchoes
+**Completed This Session:**
+- ✅ Repository cleanup (merged branches, pruned stale refs)
+- ✅ Local main synchronized with origin/main
+- ✅ Reverb quality analysis report generated
 
-2. **Convolution Layer** - Hybrid algorithmic + IR reverb
-   - Short IRs for early reflections
-   - Algorithmic for infinite tail
-   - IR morphing capabilities
-
-3. **Granular Reverb** - Micro-sample manipulation
-   - Grain clouds from reverb tail
-   - Pitch/time stretching
-   - Experimental textures
-
-4. **Neural Reverb** - ML-based room modeling
-   - Learned room responses
-   - Real-time inference (<5% CPU)
-   - Custom room training
-
-5. **Multiband Processing** - Frequency-split reverb
-   - Independent decay per band
-   - Crossover control
-   - Tonal shaping
-
-**Integration Considerations:**
-- Modular routing (insert into existing signal flow)
-- Preset compatibility (backward compatible)
-- CPU budget management
+**Next Actions:**
+1. ✅ P1-01 (Ambient Reverb Quality Alignment) — complete, see task entry above
+2. Execute P1-05 (Test Coverage Expansion) — 2 agents
+3. Execute P1-06 (Documentation Completion) — 2 agents
 
 ---
 
-### Phase 8: Preset Expansion (Ideation)
+## Metrics Dashboard
 
-**Current:** 37 factory presets (`plugin/PresetManager.h`'s
-`kNumFactoryPresets`: 18 original + 5 "Living" (Phase 3) + 5 Physical
-Modeling (Phase 5) + 9 "Living" (Phase 6))
-
-**Target:** 50+ factory presets across categories
-
-**Preset Categories:**
-
-1. **Spaces** (10-15 presets)
-   - Cathedral, Hall, Chamber, Room, Plate
-   - Realistic architectural reverbs
-
-2. **Creative** (10-15 presets)
-   - Shimmer, Reverse, Infinite, Freeze
-   - Experimental/musical effects
-
-3. **Physical** (8-10 presets)
-   - Spring, Tube, Elastic, Alien
-   - Physical modeling showcases
-
-4. **Memory** (5-8 presets)
-   - Echoes, Ghosts, Layers, Abyss
-   - MemoryEchoes system focus
-
-5. **Modulation** (8-10 presets)
-   - Chorus, Flanger, Vibrato, Detune
-   - Modulation-heavy textures
-
-6. **Utility** (5-8 presets)
-   - Subtle Enhancement, Ambience, Tight Room
-   - Mix-ready presets
-
-**Preset Features:**
-- Visual profiles (particle system colors/behaviors)
-- Macro mappings (unique per preset)
-- Automation lanes (timeline sequences)
-- Artist presets (guest sound designers)
+| Metric | Current | Target | Status |
+|--------|---------|--------|--------|
+| CTest Pass Rate | See TESTING.md | 100% | 🟡 In Progress |
+| RT-Safety | ✅ Verified | ✅ Maintained | 🟢 Pass |
+| CPU @ 64 samples | <10% | <6% | 🟡 In Progress |
+| Preset Count | 37 | 50+ | 🟡 In Progress |
+| Documentation Coverage | ~80% | 100% | 🟡 In Progress |
+| UI Component Completion | ~60% | 100% | 🟡 In Progress |
 
 ---
 
-### Phase 9: Distribution & Ecosystem (Future)
-
-**Goal:** Release-ready packaging and ecosystem integration
-
-**Milestones:**
-
-1. **Code Signing & Notarization**
-   - Apple Developer ID
-   - Windows Authenticode
-   - AAX signing (Avid account)
-
-2. **Plugin Formats**
-   - VST3 ✅ (working)
-   - AU ✅ (working)
-   - AAX (Avid Developer Program)
-   - CLAP (future consideration)
-
-3. **Host Compatibility**
-   - Ableton Live, Logic Pro, Pro Tools
-   - FL Studio, Cubase, Reaper, Studio One
-   - Compatibility testing suite
-
-4. **Documentation & Marketing**
-   - User manual (PDF + web)
-   - Video tutorials
-   - Sound demos and audio examples
-   - Website with interactive demos
-
-5. **Distribution Channels**
-   - Direct sales (website)
-   - Plugin marketplaces (Plugin Boutique, etc.)
-   - Subscription services (Splice, Output Hub)
-
-6. **Licensing & Protection**
-   - License key system
-   - Hardware dongle (optional)
-   - Trial/demo version
-
----
-
-## Future Module Enhancements
-
-### MemoryEchoes Expansion
-
-**Current:** Dual buffer (24s + 180s), probabilistic recall. Now
-permanently wired into the live signal path (reached unconditionally,
-around Chambers) rather than prepared-but-unreached — see `ARCHITECTURE.md`'s
-"Memory Echoes is reached, wired around Chambers" section. The enhancements
-below build on that live module, not a hypothetical future connection.
-
-**Enhancements:**
-
-1. **Energy-Age Tracking** - Remember which memories are "loudest"
-2. **Multi-Resolution Buffers** - 4+ time scales (short/medium/long/infinite)
-3. **Spectral Freezing** - Freeze specific frequency bands
-4. **SIMD Optimization** - Reduce CPU overhead
-5. **User-Configurable Durations** - Parameters for buffer lengths
-
-### Chambers Enhancements
-
-**Current:** 8×8 FDN with Hadamard/Householder matrix
-
-**Enhancements:**
-
-1. **Adaptive Matrix** - Change topology based on input
-2. **Nonlinear Feedback** - Soft clipping, saturation per line
-3. **Time-Variant Delays** - Modulated delay line lengths
-4. **Allpass Chains** - Additional diffusion in feedback
-5. **SIMD Matrix Ops** - 4x speedup with AVX
-
-### SpatialProcessor Enhancements
-
-**Current:** 3D positioning with Doppler shift
-
-**Enhancements:**
-
-1. **HRTF Processing** - Binaural spatial audio
-2. **Room Acoustics** - Wall reflections, absorption
-3. **Motion Paths** - Automated spatial movement
-4. **Multi-Source** - Multiple sound sources in space
-5. **Ambisonics Output** - Higher-order spatial audio
-
-### ModulationMatrix Enhancements
-
-**Current:** 4 sources × 27 destinations
-
-**Enhancements:**
-
-1. **User LFOs** - 8+ user-configurable modulation sources
-2. **Envelope Followers** - Multiple audio-rate followers
-3. **MIDI Modulation** - MIDI CC, velocity, aftertouch
-4. **Modulation Curves** - Non-linear mapping curves
-5. **Modulation Visualization** - Real-time modulation display
-
----
-
-## Research & Experimentation
-
-### Areas of Interest
-
-1. **Machine Learning Integration**
-   - Room IR prediction from parameters
-   - Preset recommendation system
-   - Adaptive processing based on input
-
-2. **Physical Modeling**
-   - String/membrane resonators
-   - Waveguide networks
-   - Finite element room modeling
-
-3. **Psychoacoustic Enhancement**
-   - Perceptual loudness matching
-   - Stereo image optimization
-   - Clarity enhancement algorithms
-
-4. **Real-Time Analysis**
-   - Automatic gain staging
-   - Mix context awareness
-   - Adaptive parameter suggestions
-
-5. **Cloud Integration**
-   - Preset cloud sync
-   - Collaborative sound design
-   - Community preset sharing
-
----
-
-## Long-Term Vision (2-5 Years)
-
-**Monument Reverb Ecosystem:**
-
-1. **Monument Suite** - Family of spatial plugins
-   - Monument Reverb (flagship)
-   - Monument Delay (advanced delay network)
-   - Monument Modulation (creative effects)
-   - Monument Spatial (3D audio processor)
-
-2. **Monument Live** - Performance-optimized version
-   - Reduced CPU overhead
-   - Live-friendly presets
-   - MIDI control surface support
-
-3. **Monument Creative** - Experimental version
-   - All experimental modules enabled
-   - No stability guarantees
-   - Playground for sound designers
-
-4. **Monument SDK** - Developer toolkit
-   - Custom module development
-   - Preset scripting language
-   - Visual profile editor
-
----
-
-## Community & Open Source (Consideration)
-
-**Potential Open Source Components:**
-
-- DSP module implementations (educational)
-- Preset format specification
-- Visual profile JSON schema
-- Test suite and benchmarking tools
-
-**Community Features:**
-
-- User preset submission system
-- Sound design contests
-- Educational content creation
-- Forum and Discord community
-
----
-
-**For current session tracking, see [NEXT_SESSION_HANDOFF.md](docs/archive/NEXT_SESSION_HANDOFF.md)**
-
-**For implementation status, see [docs/STATUS.md](docs/archive/sessions/STATUS.md)**
-
-**For detailed session history, see [CHANGELOG.md](CHANGELOG.md)**
+**For session handoff, see:** [`docs/NEXT_SESSION_HANDOFF.md`](docs/NEXT_SESSION_HANDOFF.md)
+**For DSP architecture, see:** [`docs/architecture/dsp/00-index.md`](docs/architecture/dsp/00-index.md)
+**For test status, see:** [`TESTING.md`](TESTING.md)

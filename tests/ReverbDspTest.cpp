@@ -586,6 +586,333 @@ TestResult testParameterJumpStress()
 }
 
 //==============================================================================
+// Test 7: Density Evolution Affects Output (P1-01)
+//==============================================================================
+TestResult testDensityEvolutionAffectsOutput()
+{
+    try
+    {
+        // Captures the RMS of the reverb tail 6 seconds after an impulse (half of
+        // Chambers' kEnvelopeMaxTimeSeconds=12s, so a -1 evolution should have
+        // roughly halved the effective density by this point).
+        auto captureLateTailRms = [](float densityEvolution) -> float
+        {
+            Chambers reverb;
+            reverb.setDeterministicDriftSeedForTesting(12345);
+            reverb.prepare(kSampleRate, kBlockSize, kNumChannels);
+            reverb.setTime(ParameterBuffer(0.85f, kBlockSize));
+            reverb.setDensity(ParameterBuffer(1.0f, kBlockSize));
+            reverb.setDensityEvolution(densityEvolution);
+
+            juce::AudioBuffer<float> buffer(kNumChannels, kBlockSize);
+            buffer.clear();
+            buffer.setSample(0, 0, 1.0f);
+            buffer.setSample(1, 0, 1.0f);
+            reverb.process(buffer);
+
+            const int totalSamples = static_cast<int>(kSampleRate * 6.0);
+            int pos = kBlockSize;
+            float lastRms = 0.0f;
+            while (pos < totalSamples)
+            {
+                buffer.clear();
+                reverb.process(buffer);
+                lastRms = calculateRMS(buffer);
+                pos += kBlockSize;
+            }
+            return lastRms;
+        };
+
+        const float rmsConstant = captureLateTailRms(0.0f);
+        const float rmsDecreasing = captureLateTailRms(-1.0f);
+
+        if (rmsConstant <= 1.0e-8f)
+        {
+            return {
+                "Density Evolution Affects Output",
+                false,
+                "Baseline tail is silent at t=6s; test setup invalid"};
+        }
+
+        const float relativeDiff = std::abs(rmsConstant - rmsDecreasing) / rmsConstant;
+
+        // Anything under 1% would mean densityEvolution has no measurable effect.
+        if (relativeDiff < 0.01f)
+        {
+            return {
+                "Density Evolution Affects Output",
+                false,
+                "densityEvolution=-1 vs 0 produced no measurable difference (relative diff "
+                    + std::to_string(relativeDiff * 100.0f) + "%)"};
+        }
+
+        return {
+            "Density Evolution Affects Output",
+            true,
+            "densityEvolution measurably changed the tail (relative diff "
+                + std::to_string(relativeDiff * 100.0f) + "%)"};
+    }
+    catch (const std::exception& e)
+    {
+        return {
+            "Density Evolution Affects Output",
+            false,
+            std::string("Exception: ") + e.what()};
+    }
+}
+
+//==============================================================================
+// Test 8: Attack Time Produces Slow Swell (P1-01)
+//==============================================================================
+TestResult testAttackTimeProducesSlowSwell()
+{
+    try
+    {
+        // Compares wet output level in a block well after an impulse, once the
+        // FDN has actually started returning signal: with a slow (~10s)
+        // attack, that block should still be deep in the swell and much
+        // quieter than with an instant attack. This can't be measured from
+        // the first couple of blocks -- the shortest FDN delay line is
+        // ~2411 samples (~50ms @ 48kHz), so lateOutLive[]/wetLiveL are
+        // genuinely still zero before that regardless of attackEnvelopeValue,
+        // and the very first block also carries the raw dry impulse sample,
+        // mixed into the output via earlyMixLocal independent of
+        // attackEnvelopeValue (a real dry passthrough must not duck on every
+        // transient in continuous use) -- either would swamp the comparison
+        // with an attack-independent value. 10 blocks (5120 samples/~107ms)
+        // comfortably clears the first delay line.
+        auto captureLaterBlockRms = [](float attackTimeNorm) -> float
+        {
+            Chambers reverb;
+            reverb.setDeterministicDriftSeedForTesting(12345);
+            reverb.prepare(kSampleRate, kBlockSize, kNumChannels);
+            reverb.setTime(ParameterBuffer(0.85f, kBlockSize));
+            reverb.setDensity(ParameterBuffer(1.0f, kBlockSize));
+            reverb.setAttackTime(attackTimeNorm);
+
+            juce::AudioBuffer<float> buffer(kNumChannels, kBlockSize);
+            buffer.clear();
+            buffer.setSample(0, 0, 1.0f);
+            buffer.setSample(1, 0, 1.0f);
+            reverb.process(buffer);
+
+            float lastRms = 0.0f;
+            for (int block = 0; block < 9; ++block)
+            {
+                buffer.clear();
+                reverb.process(buffer);
+                lastRms = calculateRMS(buffer);
+            }
+            return lastRms;
+        };
+
+        const float rmsInstant = captureLaterBlockRms(0.0f);
+        const float rmsSlow = captureLaterBlockRms(1.0f);
+
+        if (rmsInstant <= 1.0e-8f)
+        {
+            return {
+                "Attack Time Produces Slow Swell",
+                false,
+                "Instant-attack block is silent; test setup invalid"};
+        }
+
+        const float ratio = rmsSlow / rmsInstant;
+
+        // Anything above 0.5 would mean attackTime=1 barely delayed the swell.
+        if (ratio > 0.5f)
+        {
+            return {
+                "Attack Time Produces Slow Swell",
+                false,
+                "attackTime=1 had no measurable effect on the initial swell (ratio "
+                    + std::to_string(ratio) + ", expected < 0.5)"};
+        }
+
+        return {
+            "Attack Time Produces Slow Swell",
+            true,
+            "attackTime measurably delayed the swell (initial-block ratio "
+                + std::to_string(ratio) + ")"};
+    }
+    catch (const std::exception& e)
+    {
+        return {
+            "Attack Time Produces Slow Swell",
+            false,
+            std::string("Exception: ") + e.what()};
+    }
+}
+
+//==============================================================================
+// Test 9: Warp Clustering Mode Switch Is Click-Free
+//==============================================================================
+TestResult testWarpClusteringModeSwitchIsClickFree()
+{
+    try
+    {
+        // Verifies the mute envelope directly, sample by sample, via
+        // getWarpClusteringMuteGainForTesting(), instead of inferring it from
+        // the reverb tail's audio level. An audio-level comparison was tried
+        // first: the FDN's 12 delay lines beat against each other as the tail
+        // decays, so two RMS measurements even milliseconds apart in the same
+        // tail aren't a reliable proxy for "did the gain dip" -- the mute
+        // envelope itself is the thing being tested, so test it directly.
+        Chambers reverb;
+        reverb.setDeterministicDriftSeedForTesting(12345);
+        reverb.prepare(kSampleRate, kBlockSize, kNumChannels);
+        reverb.setTime(ParameterBuffer(0.9f, kBlockSize));    // long decay: stays loud through the warmup below
+        reverb.setDensity(ParameterBuffer(1.0f, kBlockSize));
+
+        // Give the FDN some circulating energy (an impulse, then let it echo
+        // briefly) so there's an actual, still-substantial wet signal for the
+        // gain to act on when the switch happens -- otherwise "output is
+        // near-zero when gain is near-zero" would be trivially true (either
+        // from silence alone, or from a tail that's already decayed quiet by
+        // the time of the switch) and would prove nothing about the guard.
+        // The shortest FDN delay line is ~2411 samples (~50ms @ 48kHz), so at
+        // least 5 blocks of silence must follow the impulse before any wet
+        // signal reaches the output at all -- 6 gives it one block of margin
+        // while still being early enough (at a slow, time=0.9 decay) that the
+        // tail hasn't attenuated to near-nothing by the time of the switch.
+        juce::AudioBuffer<float> primeBuffer(kNumChannels, kBlockSize);
+        primeBuffer.clear();
+        primeBuffer.setSample(0, 0, 1.0f);
+        primeBuffer.setSample(1, 0, 1.0f);
+        reverb.process(primeBuffer);
+        for (int block = 0; block < 6; ++block)
+        {
+            primeBuffer.clear();
+            reverb.process(primeBuffer);
+        }
+
+        // Switch to the most extreme mode (2048x delay ratio) -- the scenario
+        // a host automating this parameter would actually produce.
+        reverb.setWarpClusteringMode(Chambers::WarpClusteringMode::OctaveStack);
+
+        // Step through one sample at a time so both the mute envelope and the
+        // actual output can be inspected after every sample, not just once
+        // per block.
+        juce::AudioBuffer<float> stepBuffer(kNumChannels, 1);
+        float minGain = 1.0f;
+        bool sawFullMute = false;
+        constexpr int kStepsToObserve = 600; // window (480) plus margin
+        for (int i = 0; i < kStepsToObserve; ++i)
+        {
+            stepBuffer.clear();
+            reverb.process(stepBuffer);
+
+            const float sample = stepBuffer.getSample(0, 0);
+            if (!std::isfinite(sample))
+            {
+                return {
+                    "Warp Clustering Mode Switch Is Click-Free",
+                    false,
+                    "Non-finite sample produced after mode switch (out-of-bounds delay read?)"};
+            }
+
+            const float gain = reverb.getWarpClusteringMuteGainForTesting();
+            minGain = std::min(minGain, gain);
+            if (gain < 0.01f)
+                sawFullMute = true;
+        }
+
+        if (!sawFullMute)
+        {
+            return {
+                "Warp Clustering Mode Switch Is Click-Free",
+                false,
+                "Mute gain never dipped below 0.01 during the switch (min observed: "
+                    + std::to_string(minGain) + ")"};
+        }
+
+        const float finalGain = reverb.getWarpClusteringMuteGainForTesting();
+        if (std::abs(finalGain - 1.0f) > 0.01f)
+        {
+            return {
+                "Warp Clustering Mode Switch Is Click-Free",
+                false,
+                "Mute gain did not recover to 1.0 after the window closed (final: "
+                    + std::to_string(finalGain) + ")"};
+        }
+
+        return {
+            "Warp Clustering Mode Switch Is Click-Free",
+            true,
+            "Mute gain dipped to " + std::to_string(minGain)
+                + " during the switch and recovered to " + std::to_string(finalGain)
+                + ", with no non-finite samples"};
+    }
+    catch (const std::exception& e)
+    {
+        return {
+            "Warp Clustering Mode Switch Is Click-Free",
+            false,
+            std::string("Exception: ") + e.what()};
+    }
+}
+
+//==============================================================================
+// Test 10: Harmonic Clustering Modes Keep All Lines Distinct
+//==============================================================================
+TestResult testHarmonicClusteringModesKeepLinesDistinct()
+{
+    try
+    {
+        Chambers reverb;
+        reverb.prepare(kSampleRate, kBlockSize, kNumChannels);
+
+        const std::vector<std::pair<Chambers::WarpClusteringMode, std::string>> modes{
+            {Chambers::WarpClusteringMode::Harmonic2x, "Harmonic2x"},
+            {Chambers::WarpClusteringMode::Harmonic3x, "Harmonic3x"},
+            {Chambers::WarpClusteringMode::OctaveStack, "OctaveStack"},
+        };
+
+        for (const auto& [mode, name] : modes)
+        {
+            reverb.setWarpClusteringMode(mode);
+            // setWarpClusteringMode() only schedules the change; process
+            // enough samples for the mute-and-swap window to complete.
+            juce::AudioBuffer<float> buffer(kNumChannels, 600);
+            buffer.clear();
+            reverb.process(buffer);
+
+            const std::vector<float> delays = reverb.getDelaySamplesForTesting();
+
+            // All 12 lines must have distinct delay lengths -- collapsing
+            // several onto the same clamped value is exactly the bug this
+            // guards against (see kOctaveRatios' history: the original
+            // per-line-base scheme sent most lines to an identical clamp).
+            std::vector<float> sorted = delays;
+            std::sort(sorted.begin(), sorted.end());
+            for (size_t i = 1; i < sorted.size(); ++i)
+            {
+                if (sorted[i] - sorted[i - 1] < 1.0f)
+                {
+                    return {
+                        "Harmonic Clustering Modes Keep Lines Distinct",
+                        false,
+                        name + ": lines collapsed to duplicate/near-duplicate delays ("
+                            + std::to_string(sorted[i - 1]) + " and " + std::to_string(sorted[i]) + ")"};
+                }
+            }
+        }
+
+        return {
+            "Harmonic Clustering Modes Keep Lines Distinct",
+            true,
+            "All 12 lines remain distinct under Harmonic2x, Harmonic3x, and OctaveStack"};
+    }
+    catch (const std::exception& e)
+    {
+        return {
+            "Harmonic Clustering Modes Keep Lines Distinct",
+            false,
+            std::string("Exception: ") + e.what()};
+    }
+}
+
+//==============================================================================
 // Main Test Runner
 //==============================================================================
 int main()
@@ -611,6 +938,10 @@ int main()
     results.push_back(testStereoDecorrelation());
     results.push_back(testFreezeModeStability());
     results.push_back(testParameterJumpStress());
+    results.push_back(testDensityEvolutionAffectsOutput());
+    results.push_back(testAttackTimeProducesSlowSwell());
+    results.push_back(testWarpClusteringModeSwitchIsClickFree());
+    results.push_back(testHarmonicClusteringModesKeepLinesDistinct());
 
     // Report results
     std::cout << "Test Results:" << std::endl;

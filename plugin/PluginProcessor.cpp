@@ -447,6 +447,9 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     paramCache.paradoxResonanceFreq = parameters.getRawParameterValue("paradoxResonanceFreq")->load(std::memory_order_relaxed);
     paramCache.paradoxGain = parameters.getRawParameterValue("paradoxGain")->load(std::memory_order_relaxed);
     paramCache.routingPreset = parameters.getRawParameterValue("routingPreset")->load(std::memory_order_relaxed);
+    paramCache.warpClustering = parameters.getRawParameterValue("warpClustering")->load(std::memory_order_relaxed);
+    paramCache.densityEvolution = parameters.getRawParameterValue("densityEvolution")->load(std::memory_order_relaxed);
+    paramCache.attackTime = parameters.getRawParameterValue("attackTime")->load(std::memory_order_relaxed);
     paramCache.macroMode = parameters.getRawParameterValue("macroMode")->load(std::memory_order_relaxed);
     paramCache.safetyClip = parameters.getRawParameterValue("safetyClip")->load(std::memory_order_relaxed) > 0.5f;
     paramCache.safetyClipDrive = parameters.getRawParameterValue("safetyClipDrive")->load(std::memory_order_relaxed);
@@ -970,6 +973,20 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
         delayJitterAmount
     );
 
+    // Ambient reverb shaping: Chambers debounces repeat calls with the same
+    // warpClustering value (a no-op unless it actually changes) and handles
+    // its own click-safe crossfade on an actual mode switch, so this can be
+    // called unconditionally every block. densityEvolution/attackTime have
+    // their own internal smoothers in Chambers, so no extra smoothing here.
+    if (auto* chambers = routingGraph.getChambers())
+    {
+        const int warpClusteringIndex = sanitizeChoice(paramCache.warpClustering, 0, 3, 0);
+        chambers->setWarpClusteringMode(
+            static_cast<monument::dsp::Chambers::WarpClusteringMode>(warpClusteringIndex));
+        chambers->setDensityEvolution(sanitizeRange(paramCache.densityEvolution, 0.0f, -1.0f, 1.0f));
+        chambers->setAttackTime(sanitizeUnit(paramCache.attackTime, 0.0f));
+    }
+
     // Weathering: warp and drift are per-sample
     routingGraph.setWeatheringParams(
         makeModulatedView(warpBuffer, modWarp),
@@ -1465,6 +1482,30 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
         "Drift",
         juce::NormalisableRange<float>(0.0f, 1.0f),
         0.3f));
+
+    // ========================================================================
+    // AMBIENT REVERB SHAPING (Chambers FDN)
+    // How the twelve delay lines relate to each other, how echo density
+    // evolves over the decay, and how quickly the reverb swells in.
+    // ========================================================================
+
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        "warpClustering",
+        "Warp Clustering",
+        juce::StringArray{"Incommensurate", "Harmonic 2x", "Harmonic 3x", "Octave Stack"},
+        0));  // Default: Incommensurate (matches Chambers::WarpClusteringMode enum order)
+
+    params.push_back(makeFloat(
+        "densityEvolution",
+        "Density Evolution",
+        juce::NormalisableRange<float>(-1.0f, 1.0f),
+        0.0f));  // 0 = constant density (traditional reverb)
+
+    params.push_back(makeFloat(
+        "attackTime",
+        "Attack Time",
+        juce::NormalisableRange<float>(0.0f, 1.0f),
+        0.0f));  // 0 = instant attack (traditional)
 
     params.push_back(makeFloat(
         "memory",

@@ -134,6 +134,9 @@ private:
         float elasticity, recoveryTime, absorptionDrift, nonlinearity;
         float impossibilityDegree, pitchEvolutionRate, paradoxResonanceFreq, paradoxGain;
         float routingPreset;  // DSP routing architecture (0-7)
+        float warpClustering;  // Chambers FDN delay-clustering mode (0-3, see Chambers::WarpClusteringMode)
+        float densityEvolution;  // Chambers echo density drift over the decay (-1..1)
+        float attackTime;  // Chambers slow-attack swell time (0..1)
         float macroMode;  // 0 = Ancient Monuments, 1 = Expressive Macros
         float safetyClipDrive;  // Output soft clip intensity (0..1)
         float timelinePreset;  // Timeline preset index

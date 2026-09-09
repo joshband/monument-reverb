@@ -84,6 +84,6 @@ rather than assuming a generic JUCE template layout.
 
 Read these for detailed implementations:
 - `Skills/SKILL.md` (`dsp-cookbook`) - production DSP algorithms (filters, compressors, delays, modulation, saturation)
-- `Skills/SKILL 2.md` (`juce-best-practices`) - realtime safety, threading, memory management, modern C++ JUCE patterns
+- `Skills/juce-best-practices.md` (`juce-best-practices`) - realtime safety, threading, memory management, modern C++ JUCE patterns
 - `Skills/juce-audio-graphics-architect/SKILL.md` - DSP chains, FFT/audio-reactive UI, OpenGL/particle visuals, layered JUCE interfaces
 - `Skills/system-setup/SKILL.md` - validates/configures build dependencies (Python, CMake, JUCE, pluginval)
