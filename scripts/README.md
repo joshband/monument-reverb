@@ -11,7 +11,8 @@ Automation and workflow scripts for development, testing, profiling, and CI/CD.
 | [install_macos.sh](#install_macossh) | Install AU/VST3 plugins | `./scripts/install_macos.sh` |
 | [dev_loop.sh](#dev_loopsh) | Development watch loop | `./scripts/dev_loop.sh` |
 | [open_xcode.sh](#open_xcodesh) | Generate Xcode project | `./scripts/open_xcode.sh` |
-| [run_ci_tests.sh](#run_ci_testssh) | **Complete CI test suite** | `./scripts/run_ci_tests.sh` |
+| [run_ci_tests.sh](#run_ci_testssh) | Complete CI test suite (non-authoritative diagnostic) | `./scripts/run_ci_tests.sh` |
+| [check.sh](#checksh) | **Bounded local QA gate** (curated CTest + critical QA-harness suite) | `./scripts/check.sh` |
 | [capture_all_presets.sh](#capture_all_presetssh) | Batch preset capture | `PARALLEL_JOBS=8 ./scripts/capture_all_presets.sh` |
 | [analyze_all_presets.sh](#analyze_all_presetssh) | Batch audio analysis | `PARALLEL_JOBS=8 ./scripts/analyze_all_presets.sh` |
 | [profile_cpu.sh](#profile_cpush) | CPU profiling (automatic) | `./scripts/profile_cpu.sh` |
@@ -259,6 +260,51 @@ ENABLE_UI_TESTS=1 ./scripts/run_ci_tests.sh
 - Parallel execution optimized for 8-core systems
 - Baseline validation checks data integrity (file structure, metadata, RT60, frequency metrics, audio files)
 - Supports flexible schema validation for both old and new baseline formats
+
+---
+
+### check.sh
+
+**Purpose:** Bounded, explicit local QA gate. A single canonical entrypoint
+that fails loudly instead of silently skipping work — unlike
+`run_ci_tests.sh` (a non-authoritative diagnostic wrapper that can skip
+missing diagnostic binaries, auto-create a missing baseline and treat that
+as success, and search multiple build-directory layouts), `check.sh` does
+none of that.
+
+**What It Does (in order):**
+1. Resolves one source root, one build directory, one explicit config.
+2. Validates the `audio-dsp-qa-harness` submodule is checked out, then
+   configures + builds the Monument plugin and the `monument_qa` harness executable.
+3. Runs an explicit, curated CTest selection for processor-level contracts
+   (state/parameter/preset/module) that the scenario harness cannot reach
+   directly. Fails if zero tests match.
+4. Runs the 8-scenario critical suite via `monument_qa` and fails on any
+   FAIL/ERROR, an unexpected scenario count, or unmeasured performance data
+   hiding in soft warnings.
+5. Prints a final report: commit hash, harness submodule pin, CMake config,
+   test/scenario counts, and artifact locations.
+6. With `--full`, additionally runs the 22-scenario full suite.
+
+**Usage:**
+```bash
+./scripts/check.sh
+./scripts/check.sh --full
+```
+
+**Environment Variables:**
+- `BUILD_DIR` - build directory (default: `build-check`)
+- `TEST_CONFIG` - CMake/CTest configuration (default: `Release`)
+- `JUCE_SOURCE_DIR` - if set, builds against a local JUCE checkout instead of FetchContent
+
+**Exit Codes:**
+- `0` - all checks passed
+- `1` - a check failed (test/scenario failures, unmeasured required data, etc.)
+- `2` - setup/dependency error (missing submodule, missing executable, etc.)
+
+**Notes:**
+- Not wired into CI yet, and does not replace `run_ci_tests.sh`.
+- See [TESTING.md](../TESTING.md) for the authoritative DSP QA gate policy.
 
 ---
 

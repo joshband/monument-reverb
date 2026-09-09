@@ -3,12 +3,23 @@
 ## Overview
 
 Monument Reverb user presets are stored as JSON files with the `.json` extension. The format supports:
-- Base DSP parameters (12 parameters)
-- Macro control parameters (6 parameters)
+- Base and macro DSP parameters (22 normalized float fields)
+- Modulation connections ("living" presets), unconditionally serialized/deserialized
 - Metadata (name, description)
 - Format versioning for backward compatibility
 
-**Current Version:** `2` (as of Phase 2 completion)
+**Current Version:** `5` (`constexpr int kPresetVersion = 5;` in [PresetManager.cpp](../../plugin/PresetManager.cpp))
+
+**Scope note:** This document covers the JSON preset format written by
+`PresetManager::saveUserPreset()` / read by `PresetManager::loadUserPreset()`.
+It does **not** cover the plugin's full host session state (the `macroMode`,
+`routingPreset`, `timelinePreset` parameters, or the "Expressive Macros" —
+`character`, `spaceType`, `energy`, `motion`, `color`, `dimension`, defined in
+[ExpressiveMacroMapper.h](../../dsp/ExpressiveMacroMapper.h)). Those are
+ordinary APVTS-managed plugin parameters, persisted via the host's own
+plugin-state round-trip (`getStateInformation`/`setStateInformation`), but
+they are **not** written into or read from this preset JSON file — saving a
+user preset does not capture them, and loading one does not change them.
 
 ---
 
@@ -28,11 +39,11 @@ User presets are automatically saved to and loaded from this directory. The dire
 
 ## JSON Structure
 
-### Complete Example (Format Version 2)
+### Complete Example (Format Version 5)
 
 ```json
 {
-  "formatVersion": 2,
+  "formatVersion": 5,
   "name": "My Custom Hall",
   "description": "A warm, evolving space with subtle chaos",
   "parameters": {
@@ -53,10 +64,31 @@ User presets are automatically saved to and loaded from this directory. The dire
     "viscosity": 0.50,
     "evolution": 0.70,
     "chaosIntensity": 0.25,
-    "elasticityDecay": 0.10
-  }
+    "elasticityDecay": 0.10,
+    "patina": 0.55,
+    "abyss": 0.45,
+    "corona": 0.60,
+    "breath": 0.15
+  },
+  "modulation": [
+    {
+      "source": "AudioFollower",
+      "destination": "Bloom",
+      "sourceAxis": 0,
+      "depth": 0.30,
+      "smoothingMs": 250.0,
+      "curveType": "Linear",
+      "curveAmount": 0.0,
+      "enabled": true
+    }
+  ]
 }
 ```
+
+The `modulation` array is present only if a `ModulationMatrix` pointer was
+supplied to `PresetManager` and it has at least one enabled connection at
+save time; `PresetManager::saveUserPreset()` skips disabled connections. If
+absent, `loadUserPreset()` simply loads an empty modulation list.
 
 ---
 
@@ -66,16 +98,21 @@ User presets are automatically saved to and loaded from this directory. The dire
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `formatVersion` | Integer | Yes | Preset format version (current: 2) |
+| `formatVersion` | Integer | Yes | Preset format version (current: 5) |
 | `name` | String | Yes | Display name of the preset |
 | `description` | String | Yes | Human-readable description of sonic character |
-| `parameters` | Object | Yes | All parameter values (see below) |
+| `parameters` | Object | Yes | All base/macro parameter values (see below) |
+| `modulation` | Array | No | Modulation connections; omitted if none are enabled |
 
 ---
 
 ### Parameters Object
 
-All parameter values are **normalized floats** in the range `[0.0, 1.0]`.
+All parameter values are **normalized floats** in the range `[0.0, 1.0]`,
+read/written via `readFloatProperty()` and `DynamicObject::setProperty()` in
+[PresetManager.cpp](../../plugin/PresetManager.cpp). There are 22 fields
+total, matching the `PresetValues` struct in
+[PresetManager.h](../../plugin/PresetManager.h#L13-L45).
 
 #### Base Parameters (12)
 
@@ -94,7 +131,15 @@ All parameter values are **normalized floats** in the range `[0.0, 1.0]`.
 | `memoryDrift` | 0.0–1.0 | 0.3 | Memory playback drift/detuning |
 | `mix` | 0.0–1.0 | 0.5 | Dry/wet mix (0=dry, 1=wet) |
 
-#### Macro Parameters (6) — Added in Format Version 2
+**Note:** These `memory*` fields configure `MemoryEchoes` (see
+[11-strata.md](../architecture/dsp/memory-system/11-strata.md)), whose
+`process()` call is not reached in ordinary builds — see
+[ARCHITECTURE.md](../../ARCHITECTURE.md#reachable-signal-chain-ancientway-the-default).
+The parameters still round-trip through presets and the host parameter
+surface; they just don't currently affect the rendered sound outside the
+`MONUMENT_MEMORY_PROVE` debug build.
+
+#### Ancient Macro Parameters (6) — Added in Format Version 2
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
@@ -105,59 +150,106 @@ All parameter values are **normalized floats** in the range `[0.0, 1.0]`.
 | `chaosIntensity` | 0.0–1.0 | 0.0 | Stable → Chaotic behavior |
 | `elasticityDecay` | 0.0–1.0 | 0.0 | Instant recovery → Slow deformation |
 
-**Note:** Macro parameters control multiple base parameters simultaneously through the MacroMapper system. See [ARCHITECTURE_REVIEW.md](../archive/reviews/01042026-ArchitectureReview.md) for mapping details (archived).
+These are the "Ancient" macros (`dsp/MacroMapper.h/cpp`, `macroMode == 0`).
+They control multiple base parameters simultaneously; they are distinct
+from the "Expressive" macros (`character`, `spaceType`, `energy`, `motion`,
+`color`, `dimension`, `macroMode == 1`), which are **not** part of this
+preset format (see the Scope note above).
+
+#### Ancient Monuments Macros 7-10 (4) — Added in Format Version 4
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| `patina` | 0.0–1.0 | 0.5 | Surface weathering/coloration character |
+| `abyss` | 0.0–1.0 | 0.5 | Depth/void character |
+| `corona` | 0.0–1.0 | 0.5 | Halo/shimmer character |
+| `breath` | 0.0–1.0 | 0.0 | Breathing/pulsing motion amount |
+
+**Note:** Macro parameters control multiple base parameters simultaneously through the MacroMapper system. See [ARCHITECTURE.md](../../ARCHITECTURE.md) for mapping details.
 
 ---
 
 ## Format Version History
 
-### Version 2 (Current)
+Verified against `kPresetVersion` and the load/save code in
+[PresetManager.cpp](../../plugin/PresetManager.cpp); dates for versions 3-5
+are not recorded in source comments and are left unspecified below rather
+than guessed.
+
+### Version 5 (Current)
+**Changes:**
+- Added modulation curve metadata (`curveType`, `curveAmount`) to each
+  serialized modulation connection.
+
+### Version 4
+**Changes:**
+- Added the `patina`, `abyss`, `corona`, `breath` macro fields (Ancient
+  Monuments macros 7-10).
+- v3 presets missing these fields default to `patina=0.5, abyss=0.5,
+  corona=0.5, breath=0.0` on load.
+
+### Version 3
+**Changes:**
+- Added `modulation` array serialization for modulation connections
+  (source, destination, sourceAxis, depth, smoothingMs, enabled). This was
+  previously described as a "future" feature in this document; it has
+  shipped since this version.
+
+### Version 2
 **Date:** 2026-01-03
 **Changes:**
-- Added 6 macro parameters to serialization
-- Macro parameters now persist in user presets
-- Backward compatible with v1 (missing macros default to 0.5)
+- Added 6 macro parameters (`material`, `topology`, `viscosity`,
+  `evolution`, `chaosIntensity`, `elasticityDecay`) to serialization.
+- Backward compatible with v1 (missing macros default to their struct
+  defaults).
 
 ### Version 1 (Legacy)
 **Date:** 2025-12-09
 **Limitations:**
-- Only saved 12 base parameters
-- Macro parameters were **not** serialized
-- User presets lost macro control values on save/load
+- Only saved the 12 base parameters.
+- Macro parameters were **not** serialized.
 
-**Migration:** Version 1 presets are automatically upgraded on load. Missing macro parameters use default values (0.5).
+**Migration:** Older presets are automatically upgraded on load — any field
+missing from the JSON falls back to the `PresetValues` struct default
+(`readFloatProperty()` returns the fallback when a key is absent).
 
 ---
 
-## Modulation Connections (Future)
+## Modulation Connections
 
-**Status:** ❌ Not Yet Implemented in User Presets
+**Status:** ✅ Implemented since format version 3 — this is not a future
+feature. `PresetManager::saveUserPreset()` unconditionally serializes every
+*enabled* connection from the `ModulationMatrix` passed to the
+`PresetManager` constructor, and `loadUserPreset()` unconditionally
+deserializes them back into `PresetValues::modulationConnections`.
 
-Factory presets in [PresetManager.cpp](../../plugin/PresetManager.cpp) support modulation connections internally, but these are **not yet serialized to JSON** for user presets.
-
-### Planned Structure (Format Version 3)
+### Structure
 
 ```json
 {
-  "formatVersion": 3,
+  "formatVersion": 5,
   "name": "Living Preset Example",
   "description": "Breathing walls that respond to input",
-  "parameters": { ... },
+  "parameters": { "...": "..." },
   "modulation": [
     {
       "source": "AudioFollower",
       "destination": "Bloom",
-      "depth": 0.30,
       "sourceAxis": 0,
+      "depth": 0.30,
       "smoothingMs": 250.0,
+      "curveType": "Linear",
+      "curveAmount": 0.0,
       "enabled": true
     },
     {
       "source": "ChaosAttractor",
       "destination": "Warp",
-      "depth": 0.45,
       "sourceAxis": 0,
+      "depth": 0.45,
       "smoothingMs": 300.0,
+      "curveType": "EaseIn",
+      "curveAmount": 0.5,
       "enabled": true
     }
   ]
@@ -168,14 +260,23 @@ Factory presets in [PresetManager.cpp](../../plugin/PresetManager.cpp) support m
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `source` | String | Enum: `AudioFollower`, `BrownianMotion`, `ChaosAttractor`, `EnvelopeTracker` |
-| `destination` | String | Target parameter (e.g., `Bloom`, `Warp`, `Density`) |
-| `depth` | Float (0.0–1.0) | Modulation intensity |
-| `sourceAxis` | Integer (0–2) | Axis for multi-dimensional sources (Chaos: X/Y/Z) |
-| `smoothingMs` | Float | Smoothing time in milliseconds |
-| `enabled` | Boolean | Enable/disable connection |
+| `source` | String | Enum, see `sourceTypeToString()`: `AudioFollower`, `BrownianMotion`, `ChaosAttractor`, `EnvelopeTracker`, `Lfo1`-`Lfo6`, `MidiCC`, `MidiPitchBend`, `MidiChannelPressure` |
+| `destination` | String | Enum, see `destinationTypeToString()`: e.g. `Time`, `Mass`, `Density`, `Bloom`, `Air`, `Width`, `Mix`, `Warp`, `Drift`, `Gravity`, `PillarShape`, `TubeCount`, `RadiusVariation`, `MetallicResonance`, `CouplingStrength`, `Elasticity`, `RecoveryTime`, `AbsorptionDrift`, `Nonlinearity`, `ImpossibilityDegree`, `PitchEvolutionRate`, `ParadoxResonanceFreq`, `ParadoxGain`, `PositionX`, `PositionY`, `PositionZ`, `Distance`, `VelocityX` |
+| `sourceAxis` | Integer | Axis for multi-dimensional sources (e.g. Chaos X/Y/Z: 0/1/2) |
+| `depth` | Float | Modulation amount (bipolar, -1 to +1 per the `Connection` struct, though factory presets use 0-1) |
+| `smoothingMs` | Float | Lag filter time constant, milliseconds |
+| `curveType` | String | Enum, see `curveTypeToString()`: `Linear`, `EaseIn`, `EaseOut`, `Sine`, `SCurve`, `Steps` (added in v5) |
+| `curveAmount` | Float | 0.0-1.0 curve intensity, ignored for `Linear` (added in v5) |
+| `enabled` | Boolean | Always `true` for a connection present in this array — disabled connections are skipped at save time |
 
-**Implementation:** See [ModulationMatrix.h](../../dsp/ModulationMatrix.h) for full source/destination enum definitions.
+**Known gap:** `ModulationMatrix::Connection` also has a `probability` field
+(probability gate for intermittent modulation, `dsp/ModulationMatrix.h`),
+but `PresetManager` does not read or write it — a connection's probability
+is not persisted through this preset format. This is a pre-existing gap in
+the current implementation, not something this document is proposing to
+fix.
+
+**Implementation:** See [ModulationMatrix.h](../../dsp/ModulationMatrix.h) for full source/destination/curve enum definitions.
 
 ---
 
@@ -183,18 +284,18 @@ Factory presets in [PresetManager.cpp](../../plugin/PresetManager.cpp) support m
 
 ### Required Fields
 - All root fields (`formatVersion`, `name`, `description`, `parameters`) must be present
-- All 12 base parameters must be present
-- Macro parameters are optional (use defaults if missing for v1 compatibility)
+- No individual parameter field is strictly required — any missing key falls back to the `PresetValues` struct default
+- `modulation` is optional; if present but empty or malformed entries are skipped
 
 ### Value Constraints
-- All parameter values must be in range `[0.0, 1.0]`
-- Values outside range are clamped during load
-- `formatVersion` must be a positive integer
+- All parameter values are normalized `[0.0, 1.0]`; `setParamNormalized()` clamps out-of-range values to `[0.0, 1.0]` when applying them to APVTS
+- `formatVersion` is informational only — `loadUserPreset()` does not branch on it; it relies on per-field presence/absence for backward compatibility
 
 ### Error Handling
-- Invalid JSON: File load returns `false`, preset not applied
-- Missing parameters: Use struct default values (see [PresetManager.h:14-38](../../plugin/PresetManager.h#L14-L38))
-- Unknown parameters: Ignored (forward compatibility)
+- Invalid JSON / missing `parameters` object with no top-level fallback: `loadUserPreset()` returns `false`, preset not applied
+- Missing individual parameters: use `PresetValues` struct defaults (see [PresetManager.h:13-45](../../plugin/PresetManager.h#L13-L45))
+- Unknown parameters/fields: ignored (forward compatibility)
+- Unknown `source`/`destination`/`curveType` strings in a modulation entry fall back to a default enum value (`ChaosAttractor`/`Warp`/`Linear` respectively) rather than being rejected
 
 ---
 
@@ -217,6 +318,8 @@ juce::File presetFile = juce::File::getSpecialLocation(juce::File::userDocuments
 if (presetManager.loadUserPreset(presetFile)) {
     // Preset loaded successfully
     // UI and DSP parameters updated
+    // presetManager.getLastLoadedModulationConnections() now holds the
+    // connections read from this preset, for the caller to apply
 } else {
     // Handle load failure
 }
@@ -227,34 +330,29 @@ if (presetManager.loadUserPreset(presetFile)) {
 1. Create a new `.json` file in `~/Documents/MonumentPresets/`
 2. Use the structure from the example above
 3. Set parameter values in range `[0.0, 1.0]`
-4. Load via plugin UI (when user preset browser is implemented)
+4. Load via the plugin's user preset browser
 
 ---
 
 ## Factory Presets
 
-**Location:** Hardcoded in [PresetManager.cpp:79-151](../../plugin/PresetManager.cpp#L79-L151)
+**Location:** Hardcoded in [PresetManager.cpp](../../plugin/PresetManager.cpp), the `kFactoryPresets` array.
 
-**Count:** 23 factory presets organized into 5 categories:
-1. **🏛️ Foundational Spaces (0-5):** Clean starting points
-2. **🌱 Living Spaces (6-11):** Organic, evolving characters
-3. **📜 Remembering Spaces (12-14):** Memory buffer presets
-4. **⏳ Time-Bent/Abstract (15-17):** Non-Euclidean geometry
-5. **🌀 Evolving Spaces (18-22):** Phase 3 "Living" presets with modulation
+**Count:** 37 factory presets (`kNumFactoryPresets = 37`), organized in the
+array in this order (1-indexed; index ranges are not all contiguous by
+category — see [PRESET_GALLERY.md](../PRESET_GALLERY.md) for the full,
+verified breakdown):
 
-**Special:** Presets 18-22 include hardcoded modulation connections that are **not** user-editable via JSON (yet).
+1. **Foundational Spaces (1-18):** 18 architectural reverbs without modulation — Init Patch, Stone Hall, High Vault, Cold Chamber, Night Atrium, Monumental Void, Stone Circles, Cathedral of Glass, Zero-G Garden, Weathered Nave, Dust in the Columns, Frozen Monument (Engage Freeze), Ruined Monument (Remembers), What the Hall Kept, Event Horizon, Folded Atrium, Hall of Mirrors, Tesseract Chamber.
+2. **Living Spaces, Phase 3 (19-23):** 5 presets with hardcoded modulation connections — Breathing Stone, Drifting Cathedral, Chaos Hall, Living Pillars, Event Horizon Evolved.
+3. **Physical Modeling Spaces, Phase 5 (24-28):** 5 presets exercising the tube/elastic/alien-physics modules — Metallic Corridor, Elastic Cathedral, Impossible Chamber, Breathing Tubes, Quantum Hall.
+4. **Living Spaces, Phase 6 (29-37):** 9 further modulation-driven presets — Pulsing Cathedral, Dynamic Shimmer, Quantum Shimmer, Morphing Cathedral, Fractal Space, Elastic Drift, Spectral Wander, Impossible Hall, Breathing Chaos.
 
----
-
-## Future Enhancements
-
-### Planned Features (Roadmap)
-- [ ] **Format v3:** Modulation connection serialization
-- [ ] **User Preset Browser UI:** Visual card-based selection
-- [ ] **Preset Tags/Categories:** User-defined organization
-- [ ] **Preset Thumbnails:** Generated PBR chamber visualizations
-- [ ] **Preset Morphing:** Interpolate between two presets
-- [ ] **Cloud Preset Sharing:** Community preset library
+**Special:** Presets in groups 2 and 4 (19-23, 29-37 — 14 presets total)
+include hardcoded modulation connections. Their connections are *readable*
+by a user via `getLastLoadedModulationConnections()` after loading, and a
+user preset saved from that state will now correctly persist those
+connections (format v3+) — this is no longer "not user-editable via JSON."
 
 ---
 
@@ -263,25 +361,26 @@ if (presetManager.loadUserPreset(presetFile)) {
 ### Related Files
 - **Implementation:** [PresetManager.cpp](../../plugin/PresetManager.cpp)
 - **Header:** [PresetManager.h](../../plugin/PresetManager.h)
-- **Architecture:** [ARCHITECTURE_REVIEW.md](../archive/reviews/01042026-ArchitectureReview.md) (archived)
+- **Architecture:** [ARCHITECTURE.md](../../ARCHITECTURE.md)
+- **Modulation Matrix:** [ModulationMatrix.h](../../dsp/ModulationMatrix.h)
+- **Preset Gallery:** [PRESET_GALLERY.md](../PRESET_GALLERY.md)
 - **Macro System:** [QUICK_START_MACRO_TESTING.md](../archive/sessions/QUICK_START_MACRO_TESTING.md) (archived)
 
-### Key Functions
-- `PresetManager::saveUserPreset()` — Line 200
-- `PresetManager::loadUserPreset()` — Line 244
-- `PresetManager::captureCurrentValues()` — Line 289
-- `PresetManager::applyPreset()` — Line 324
+### Key Functions (see file for current line numbers; not repeated here to avoid drift)
+- `PresetManager::saveUserPreset()`
+- `PresetManager::loadUserPreset()`
+- `PresetManager::captureCurrentValues()`
+- `PresetManager::applyPreset()`
 
 ---
 
 ## Troubleshooting
 
-### Preset Doesn't Save Macro Values
-**Solution:** Ensure you're using format version 2 or later. Rebuild plugin after updating PresetManager.cpp.
-
-### Preset Loads but Sounds Different
-**Cause:** Modulation connections are not saved in user presets (format v2).
-**Workaround:** Use factory presets 18-22 as starting points for "living" sounds.
+### Preset Loads but Sounds Different Than Expected
+**Cause:** A connection's `probability` field is never saved (see "Known
+gap" above), and Expressive Macro / `macroMode` / `routingPreset` /
+`timelinePreset` state is not part of this preset format at all — it
+carries over from whatever the plugin's current session state is.
 
 ### Can't Find Preset Directory
 **Check:** `~/Documents/MonumentPresets/`
@@ -297,7 +396,7 @@ if (presetManager.loadUserPreset(presetFile)) {
 
 ```typescript
 interface MonumentPreset {
-  formatVersion: number;  // Current: 2
+  formatVersion: number;  // Current: 5
   name: string;
   description: string;
   parameters: {
@@ -315,22 +414,37 @@ interface MonumentPreset {
     memoryDrift: number;
     mix: number;
 
-    // Macro Parameters (6) — v2+
+    // Ancient Macro Parameters (6) — v2+
     material: number;     // [0.0, 1.0]
     topology: number;
     viscosity: number;
     evolution: number;
     chaosIntensity: number;
     elasticityDecay: number;
+
+    // Ancient Monuments Macros 7-10 (4) — v4+
+    patina: number;       // [0.0, 1.0]
+    abyss: number;
+    corona: number;
+    breath: number;
   };
 
-  // Future (v3)
-  modulation?: ModulationConnection[];
+  // Modulation connections — v3+ (curveType/curveAmount added v5)
+  modulation?: Array<{
+    source: string;
+    destination: string;
+    sourceAxis: number;
+    depth: number;
+    smoothingMs: number;
+    curveType: string;
+    curveAmount: number;
+    enabled: boolean;
+  }>;
 }
 ```
 
 ---
 
-**Last Updated:** 2026-01-03
-**Format Version:** 2
+**Last Updated:** 2026-09-05
+**Format Version:** 5
 **Maintainer:** Monument Reverb Development Team
