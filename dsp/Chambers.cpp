@@ -43,6 +43,11 @@ constexpr std::array<int, 8> kDelaySamples48k{
 // Input diffusion delays (48 kHz), 1–5 ms range and incommensurate.
 constexpr std::array<int, 2> kInputDiffuserSamples48k{149, 223};
 
+// Output decorrelation delays/coefficients (48 kHz): fixed, incommensurate
+// per channel, chosen distinct from every other diffuser stage's values above.
+constexpr std::array<int, 2> kOutputDecorrelatorSamples48k{211, 337};
+constexpr std::array<float, 2> kOutputDecorrelatorCoeff{0.35f, 0.5f};
+
 // Late diffusion delays (48 kHz), sub-10 ms, incommensurate across lines.
 constexpr std::array<int, 8> kLateDiffuserSamples48k{
     157, 173, 197, 223, 251, 281, 313, 347
@@ -305,6 +310,16 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
         feedbackDiffusers[i].prepare();
     }
 
+    // Output decorrelation: fixed per-channel allpass on the wet signal (see process()).
+    for (size_t i = 0; i < outputDecorrelators.size(); ++i)
+    {
+        const int diffuserDelaySamples = juce::jmax(
+            1, static_cast<int>(std::round(kOutputDecorrelatorSamples48k[i] * scale)));
+        outputDecorrelators[i].setDelaySamples(diffuserDelaySamples);
+        outputDecorrelators[i].setCoefficient(kOutputDecorrelatorCoeff[i]);
+        outputDecorrelators[i].prepare();
+    }
+
     driftDepthMaxSamples = kDriftDepthMaxSamples;
     {
         juce::Random random = testDriftSeed.has_value()
@@ -390,6 +405,8 @@ void Chambers::reset()
     for (auto& diffuser : lateDiffusers)
         diffuser.reset();
     for (auto& diffuser : feedbackDiffusers)
+        diffuser.reset();
+    for (auto& diffuser : outputDecorrelators)
         diffuser.reset();
     smoothersPrimed = false;
     freezeRampRemaining = 0;
@@ -850,6 +867,25 @@ void Chambers::process(juce::AudioBuffer<float>& buffer)
         wetFrozenL *= outputScale * envelopeValue;
         wetFrozenR *= outputScale * envelopeValue;
 
+        // Decorrelate the live wet signal only, before the live/frozen blend,
+        // and only while fully unfrozen. Deliberately excluded from freeze
+        // (including its ramp: freezeActive flips true on the very first block
+        // after setFreeze(true), before freezeBlend finishes ramping down, and
+        // lateOutLive[] itself still blends toward the frozen snapshot during
+        // that ramp): the frozen tail converges toward a sustained, near-periodic
+        // resonance, and this allpass's group delay beats against that
+        // periodicity and against the still-morphing ramp, producing slow
+        // amplitude modulation over tens of seconds (verified: applying it
+        // unconditionally, and even applying it to wetLiveL/R only without this
+        // gate, both broke Freeze Mode Stability's long-window RMS check).
+        // Stereo Decorrelation never engages freeze, so this gate doesn't
+        // affect it either way.
+        if (right != nullptr && !freezeActive)
+        {
+            wetLiveL = outputDecorrelators[0].processSample(wetLiveL);
+            wetLiveR = outputDecorrelators[1].processSample(wetLiveR);
+        }
+
         float wetL = outputBlend * wetLiveL + (1.0f - outputBlend) * wetFrozenL;
         float wetR = outputBlend * wetLiveR + (1.0f - outputBlend) * wetFrozenR;
         wetL = juce::jlimit(-kWetLimiterCeiling, kWetLimiterCeiling, wetL);
@@ -986,6 +1022,10 @@ void Chambers::setFreeze(bool shouldFreeze)
         freezeRampingDown = true;
         freezeRampRemaining = juce::jmax(1, freezeOutputFadeSamples);
         freezeRampStep = 1.0f / static_cast<float>(freezeRampRemaining);
+        // Bypassed while frozen (see process()); reset so it doesn't replay
+        // stale pre-freeze content into a click when unfreezing resumes it.
+        for (auto& diffuser : outputDecorrelators)
+            diffuser.reset();
     }
     else if (!shouldFreeze && isFrozen)
     {
