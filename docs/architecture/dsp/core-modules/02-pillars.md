@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready (Phase 5 Complete - Fractional Delays)
 **CPU Usage:** 5.38% (p99, 48kHz, 512 samples) - **4% improvement from Phase 4**
 **Complexity:** 🔴 HIGH
-**File:** [`dsp/DspModules.{h,cpp}`](../../dsp/DspModules.h)
+**File:** [`dsp/DspModules.{h,cpp}`](../../../../dsp/DspModules.h)
 
 ---
 
@@ -1116,8 +1116,8 @@ float readDelayLagrange(const float* buffer, int bufferLength,
 
 ### Implementation Files
 
-- **Header:** [`dsp/DspModules.h`](../../dsp/DspModules.h) (lines 31-131)
-- **Source:** [`dsp/DspModules.cpp`](../../dsp/DspModules.cpp) (lines 62-497)
+- **Header:** [`dsp/DspModules.h`](../../../../dsp/DspModules.h) (lines 31-131)
+- **Source:** [`dsp/DspModules.cpp`](../../../../dsp/DspModules.cpp) (lines 62-497)
 
 ### Related Documentation
 
@@ -1207,7 +1207,5 @@ float readDelayLagrange(const float* buffer, int bufferLength,
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2026-01-09
 **Word Count:** ~9,500
 **Status:** ✅ Complete

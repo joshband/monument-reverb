@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready (Phase 1 Complete)
 **CPU Usage:** ~0.05% (p99, 48kHz, 512 samples) - **Negligible overhead**
 **Complexity:** 🟢 LOW
-**File:** [`dsp/DspModules.{h,cpp}`](../../dsp/DspModules.h)
+**File:** [`dsp/DspModules.{h,cpp}`](../../../../dsp/DspModules.h)
 
 ---
 
@@ -681,8 +681,8 @@ float transformerSaturation(float input, float drive)
 
 ### Implementation Files
 
-- **Header:** [`dsp/DspModules.h`](../../dsp/DspModules.h) (lines 13-29)
-- **Source:** [`dsp/DspModules.cpp`](../../dsp/DspModules.cpp) (lines 23-60)
+- **Header:** [`dsp/DspModules.h`](../../../../dsp/DspModules.h) (lines 13-29)
+- **Source:** [`dsp/DspModules.cpp`](../../../../dsp/DspModules.cpp) (lines 23-60)
 
 ### Related Documentation
 
@@ -755,7 +755,5 @@ float transformerSaturation(float input, float drive)
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2026-01-09
 **Word Count:** ~4,800
 **Status:** ✅ Complete

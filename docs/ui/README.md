@@ -279,7 +279,7 @@ public:
 ## Additional Documentation
 
 ### Design References
-- [design-references/VINTAGE_CONTROL_PANEL_REFERENCES.md](design-references/VINTAGE_CONTROL_PANEL_REFERENCES.md) - Vintage industrial inspiration
+- design-references/VINTAGE_CONTROL_PANEL_REFERENCES.md - Vintage industrial inspiration (referenced here historically, but the file was never committed to the repo and no longer exists)
 
 ### Technical Guides (archived — see [UI_DESIGN_HISTORY.md](UI_DESIGN_HISTORY.md))
 - [LAYERED_KNOB_DESIGN.md](../archive/ui/LAYERED_KNOB_DESIGN.md) - Architecture details

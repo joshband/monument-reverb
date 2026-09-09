@@ -1,9 +1,5 @@
 # Monument Reverb: DSP Architecture Documentation
 
-**Version:** 1.0
-**Last Updated:** 2026-01-09
-**Status:** In Progress
-
 ---
 
 ## Welcome to the Monument
@@ -48,7 +44,7 @@ Each module document includes:
 **Understanding Performance?** Check:
 
 - Performance sections in each module doc
-- `docs/PERFORMANCE_BASELINE.md` (project root)
+- `docs/archive/sessions/PERFORMANCE_BASELINE.md` (archived)
 
 ---
 
@@ -355,11 +351,11 @@ Monument's **Strata** (memory system) will be fully integrated into the routing 
 
 ### Project Root Documentation
 - `README.md` - Project overview and Monument philosophy
-- `docs/DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md` - Existing architecture analysis
+- `docs/archive/reviews/01092026-DspArchitectureComprehensiveReview.md` - Existing architecture analysis (archived)
 - `docs/archive/ui/MEMORY_ECHOES_INTEGRATION.md` - Strata integration proposal (archived)
-- `docs/PERFORMANCE_BASELINE.md` - Performance metrics and benchmarks
+- `docs/archive/sessions/PERFORMANCE_BASELINE.md` - Performance metrics and benchmarks (archived)
 - `TESTING.md` - Testing hub
-- `docs/BUILD_PATTERNS.md` - Build system and CMake patterns
+- `docs/archive/sessions/BUILD_PATTERNS.md` - Build system and CMake patterns (archived)
 
 ### Source Code Reference
 - `dsp/DspModules.h` - Core module class definitions
