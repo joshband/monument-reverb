@@ -152,17 +152,28 @@ Implement BigSky MX-style parallel/series dual reverb engine routing.
 ---
 
 ### P1-07: Fix pillarMode Parameter Gap (dead UI control)
-**Domain:** `[DSP] [UI]` | **Effort:** 1h
+**Domain:** `[DSP] [UI]` | **Effort:** 1h | **Status:** ✅ Complete
 
 Found via architecture review (2026-09-09). The `pillarMode` combo ("Glass/Stone/Fog") is loaded,
 sanitized, and clamped every block in `PluginProcessor::processBlockCore`, but never passed to any
 DSP module — `DspRoutingGraph::setPillarsParams()` has no slot for it. Moving this knob currently
 does nothing audible; it's a real functional gap, not just a style issue.
 
+**Resolution:** `Pillars::setMode()` already existed (drives lowpass/highpass coloration and tap
+palette per mode) but nothing called it. Added an `int mode` parameter to
+`DspRoutingGraph::setPillarsParams()`, forwarded to `pillars->setMode()`, and wired the processor's
+already-computed (previously dead) `pillarModeSafe` value through at the one call site in
+`PluginProcessor::processBlockCore`.
+
 **Acceptance Criteria:**
-- [ ] Either wire `pillarMode` into `Pillars`/`DspRoutingGraph::setPillarsParams()` so it has an
+- [x] Either wire `pillarMode` into `Pillars`/`DspRoutingGraph::setPillarsParams()` so it has an
       audible effect, or remove the control from the UI/APVTS if it's genuinely vestigial
-- [ ] `monument_parameter_smoothing_test` still passes for this parameter either way
+- [x] `monument_parameter_smoothing_test` still passes for this parameter either way — "Pillar Mode"
+      passes at 1.1 dB jump, in line with every other parameter (threshold 1.8 dB)
+
+**New test coverage:** `tests/PillarsZipperTest.cpp` gained PILLARS-6 (Glass vs. Fog now produce
+measurably different output — this is the regression test that catches the wiring gap reappearing)
+and PILLARS-5 (rapid mode cycling under quiet input stays click-free, -61.7 dB vs. -40 dB threshold).
 
 **Dependencies:** None
 
@@ -473,7 +484,7 @@ For each task marked `complete`:
 
 **Next Actions:**
 1. ✅ P1-01 (Ambient Reverb Quality Alignment) — complete, see task entry above
-2. P1-07 (Fix pillarMode Parameter Gap) — small, do first: a real functional gap (dead UI control)
+2. ✅ P1-07 (Fix pillarMode Parameter Gap) — complete, see task entry above
 3. P2-06 through P2-09 (architecture-review cleanup: dead code audit, DspModules split, RT-safety
    doc contracts, processBlockCore scaffolding cleanup) — found 2026-09-09, no dependencies between
    them or on anything else, safe to pick up in any order

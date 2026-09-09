@@ -928,6 +928,7 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     const float bloomEffective = bloomModulated;
     float pillarModeSafe = pillarModeRaw;
     pillarModeSafe = juce::jlimit(0.0f, 2.0f, pillarModeSafe);
+    const int pillarModeIndex = static_cast<int>(std::round(pillarModeSafe));
 
     if (presetResetRequested.exchange(false, std::memory_order_acq_rel))
     {
@@ -951,7 +952,8 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     routingGraph.setPillarsParams(
         densityModulated,
         makeModulatedView(pillarShapeBuffer, modPillarShape),
-        warpEffective
+        warpEffective,
+        pillarModeIndex
     );
 
     // Chambers: time, mass, density, bloom, gravity all per-sample

@@ -500,6 +500,175 @@ static TestResult testCombinedParameterSweep()
 }
 
 //==============================================================================
+// Test PILLARS-5: pillarMode Parameter Sweep (Click Safety)
+//==============================================================================
+static TestResult testModeParameterSweep()
+{
+    TestResult result{"PILLARS-5: Mode Parameter Sweep", false, ""};
+
+    try
+    {
+        MonumentAudioProcessor processor;
+        processor.prepareToPlay(kSampleRate, kBlockSize);
+
+        auto& apvts = processor.getAPVTS();
+        auto* modeParam = dynamic_cast<juce::AudioParameterChoice*>(apvts.getParameter("pillarMode"));
+
+        if (!modeParam)
+        {
+            result.message = "pillarMode parameter not found";
+            return result;
+        }
+
+        std::mt19937 rng(46);
+        juce::AudioBuffer<float> buffer(kNumChannels, kBlockSize);
+        juce::MidiBuffer midiBuffer;
+
+        // Settle period
+        for (int block = 0; block < 50; ++block)
+        {
+            generateQuietNoise(buffer, rng);
+            processor.processBlock(buffer, midiBuffer);
+        }
+
+        // Cycle Glass -> Stone -> Fog -> Glass rapidly (every 10 blocks) while
+        // measuring worst-case sample-to-sample jump, same as the other
+        // Pillars parameter sweeps in this file.
+        float maxJump = 0.0f;
+        int blockCounter = 0;
+
+        std::cout << "  Cycling pillarMode (Glass/Stone/Fog) every 10 blocks...\n";
+
+        for (int block = 0; block < kNumBlocks / 2; ++block)
+        {
+            if (blockCounter % 10 == 0)
+                *modeParam = (blockCounter / 10) % 3;
+
+            generateQuietNoise(buffer, rng);
+            processor.processBlock(buffer, midiBuffer);
+
+            if (hasInvalidNumbers(buffer))
+            {
+                result.message = "Inf/NaN detected during mode sweep";
+                return result;
+            }
+
+            float jump = calculateMaxJump(buffer);
+            maxJump = std::max(maxJump, jump);
+
+            ++blockCounter;
+
+            if (block % (kNumBlocks / 20) == 0)
+            {
+                std::cout << "    Progress: " << (block * 200 / kNumBlocks) << "%\r" << std::flush;
+            }
+        }
+        std::cout << "                  \r" << std::flush;
+
+        float jumpDb = 20.0f * std::log10(maxJump + 1e-10f);
+
+        if (jumpDb > kZipperThresholdDb)
+        {
+            result.message = "Zipper noise detected: " + std::to_string(jumpDb) +
+                           " dB (threshold: " + std::to_string(kZipperThresholdDb) + " dB)";
+            result.value = jumpDb;
+        }
+        else
+        {
+            result.passed = true;
+            result.message = "Mode switches click-free: " + std::to_string(jumpDb) + " dB";
+            result.value = jumpDb;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        result.message = std::string("Exception: ") + e.what();
+    }
+
+    return result;
+}
+
+//==============================================================================
+// Test PILLARS-6: pillarMode Actually Affects Output (Wiring Regression)
+//==============================================================================
+static TestResult testModeAffectsOutput()
+{
+    TestResult result{"PILLARS-6: Mode Affects Output", false, ""};
+
+    try
+    {
+        MonumentAudioProcessor processorGlass;
+        MonumentAudioProcessor processorFog;
+        processorGlass.prepareToPlay(kSampleRate, kBlockSize);
+        processorFog.prepareToPlay(kSampleRate, kBlockSize);
+
+        auto* fogModeParam = dynamic_cast<juce::AudioParameterChoice*>(
+            processorFog.getAPVTS().getParameter("pillarMode"));
+
+        if (!fogModeParam)
+        {
+            result.message = "pillarMode parameter not found";
+            return result;
+        }
+
+        *fogModeParam = 2; // Fog (Glass is the default on processorGlass)
+
+        std::mt19937 rngGlass(47);
+        juce::AudioBuffer<float> bufferGlass(kNumChannels, kBlockSize);
+        juce::AudioBuffer<float> bufferFog(kNumChannels, kBlockSize);
+        juce::MidiBuffer midiBuffer;
+
+        float maxDifference = 0.0f;
+
+        // pillarMode's lowpass/highpass coloration is applied unconditionally
+        // every sample (not deferred like tap layout), so identical input
+        // should diverge from the very first block if the mode is wired in.
+        for (int block = 0; block < 10; ++block)
+        {
+            generateQuietNoise(bufferGlass, rngGlass);
+            bufferFog.makeCopyOf(bufferGlass);
+
+            processorGlass.processBlock(bufferGlass, midiBuffer);
+            processorFog.processBlock(bufferFog, midiBuffer);
+
+            if (hasInvalidNumbers(bufferGlass) || hasInvalidNumbers(bufferFog))
+            {
+                result.message = "Inf/NaN detected while comparing pillarMode output";
+                return result;
+            }
+
+            for (int ch = 0; ch < kNumChannels; ++ch)
+            {
+                const float* glassData = bufferGlass.getReadPointer(ch);
+                const float* fogData = bufferFog.getReadPointer(ch);
+                for (int i = 0; i < kBlockSize; ++i)
+                    maxDifference = std::max(maxDifference, std::abs(glassData[i] - fogData[i]));
+            }
+        }
+
+        constexpr float kMinExpectedDifference = 1.0e-6f;
+        if (maxDifference < kMinExpectedDifference)
+        {
+            result.message = "pillarMode has no audible effect (max diff " +
+                           std::to_string(maxDifference) + " — Glass and Fog outputs are identical)";
+            result.value = maxDifference;
+        }
+        else
+        {
+            result.passed = true;
+            result.message = "pillarMode is wired: max diff " + std::to_string(maxDifference);
+            result.value = maxDifference;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        result.message = std::string("Exception: ") + e.what();
+    }
+
+    return result;
+}
+
+//==============================================================================
 // Main Test Runner
 //==============================================================================
 int main(int argc, char* argv[])
@@ -537,11 +706,13 @@ int main(int argc, char* argv[])
 
     results.push_back(testShapeParameterSweep());
     results.push_back(testDensityParameterSweep());
+    results.push_back(testModeAffectsOutput());
 
     if (!quickMode)
     {
         results.push_back(testWarpParameterSweep());
         results.push_back(testCombinedParameterSweep());
+        results.push_back(testModeParameterSweep());
     }
 
     // Print results

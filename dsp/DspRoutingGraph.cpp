@@ -159,7 +159,7 @@ void DspRoutingGraph::setFoundationParams(float drive, [[maybe_unused]] float ti
     // Note: 'tilt' parameter reserved for future tilt EQ implementation
 }
 
-void DspRoutingGraph::setPillarsParams(float density, const ParameterBuffer& shape, float warp)
+void DspRoutingGraph::setPillarsParams(float density, const ParameterBuffer& shape, float warp, int mode)
 {
     // Store per-sample shape buffer (write-only cache; not currently read back)
     pillarsShapeBuffer = shape;
@@ -169,6 +169,7 @@ void DspRoutingGraph::setPillarsParams(float density, const ParameterBuffer& sha
         pillars->setDensity(density);
         pillars->setShape(shape);  // Phase 4 Step 6: Pass ParameterBuffer directly
         pillars->setWarp(warp);
+        pillars->setMode(mode);
     }
 }
 

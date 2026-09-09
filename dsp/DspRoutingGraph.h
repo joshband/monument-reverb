@@ -171,7 +171,7 @@ public:
      * - drive, tilt (Foundation/Buttress - input/output stages)
      */
     void setFoundationParams(float drive, float tilt);
-    void setPillarsParams(float density, const ParameterBuffer& shape, float warp);
+    void setPillarsParams(float density, const ParameterBuffer& shape, float warp, int mode);
     void setChambersParams(const ParameterBuffer& time,
                            const ParameterBuffer& mass,
                            const ParameterBuffer& density,
