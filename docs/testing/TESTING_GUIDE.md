@@ -235,11 +235,12 @@ jobs:
 
 | Test | File | Status |
 |------|------|--------|
-| Memory Echoes | [tests/MemoryEchoesTest.cpp](../tests/MemoryEchoesTest.cpp) | ✅ Passing |
-| Experimental Modulation | [tests/ExperimentalModulationTest.cpp](../tests/ExperimentalModulationTest.cpp) | ✅ Passing |
-| Constant Power Panning | [tests/ConstantPowerPanningTest.cpp](../tests/ConstantPowerPanningTest.cpp) | ✅ Passing (Phase 2) |
-| Doppler Shift | [tests/DopplerShiftTest.cpp](../tests/DopplerShiftTest.cpp) | ✅ Passing (6 cases, Phase 3) |
-| Sequence Scheduler | [tests/SequenceSchedulerTest.cpp](../tests/SequenceSchedulerTest.cpp) | ✅ Passing (7 cases, Phase 4) |
+| Memory Echoes | [tests/MemoryEchoesTest.cpp](../../tests/MemoryEchoesTest.cpp) | ✅ Passing |
+| Constant Power Panning | [tests/ConstantPowerPanningTest.cpp](../../tests/ConstantPowerPanningTest.cpp) | ✅ Passing (Phase 2) |
+| Doppler Shift | [tests/DopplerShiftTest.cpp](../../tests/DopplerShiftTest.cpp) | ✅ Passing (6 cases, Phase 3) |
+| Sequence Scheduler | [tests/SequenceSchedulerTest.cpp](../../tests/SequenceSchedulerTest.cpp) | ✅ Passing (7 cases, Phase 4) |
+
+`ExperimentalModulationTest.cpp` and the `ExperimentalModulation` module it covered were removed as dead code (nothing in the shipped plugin referenced it) — see `ARCHITECTURE.md`.
 
 **Run all C++ tests:**
 ```bash
@@ -332,7 +333,7 @@ Monument Reverb enforces production-ready quality through three automated qualit
 
 **Purpose:** Detect numerical instability in audio output.
 
-**Tool:** [`tools/check_audio_stability.py`](../tools/check_audio_stability.py)
+**Tool:** [`tools/check_audio_stability.py`](../../tools/check_audio_stability.py)
 
 **What It Checks:**
 
@@ -365,7 +366,7 @@ Runs automatically in `./scripts/run_ci_tests.sh` after preset capture. Fails CI
 
 **Purpose:** Enforce per-module CPU budgets to prevent performance regressions.
 
-**Tool:** [`tools/check_cpu_thresholds.py`](../tools/check_cpu_thresholds.py)
+**Tool:** [`tools/check_cpu_thresholds.py`](../../tools/check_cpu_thresholds.py)
 
 **What It Checks:**
 
@@ -408,7 +409,7 @@ Optional in CI - only runs if CPU profile exists from prior profiling session.
 
 **Purpose:** Detect memory allocations in audio thread that cause glitches.
 
-**Tool:** [`tools/check_rt_allocations.sh`](../tools/check_rt_allocations.sh)
+**Tool:** [`tools/check_rt_allocations.sh`](../../tools/check_rt_allocations.sh)
 
 **What It Detects:**
 
@@ -452,12 +453,12 @@ Disabled by default (slow, ~1 minute). Enable with `ENABLE_RT_ALLOCATION_CHECK=1
 
 **Integration Status:**
 
-All quality gates are integrated into [`scripts/run_ci_tests.sh`](../scripts/run_ci_tests.sh) as steps 7-9 of the CI pipeline.
+All quality gates are integrated into [`scripts/run_ci_tests.sh`](../../scripts/run_ci_tests.sh) as steps 7-9 of the CI pipeline.
 
 **Documentation:**
 
 - Full quality gate details: [`docs/archive/phases/PHASE_3_STEP_2_QUALITY_GATES_COMPLETE.md`](../archive/phases/PHASE_3_STEP_2_QUALITY_GATES_COMPLETE.md)
-- Tool documentation: [`scripts/README.md#quality-gate-scripts`](../scripts/README.md#quality-gate-scripts)
+- Tool documentation: [`scripts/README.md#quality-gate-scripts`](../../scripts/README.md#quality-gate-scripts)
 
 ---
 
@@ -525,5 +526,5 @@ cd /Users/noisebox/Documents/3_Development/Repos/monument-reverb
 
 **See Also:**
 - [tools/COMPREHENSIVE_TEST_PLAN.md](../archive/phases/COMPREHENSIVE_TEST_PLAN.md) - Original test plan
-- [tools/TESTING_INFRASTRUCTURE.md](../tools/TESTING_INFRASTRUCTURE.md) - Detailed infrastructure docs
+- [tools/TESTING_INFRASTRUCTURE.md](../../tools/TESTING_INFRASTRUCTURE.md) - Detailed infrastructure docs
 - [NEXT_SESSION_HANDOFF.md](../archive/NEXT_SESSION_HANDOFF.md) - Latest session progress

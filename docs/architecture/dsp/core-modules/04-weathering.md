@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready (Phase 3 Complete)
 **CPU Usage:** ~0.3% (p99, 48kHz, 512 samples) - **Negligible overhead**
 **Complexity:** 🟡 MEDIUM
-**File:** [`dsp/DspModules.{h,cpp}`](../../dsp/DspModules.h)
+**File:** [`dsp/DspModules.{h,cpp}`](../../../../dsp/DspModules.h)
 
 ---
 
@@ -1007,8 +1007,8 @@ void process(juce::AudioBuffer<float>& buffer,
 
 ### Implementation Files
 
-- **Header:** [`dsp/DspModules.h`](../../dsp/DspModules.h) (lines 133-157)
-- **Source:** [`dsp/DspModules.cpp`](../../dsp/DspModules.cpp) (lines 504-594)
+- **Header:** [`dsp/DspModules.h`](../../../../dsp/DspModules.h) (lines 133-157)
+- **Source:** [`dsp/DspModules.cpp`](../../../../dsp/DspModules.cpp) (lines 504-594)
 
 ### Related Documentation
 

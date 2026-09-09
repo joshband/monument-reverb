@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready
 **CPU Usage:** ~0.5-1.0% (block-rate processing) - **Excellent Efficiency**
 **Complexity:** 🟡 MEDIUM-HIGH
-**File:** [`dsp/ModulationMatrix.{h,cpp}`](../../../dsp/ModulationMatrix.h)
+**File:** [`dsp/ModulationMatrix.{h,cpp}`](../../../../dsp/ModulationMatrix.h)
 
 ---
 
@@ -1261,7 +1261,7 @@ struct Connection {
 - [**12 - Parameter Buffers**](12-parameter-buffers.md) - Per-sample parameter smoothing (used by modulated parameters)
 - [**13 - Spatial Processor**](13-spatial-processor.md) - 3D positioning (modulation targets PositionX/Y/Z)
 - [**03 - Chambers**](../core-modules/03-chambers.md) - Core reverb (receives modulated parameters)
-- [**07 - Ancient Monuments**](../core-modules/07-ancient-monuments.md) - Macro system (base parameter values)
+- [**Ancient Monuments**](../control-systems/00-ancient-monuments.md) - Macro system (base parameter values)
 
 ### External Resources
 

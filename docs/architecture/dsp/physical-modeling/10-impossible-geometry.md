@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready
 **CPU Usage:** 4.05% (p99, 48kHz, 512 samples) - **Good Efficiency**
 **Complexity:** 🔴 HIGH
-**File:** [`dsp/AlienAmplification.{h,cpp}`](../../../dsp/AlienAmplification.h)
+**File:** [`dsp/AlienAmplification.{h,cpp}`](../../../../dsp/AlienAmplification.h)
 
 ---
 
@@ -556,7 +556,7 @@ void setParadoxGain(float normalized); // [0, 1] → 1.0-1.05× gain
 
 ### Unit Tests
 
-**File:** [tests/NovelAlgorithmsTest.cpp](../../../tests/NovelAlgorithmsTest.cpp)
+**File:** [tests/NovelAlgorithmsTest.cpp](../../../../tests/NovelAlgorithmsTest.cpp)
 
 **Test Cases:**
 
@@ -591,7 +591,7 @@ void setParadoxGain(float normalized); // [0, 1] → 1.0-1.05× gain
 
 ### Integration Tests
 
-**File:** [tests/DspInitializationTest.cpp](../../../tests/DspInitializationTest.cpp)
+**File:** [tests/DspInitializationTest.cpp](../../../../tests/DspInitializationTest.cpp)
 
 **Test Cases:**
 
@@ -612,7 +612,7 @@ void setParadoxGain(float normalized); // [0, 1] → 1.0-1.05× gain
 
 ### Performance Tests
 
-**File:** [tests/PerformanceBenchmarkTest.cpp](../../../tests/PerformanceBenchmarkTest.cpp)
+**File:** [tests/PerformanceBenchmarkTest.cpp](../../../../tests/PerformanceBenchmarkTest.cpp)
 
 **Benchmarks:**
 
@@ -1001,10 +1001,10 @@ void applyBandSpecificAbsorption() {
 
 ### Implementation Files
 
-- **Header:** [dsp/AlienAmplification.h](../../../dsp/AlienAmplification.h) (137 lines)
-- **Implementation:** [dsp/AlienAmplification.cpp](../../../dsp/AlienAmplification.cpp) (336 lines)
-- **Tests:** [tests/NovelAlgorithmsTest.cpp](../../../tests/NovelAlgorithmsTest.cpp)
-- **Benchmarks:** [tests/PerformanceBenchmarkTest.cpp](../../../tests/PerformanceBenchmarkTest.cpp)
+- **Header:** [dsp/AlienAmplification.h](../../../../dsp/AlienAmplification.h) (137 lines)
+- **Implementation:** [dsp/AlienAmplification.cpp](../../../../dsp/AlienAmplification.cpp) (336 lines)
+- **Tests:** [tests/NovelAlgorithmsTest.cpp](../../../../tests/NovelAlgorithmsTest.cpp)
+- **Benchmarks:** [tests/PerformanceBenchmarkTest.cpp](../../../../tests/PerformanceBenchmarkTest.cpp)
 
 ### Academic References
 
@@ -1033,8 +1033,8 @@ void applyBandSpecificAbsorption() {
 - [08-resonance.md](08-resonance.md) - TubeRayTracer (complementary metallic effect)
 - [09-living-stone.md](09-living-stone.md) - ElasticHallway (complementary impossible physics)
 - [11-strata.md](../memory-system/11-strata.md) - Memory system (temporal layering)
-- [docs/PERFORMANCE_BASELINE.md](../../PERFORMANCE_BASELINE.md) - Complete CPU profiling data
-- [docs/DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](../../DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md) - System-wide analysis
+- [PERFORMANCE_BASELINE.md](../../../../docs/archive/sessions/PERFORMANCE_BASELINE.md) - Complete CPU profiling data (archived)
+- [DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](../../../../docs/archive/reviews/01092026-DspArchitectureComprehensiveReview.md) - System-wide analysis (archived)
 
 ### JUCE API References
 

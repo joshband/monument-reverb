@@ -32,27 +32,27 @@ cat test-results/comparisons/summary_statistics.txt
 
 ### 📊 Metrics Captured
 
-**RT60 Analysis** ([tools/plugin-analyzer/python/rt60_analysis_robust.py](tools/plugin-analyzer/python/rt60_analysis_robust.py))
+**RT60 Analysis** ([tools/plugin-analyzer/python/rt60_analysis_robust.py](plugin-analyzer/python/rt60_analysis_robust.py))
 - Reverb decay time (60dB)
 - Schroeder integration method
 - Fallback to manual calculation if pyroomacoustics fails
 - JSON output: `test-results/preset-baseline/preset_XX/rt60_metrics.json`
 
-**Frequency Response** ([tools/plugin-analyzer/python/frequency_response.py](tools/plugin-analyzer/python/frequency_response.py))
+**Frequency Response** ([tools/plugin-analyzer/python/frequency_response.py](plugin-analyzer/python/frequency_response.py))
 - FFT-based spectrum analysis
 - Octave band breakdown (Sub, Bass, Low-Mid, Mid, High-Mid, Presence, Brilliance)
 - Overall flatness rating (±dB std deviation)
 - JSON output: `test-results/preset-baseline/preset_XX/freq_metrics.json`
 - PNG plot: `test-results/preset-baseline/preset_XX/frequency_response.png`
 
-**Spatial Metrics** ([tools/plugin-analyzer/python/spatial_metrics.py](tools/plugin-analyzer/python/spatial_metrics.py))
+**Spatial Metrics** ([tools/plugin-analyzer/python/spatial_metrics.py](plugin-analyzer/python/spatial_metrics.py))
 - ITD (GCC-PHAT), ILD (RMS + band energy), IACC (normalized cross-correlation)
 - Early-window analysis for spatial cues
 - JSON output: `test-results/preset-baseline/preset_XX/spatial_metrics.json`
 
 ### 📈 Visualization Tools
 
-**RT60 Comparison** ([tools/plot_preset_comparison.py](tools/plot_preset_comparison.py))
+**RT60 Comparison** ([tools/plot_preset_comparison.py](plot_preset_comparison.py))
 - Bar chart showing decay times for all 37 presets
 - Color-coded by length (short/medium/long/very long)
 - Reference lines at 1s, 3s, 6s
@@ -69,7 +69,7 @@ cat test-results/comparisons/summary_statistics.txt
 
 ### 🔬 Regression Testing
 
-**Compare Baseline vs Current** ([tools/compare_baseline.py](tools/compare_baseline.py))
+**Compare Baseline vs Current** ([tools/compare_baseline.py](compare_baseline.py))
 ```bash
 # Capture baseline (before code changes)
 ./scripts/capture_all_presets.sh

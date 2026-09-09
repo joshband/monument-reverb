@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready (Phase 3 Complete)
 **CPU Usage:** ~0.15% (p99, 48kHz, 512 samples) - **Negligible overhead**
 **Complexity:** 🟢 LOW
-**File:** [`dsp/DspModules.{h,cpp}`](../../dsp/DspModules.h)
+**File:** [`dsp/DspModules.{h,cpp}`](../../../../dsp/DspModules.h)
 
 ---
 
@@ -928,8 +928,8 @@ for (int sample = 0; sample < numSamples; sample += Vec::size())
 
 ### Implementation Files
 
-- **Header:** [`dsp/DspModules.h`](../../dsp/DspModules.h) (lines 159-174)
-- **Source:** [`dsp/DspModules.cpp`](../../dsp/DspModules.cpp) (lines 596-638)
+- **Header:** [`dsp/DspModules.h`](../../../../dsp/DspModules.h) (lines 159-174)
+- **Source:** [`dsp/DspModules.cpp`](../../../../dsp/DspModules.cpp) (lines 596-638)
 
 ### Related Documentation
 

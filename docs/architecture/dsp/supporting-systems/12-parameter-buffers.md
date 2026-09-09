@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready
 **CPU Usage:** Negligible (~0.1%) - **Excellent Efficiency**
 **Complexity:** 🟢 LOW
-**File:** [`dsp/ParameterBuffers.h`](../../../dsp/ParameterBuffers.h)
+**File:** [`dsp/ParameterBuffers.h`](../../../../dsp/ParameterBuffers.h)
 
 ---
 
@@ -634,7 +634,7 @@ By using dual-mode design:
 
 ### Unit Tests
 
-**File:** [`tests/ParameterBufferTest.cpp`](../../../tests/ParameterBufferTest.cpp) (501 lines)
+**File:** [`tests/ParameterBufferTest.cpp`](../../../../tests/ParameterBufferTest.cpp) (501 lines)
 
 **Test Cases:**
 
@@ -715,7 +715,7 @@ Test Results:
 
 ### Integration Tests
 
-**File:** [`tests/DspInitializationTest.cpp`](../../../tests/DspInitializationTest.cpp)
+**File:** [`tests/DspInitializationTest.cpp`](../../../../tests/DspInitializationTest.cpp)
 
 **Test Cases:**
 
@@ -745,7 +745,7 @@ Test Results:
 
 ### Performance Tests
 
-**File:** [`tests/PerformanceBenchmarkTest.cpp`](../../../tests/PerformanceBenchmarkTest.cpp)
+**File:** [`tests/PerformanceBenchmarkTest.cpp`](../../../../tests/PerformanceBenchmarkTest.cpp)
 
 **Benchmarks:**
 
@@ -1442,9 +1442,9 @@ void processFDN(ParameterBufferSpecialized<true> time,   // Per-sample
 
 ### Implementation Files
 
-- **Header:** [dsp/ParameterBuffers.h](../../../dsp/ParameterBuffers.h) (163 lines)
-- **Tests:** [tests/ParameterBufferTest.cpp](../../../tests/ParameterBufferTest.cpp) (501 lines)
-- **Benchmarks:** [tests/PerformanceBenchmarkTest.cpp](../../../tests/PerformanceBenchmarkTest.cpp)
+- **Header:** [dsp/ParameterBuffers.h](../../../../dsp/ParameterBuffers.h) (163 lines)
+- **Tests:** [tests/ParameterBufferTest.cpp](../../../../tests/ParameterBufferTest.cpp) (501 lines)
+- **Benchmarks:** [tests/PerformanceBenchmarkTest.cpp](../../../../tests/PerformanceBenchmarkTest.cpp)
 
 ### Academic References
 
@@ -1470,8 +1470,8 @@ void processFDN(ParameterBufferSpecialized<true> time,   // Per-sample
 - [02-pillars.md](../core-modules/02-pillars.md) - Pillars early reflections (pillarShape parameter)
 - [04-weathering.md](../core-modules/04-weathering.md) - Weathering LFOs (warp, drift parameters)
 - [15-modulation-sources.md](../supporting-systems/15-modulation-sources.md) - ModulationMatrix (audio-rate modulation)
-- [docs/PERFORMANCE_BASELINE.md](../../PERFORMANCE_BASELINE.md) - Complete CPU profiling data
-- [docs/BUILD_PATTERNS.md](../../BUILD_PATTERNS.md) - Memory alignment, optimization flags
+- [PERFORMANCE_BASELINE.md](../../../../docs/archive/sessions/PERFORMANCE_BASELINE.md) - Complete CPU profiling data (archived)
+- [BUILD_PATTERNS.md](../../../../docs/archive/sessions/BUILD_PATTERNS.md) - Memory alignment, optimization flags (archived)
 
 ### JUCE API References
 
