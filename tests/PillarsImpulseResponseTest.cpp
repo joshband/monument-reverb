@@ -25,7 +25,7 @@
  */
 
 #include <JuceHeader.h>
-#include "dsp/DspModules.h"
+#include "dsp/Pillars.h"
 #include <cmath>
 #include <iostream>
 #include <string>

@@ -287,7 +287,7 @@ and PILLARS-5 (rapid mode cycling under quiet input stays click-free, -61.7 dB v
 ---
 
 ### P2-06: Dead/Unreachable Code Audit (processing modes, IR loading, knob utilities)
-**Domain:** `[DSP] [UI]` | **Effort:** 4h | **Agents:** 2 (parallel)
+**Domain:** `[DSP] [UI]` | **Effort:** 4h | **Agents:** 2 (parallel) | **Status:** ✅ Complete
 
 Found via architecture review (2026-09-09). Several code paths have zero callers anywhere in the
 repo (confirmed by full-repo grep, not just visual inspection). For each, decide whether to finish
@@ -314,12 +314,31 @@ wiring it up as an intended feature or remove it — don't leave it half-alive.
     `plugin/`, `ui/`, `tests/`
   - Acceptance: removed, or a comment explains why they're kept for a specific planned use
 
+**Resolution:**
+- **P2-06a — wired up.** Everything downstream (the crossfade state machine in `processBlock()`,
+  `processResonantHalls()`/`processBreathingStone()`) was already fully built; only the trigger was
+  missing. Added an APVTS `processingMode` choice parameter, applied it in `processBlockCore`, and
+  added a UI combo in `PluginEditorV2`. New test `monument_processing_mode_test` proves all 3 modes
+  are reachable, click-free on switch, and produce measurably different output. `ARCHITECTURE.md`'s
+  stale "unverified" note on this updated to match.
+- **P2-06b — flagged as ambiguous, not resolved either way.** `loadImpulseResponse()`/
+  `clearImpulseResponse()` read as deliberately-staged future work (heavily documented, explicit
+  non-RT-safe contract) — building the full production feature (file-chooser UI, preset-embedded IR
+  assets) is bigger than "small and low-risk," so it wasn't built, and the primitive wasn't deleted
+  either. New DSP-level test `monument_pillars_ir_test` gives the previously-dead `irLoaded` branch a
+  real, tested call path (proves loading a synthetic IR measurably changes tap gains) without adding
+  a production UI. **No production caller exists yet — revisit if/when a "load custom IR" feature is
+  actually wanted.**
+- **P2-06c — removed.** Deleted `loadFilmstrip()`/`setLabel()`/`clearLayerImages()`/`KnobGroup`/
+  `ParameterDisplay` and their backing fields/dead `paint()` branch. The live layered-image rendering
+  path (used from `PluginEditorV2`) is untouched.
+
 **Dependencies:** None
 
 ---
 
 ### P2-07: Split dsp/DspModules.{h,cpp} by Concern
-**Domain:** `[DSP]` | **Effort:** 2h
+**Domain:** `[DSP]` | **Effort:** 2h | **Status:** ✅ Complete
 
 Found via architecture review (2026-09-09). `dsp/DspModules.h/cpp` (852 lines) bundles 5 unrelated
 signal-chain stages (Foundation, Pillars, Weathering, Buttress, Facade) under a name that describes
@@ -327,17 +346,23 @@ none of them. `Pillars` alone is complex enough (IR loading, tap-based early ref
 tuning) to read more clearly as its own file.
 
 **Acceptance Criteria:**
-- [ ] `Pillars` moved to its own `dsp/Pillars.{h,cpp}` (or similar)
-- [ ] Foundation/Weathering/Buttress/Facade may stay bundled (small enough) or split further at the
-      implementer's judgment
-- [ ] `CMakeLists.txt`'s `DSP_SOURCES` updated; all existing tests pass unchanged
+- [x] `Pillars` moved to its own `dsp/Pillars.{h,cpp}` (or similar)
+- [x] Foundation/Weathering/Buttress/Facade may stay bundled (small enough) or split further at the
+      implementer's judgment — kept bundled
+- [x] `CMakeLists.txt`'s `DSP_SOURCES` updated; all existing tests pass unchanged
+
+**Resolution:** Clean total move — `Pillars` had no dependency on anything private to the rest of
+`DspModules.cpp` that other classes also used, so nothing needed to stay shared. Its two private
+helpers (`onePoleCoeffFromHz`, tap-energy constants) moved with it. `dsp/DspModules.cpp` referenced
+directly in 4 places in `CMakeLists.txt` (not just `DSP_SOURCES`) — all 4 updated. Verified
+before/after `ctest` runs identical (31/32, the one pre-existing CPU-budget flake unaffected).
 
 **Dependencies:** None
 
 ---
 
 ### P2-08: Real-Time-Safety Doc Contracts on Public Headers
-**Domain:** `[DOC]` | **Effort:** 2h
+**Domain:** `[DOC]` | **Effort:** 2h | **Status:** ✅ Complete
 
 Found via architecture review (2026-09-09). Public headers don't state real-time-safety contracts
 where it matters most:
@@ -349,15 +374,21 @@ where it matters most:
   not RT-safe" note
 
 **Acceptance Criteria:**
-- [ ] Each of the above methods has a doc comment stating its threading/RT-safety contract,
+- [x] Each of the above methods has a doc comment stating its threading/RT-safety contract,
       discoverable from the header alone
+
+**Resolution:** Each contract grounded in the actual source, not paraphrased — `getModulationMatrix()`
+now documents the announce/verify snapshot handshake read from `ModulationMatrix.cpp`;
+`getSequenceScheduler()` documents that it has no synchronization at all and is driven entirely by
+the audio thread; `saveUserPreset`/`loadUserPreset` document the synchronous file I/O that makes them
+message-thread-only.
 
 **Dependencies:** None
 
 ---
 
 ### P2-09: processBlockCore Migration Scaffolding Cleanup
-**Domain:** `[DSP] [PERF]` | **Effort:** 4h
+**Domain:** `[DSP] [PERF]` | **Effort:** 4h | **Status:** ✅ Complete
 
 Found via architecture review (2026-09-09). Leftover "Phase 4" migration scaffolding in
 `plugin/PluginProcessor.cpp::processBlockCore` (per the code's own `// TEMPORARY (Step 3)` comment):
@@ -383,6 +414,18 @@ already passed downstream.
   - Equal-power dry/wet gain computed independently at 3 call sites in
     `plugin/PluginProcessor.cpp` (~line 1066-1069, ~1145-1150, ~1156-1166)
   - Acceptance: extracted to one small inline helper called from all 3 sites; no behavior change
+
+**Resolution:**
+- **P2-09a:** confirmed the 4 named variables were dead via fresh grep, then found removing them left
+  a whole upstream chain also dead (`timeSum`/`timeEffective`, `gravitySum`/`gravityEffective`, etc.)
+  since the per-sample buffers already feed downstream directly — removed the whole chain, not just
+  the 4 leaves.
+- **P2-09b:** added a `ParameterPointerCache` populated once in the constructor (after APVTS
+  construction, off the audio thread); `processBlockCore` now does only `->load()` on cached
+  `std::atomic<float>*` pointers, no string-keyed lookups in the hot path.
+  `monument_parameter_smoothing_test`: 54/54 pass (53 baseline + new `processingMode` from P2-06),
+  per-parameter jump values unchanged from baseline.
+- **P2-09c:** extracted `equalPowerMixGains(float mix01)` helper; all 3 call sites now use it.
 
 **Dependencies:** None (independent of P2-06/07/08)
 
@@ -485,9 +528,14 @@ For each task marked `complete`:
 **Next Actions:**
 1. ✅ P1-01 (Ambient Reverb Quality Alignment) — complete, see task entry above
 2. ✅ P1-07 (Fix pillarMode Parameter Gap) — complete, see task entry above
-3. P2-06 through P2-09 (architecture-review cleanup: dead code audit, DspModules split, RT-safety
-   doc contracts, processBlockCore scaffolding cleanup) — found 2026-09-09, no dependencies between
-   them or on anything else, safe to pick up in any order
+3. ✅ P2-06 through P2-09 (architecture-review cleanup) — complete, see task entries above. Dispatched
+   as 4 parallel agents in isolated worktrees, integrated on `integrate-p2-cleanup` branch (one merge
+   conflict in `PluginProcessor.cpp` between P2-06's new `processingMode` parameter and P2-09's
+   parameter-pointer cache, resolved by wiring `processingMode` into the new pointer-cache pattern).
+   Full suite green post-integration: 34/34 CTest, 54/54 `monument_parameter_smoothing_test`.
+   **Follow-up carried forward, not resolved:** P2-06b (Pillars IR loading) was flagged ambiguous —
+   the dead code now has a real test-level call site but no production caller; revisit if a "load
+   custom IR" feature is ever wanted.
 4. Execute P1-05 (Test Coverage Expansion) — 2 agents
 5. Execute P1-06 (Documentation Completion) — 2 agents
 
