@@ -61,6 +61,8 @@ target_sources(Monument
     dsp/DspModule.h
     dsp/DspModules.h
     dsp/DspModules.cpp
+    dsp/Pillars.h
+    dsp/Pillars.cpp
     dsp/AllpassDiffuser.h
     dsp/AllpassDiffuser.cpp
     dsp/MemoryEchoes.h
@@ -108,6 +110,8 @@ set(DSP_SOURCES
   dsp/DspModule.h
   dsp/DspModules.h
   dsp/DspModules.cpp
+  dsp/Pillars.h
+  dsp/Pillars.cpp
   dsp/AllpassDiffuser.h
   dsp/AllpassDiffuser.cpp
   dsp/MemoryEchoes.h
@@ -225,6 +229,8 @@ if(MONUMENT_ENABLE_TESTS)
       dsp/DspModule.h
       dsp/DspModules.h
       dsp/DspModules.cpp
+      dsp/Pillars.h
+      dsp/Pillars.cpp
       dsp/DspRoutingGraph.h
       dsp/DspRoutingGraph.cpp
       dsp/AllpassDiffuser.h

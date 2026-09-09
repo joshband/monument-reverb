@@ -21,6 +21,7 @@
 
 #include <JuceHeader.h>
 #include "dsp/DspModules.h"
+#include "dsp/Pillars.h"
 #include "dsp/Chambers.h"
 #include "dsp/TubeRayTracer.h"
 #include "dsp/ElasticHallway.h"

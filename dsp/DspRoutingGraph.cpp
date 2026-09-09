@@ -1,5 +1,6 @@
 #include "DspRoutingGraph.h"
 #include "dsp/DspModules.h"
+#include "dsp/Pillars.h"
 #include "dsp/TubeRayTracer.h"
 #include "dsp/ElasticHallway.h"
 #include "dsp/AlienAmplification.h"
