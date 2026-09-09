@@ -149,6 +149,12 @@ private:
     std::array<AllpassDiffuser, 2> inputDiffusers;
     std::array<AllpassDiffuser, kNumLines> lateDiffusers;
     std::array<AllpassDiffuser, kNumLines> feedbackDiffusers;
+    // Output stereo decorrelation: one fixed allpass per channel, applied to the
+    // wet signal only (see process()). Phase-only, so it doesn't affect RT60,
+    // frequency response, or DC offset — it exists solely to break the
+    // linear-combination relationship a fully-mixing feedback matrix otherwise
+    // preserves between L and R for mono/dual-mono input.
+    std::array<AllpassDiffuser, 2> outputDecorrelators;
     std::array<float, kNumLines> driftPhase{};
     std::array<float, kNumLines> driftRateHz{};
     alignas(juce::dsp::SIMDRegister<float>::SIMDRegisterSize)

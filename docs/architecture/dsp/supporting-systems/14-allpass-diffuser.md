@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready
 **CPU Usage:** Minimal (~0.05% per diffuser) - **Excellent Efficiency**
 **Complexity:** 🟢 LOW
-**File:** [`dsp/AllpassDiffuser.{h,cpp}`](../../../dsp/AllpassDiffuser.h)
+**File:** [`dsp/AllpassDiffuser.{h,cpp}`](../../../../dsp/AllpassDiffuser.h)
 
 ---
 

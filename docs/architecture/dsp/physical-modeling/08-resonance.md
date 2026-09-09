@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready
 **CPU Usage:** 0.03% (p99, 48kHz, 512 samples) - **Exceptional Efficiency**
 **Complexity:** 🟡 MEDIUM
-**File:** [`dsp/TubeRayTracer.{h,cpp}`](../../../dsp/TubeRayTracer.h)
+**File:** [`dsp/TubeRayTracer.{h,cpp}`](../../../../dsp/TubeRayTracer.h)
 
 ---
 
@@ -684,7 +684,7 @@ if (pseudoRandom() < coupling * 0.3f && activeTubeCount > 1) {
 
 ### Unit Tests
 
-**File:** [`tests/TubeRayTracerTest.cpp`](../../../tests/) (if exists)
+**File:** [`tests/TubeRayTracerTest.cpp`](../../../../tests/) (if exists)
 
 | Test Name | Purpose | Validation |
 |-----------|---------|------------|
@@ -697,7 +697,7 @@ if (pseudoRandom() < coupling * 0.3f && activeTubeCount > 1) {
 
 ### Integration Tests
 
-**File:** [`tests/DspRoutingGraphTest.cpp`](../../../tests/DspRoutingGraphTest.cpp)
+**File:** [`tests/DspRoutingGraphTest.cpp`](../../../../tests/DspRoutingGraphTest.cpp)
 
 | Test Name | Purpose | Validation |
 |-----------|---------|------------|
@@ -718,7 +718,7 @@ if (pseudoRandom() < coupling * 0.3f && activeTubeCount > 1) {
 
 ### Audio Regression Tests
 
-**Script:** [`scripts/analyze_all_presets.sh`](../../../scripts/analyze_all_presets.sh)
+**Script:** [`scripts/analyze_all_presets.sh`](../../../../scripts/analyze_all_presets.sh)
 
 Captures impulse responses for all presets using Resonance and validates:
 - **Frequency peaks:** Modal resonances present at expected frequencies
@@ -990,9 +990,9 @@ void setMaterial(Material m);
   - `juce::dsp::AudioBlock` - Efficient buffer processing
 
 - **Monument Implementation Files:**
-  - [`dsp/TubeRayTracer.h`](../../../dsp/TubeRayTracer.h) - Class definition
-  - [`dsp/TubeRayTracer.cpp`](../../../dsp/TubeRayTracer.cpp) - Full implementation
-  - [`dsp/DspRoutingGraph.cpp`](../../../dsp/DspRoutingGraph.cpp) - Integration with routing system
+  - [`dsp/TubeRayTracer.h`](../../../../dsp/TubeRayTracer.h) - Class definition
+  - [`dsp/TubeRayTracer.cpp`](../../../../dsp/TubeRayTracer.cpp) - Full implementation
+  - [`dsp/DspRoutingGraph.cpp`](../../../../dsp/DspRoutingGraph.cpp) - Integration with routing system
 
 ### Related Documentation
 
@@ -1003,7 +1003,5 @@ void setMaterial(Material m);
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2026-01-09
 **Author:** Generated from source code analysis
 **Status:** ✅ Complete and Production-Ready

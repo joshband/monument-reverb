@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready (Phase 2 Complete - 3D Panning)
 **CPU Usage:** ~0.2% (p99, 48kHz, 512 samples) - **Negligible overhead**
 **Complexity:** 🟡 MEDIUM
-**File:** [`dsp/DspModules.{h,cpp}`](../../dsp/DspModules.h)
+**File:** [`dsp/DspModules.{h,cpp}`](../../../../dsp/DspModules.h)
 
 ---
 
@@ -1162,8 +1162,8 @@ Buttress (Structural Support)
 
 ### Implementation Files
 
-- **Header:** [`dsp/DspModules.h`](../../dsp/DspModules.h) (lines 176-224)
-- **Source:** [`dsp/DspModules.cpp`](../../dsp/DspModules.cpp) (lines 640-791)
+- **Header:** [`dsp/DspModules.h`](../../../../dsp/DspModules.h) (lines 176-224)
+- **Source:** [`dsp/DspModules.cpp`](../../../../dsp/DspModules.cpp) (lines 640-791)
 
 ### Related Documentation
 
@@ -1230,7 +1230,5 @@ Where $\phi$ = pan angle (0 to π)
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2026-01-09
 **Word Count:** ~10,500
 **Status:** ✅ Complete

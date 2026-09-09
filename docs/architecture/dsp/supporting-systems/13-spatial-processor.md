@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready
 **CPU Usage:** Negligible (~0.02%) - **Excellent Efficiency**
 **Complexity:** 🟢 LOW
-**File:** [`dsp/SpatialProcessor.{h,cpp}`](../../../dsp/SpatialProcessor.h)
+**File:** [`dsp/SpatialProcessor.{h,cpp}`](../../../../dsp/SpatialProcessor.h)
 
 ---
 
@@ -780,7 +780,7 @@ void setEnabled(bool shouldEnable);
 
 ### Unit Tests
 
-**File:** [`tests/SpatialDspTest.cpp`](../../../tests/SpatialDspTest.cpp) (454 lines)
+**File:** [`tests/SpatialDspTest.cpp`](../../../../tests/SpatialDspTest.cpp) (454 lines)
 
 **Test Cases:**
 
@@ -1343,9 +1343,9 @@ private:
 
 ### Implementation Files
 
-- **Header:** [dsp/SpatialProcessor.h](../../../dsp/SpatialProcessor.h) (160 lines)
-- **Implementation:** [dsp/SpatialProcessor.cpp](../../../dsp/SpatialProcessor.cpp) (149 lines)
-- **Tests:** [tests/SpatialDspTest.cpp](../../../tests/SpatialDspTest.cpp) (454 lines)
+- **Header:** [dsp/SpatialProcessor.h](../../../../dsp/SpatialProcessor.h) (160 lines)
+- **Implementation:** [dsp/SpatialProcessor.cpp](../../../../dsp/SpatialProcessor.cpp) (149 lines)
+- **Tests:** [tests/SpatialDspTest.cpp](../../../../tests/SpatialDspTest.cpp) (454 lines)
 
 ### Academic References
 
@@ -1372,7 +1372,7 @@ private:
 - [02-pillars.md](../core-modules/02-pillars.md) - Pillars early reflections (spatial positioning)
 - [04-weathering.md](../core-modules/04-weathering.md) - Weathering LFOs (animated movement)
 - [15-modulation-sources.md](../supporting-systems/15-modulation-sources.md) - ModulationMatrix (automation target)
-- [docs/PERFORMANCE_BASELINE.md](../../PERFORMANCE_BASELINE.md) - Complete CPU profiling data
+- [PERFORMANCE_BASELINE.md](../../../../docs/archive/sessions/PERFORMANCE_BASELINE.md) - Complete CPU profiling data (archived)
 
 ### JUCE API References
 
@@ -1383,8 +1383,6 @@ private:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2026-01-09
 **Status:** ✅ Complete (12/12 sections)
 **Template Compliance:** ✅ Matches Phase 3/4 standards
 **Word Count:** ~11,000 words

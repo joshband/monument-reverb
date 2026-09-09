@@ -400,7 +400,7 @@ graph TB
 
 ### MacroMapper: High-Level Parameter Coordination
 
-The MacroMapper ([dsp/MacroMapper.h](../dsp/MacroMapper.h)) translates the 10 Ancient Monuments macros into coordinated parameter sets:
+The MacroMapper ([dsp/MacroMapper.h](../../dsp/MacroMapper.h)) translates the 10 Ancient Monuments macros into coordinated parameter sets:
 
 #### Ancient Monuments Macro Parameters (Phase 5)
 
@@ -576,7 +576,7 @@ Result: Long, dark, dense reverb with muffled high frequencies—
 
 ### ModulationMatrix
 
-The ModulationMatrix ([dsp/ModulationMatrix.h](../dsp/ModulationMatrix.h)) provides flexible routing of modulation sources to parameter destinations:
+The ModulationMatrix ([dsp/ModulationMatrix.h](../../dsp/ModulationMatrix.h)) provides flexible routing of modulation sources to parameter destinations:
 
 **Modulation Sources** (stub implementations in Phase 1, full DSP in Phase 2):
 
