@@ -373,7 +373,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 **Achievement:** Completed Phase 1 with comprehensive DspRoutingGraph documentation
 
-**File Created:** [docs/architecture/dsp/overview/00-routing-graph.md](docs/architecture/dsp/overview/00-routing-graph.md)
+**File Created:** [docs/architecture/dsp/core-modules/07-routing-graph.md](docs/architecture/dsp/core-modules/07-routing-graph.md) (moved)
 
 **Contents:**
 
@@ -455,7 +455,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - [DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](docs/archive/reviews/01092026-DspArchitectureComprehensiveReview.md) (600+ lines, all 22 modules; archived)
 - [EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md](docs/archive/sessions/experimental/EXPERIMENTAL_PRESETS_ENHANCEMENT_PATCHES.md) (4 patches; archived)
 - [QUICK_FIXES_SUMMARY.md](docs/archive/sessions/QUICK_FIXES_SUMMARY.md) (quick reference; archived)
-- [patches/infinite_abyss_memory_fix.patch](patches/infinite_abyss_memory_fix.patch) (git-style diff)
+- patches/infinite_abyss_memory_fix.patch (git-style diff; the patch was applied and the file later deleted as a superseded artifact, not a live reference)
 
 **Next Steps** (Option B: 3-hour complete fix):
 
@@ -601,7 +601,7 @@ Time: ~20 min | Build: ✅ Success | Ready for DAW testing
 
 **Sessions 1-2 (2026-01-09)**: Performance Benchmarks + Parameter Stress Testing
 
-- Created [docs/STRESS_TEST_PLAN.md](docs/STRESS_TEST_PLAN.md) - Comprehensive 60-test plan across 6 categories
+- Created [docs/testing/STRESS_TEST_PLAN.md](docs/testing/STRESS_TEST_PLAN.md) (moved since) - Comprehensive 60-test plan across 6 categories
 - Created [tests/PerformanceBenchmarkTest.cpp](tests/PerformanceBenchmarkTest.cpp) - 629 lines, high-resolution timing
 - Created [docs/PERFORMANCE_BASELINE.md](docs/archive/sessions/PERFORMANCE_BASELINE.md) - Full chain: 13.16% CPU (p99) with 56% headroom
 - Created [tests/ParameterStressTest.cpp](tests/ParameterStressTest.cpp) - 1078 lines, 15 stress tests
@@ -696,8 +696,8 @@ Time: ~20 min | Build: ✅ Success | Ready for DAW testing
 
 - [dsp/ModulationMatrix.h:161-187](dsp/ModulationMatrix.h) - Method declarations
 - [dsp/ModulationMatrix.cpp:668-761](dsp/ModulationMatrix.cpp) - Implementation
-- [ui/ModMatrixPanel.h:70](ui/ModMatrixPanel.h) - Button declaration
-- [ui/ModMatrixPanel.cpp:33-41,636-681](ui/ModMatrixPanel.cpp) - UI and menu
+- ui/ModMatrixPanel.h:70 - Button declaration (ModMatrixPanel was later consolidated into plugin/PluginEditorV2.cpp; the standalone file no longer exists)
+- ui/ModMatrixPanel.cpp:33-41,636-681 - UI and menu (see note above; consolidated into PluginEditorV2.cpp)
 
 ### Changed - Preset System v4 Migration (2026-01-04)
 
@@ -716,13 +716,13 @@ Time: ~20 min | Build: ✅ Success | Ready for DAW testing
   - **Dense Mode** (8-12 connections, ±40-80% depth): Extreme, complex modulation for chaotic spaces
   - **Clear All**: Remove all connections, reset to static state
   - Accessed via dropdown menu on "Randomize" button in ModMatrixPanel
-  - See [ui/ModMatrixPanel.h](ui/ModMatrixPanel.h) and [ui/ModMatrixPanel.cpp](ui/ModMatrixPanel.cpp)
+  - See ui/ModMatrixPanel.h and ui/ModMatrixPanel.cpp (consolidated into plugin/PluginEditorV2.cpp since)
 - **Connection Presets**: 5 preset slots for saving/loading complete modulation routing configurations
   - **Save Button**: Store current routing to slots 1-5 (shows connection count in labels)
   - **Load Button**: Recall routing from saved presets (prevents loading from empty slots)
   - Preserves all connection properties: source, destination, depth, smoothing, probability
   - Use cases: snapshot random configs, switch between performance states, share routing templates
-  - See [ui/ModMatrixPanel.cpp:460-520](ui/ModMatrixPanel.cpp)
+  - See ui/ModMatrixPanel.cpp:460-520 (consolidated into plugin/PluginEditorV2.cpp since)
 - **Probability Gates**: Per-connection probability parameter (0-100%) for intermittent modulation
   - **0%**: Connection never applies modulation (effectively disabled)
   - **50%**: Modulation active ~50% of the time (unpredictable gating)
@@ -819,7 +819,7 @@ Time: ~20 min | Build: ✅ Success | Ready for DAW testing
   - Thread-safe via ModulationMatrix SpinLock
   - Abbreviated destination labels (Tim, Mas, Den, Blm, Air, Wid, Mix, Wrp, Drf, Grv, Pil, Tub, Met, Els, Imp)
   - Interaction model: click to create → click to select → click selected to remove
-  - See `ui/ModMatrixPanel.h` and `ui/ModMatrixPanel.cpp`
+  - See `ui/ModMatrixPanel.h` and `ui/ModMatrixPanel.cpp` (consolidated into `plugin/PluginEditorV2.cpp` since)
 - **LayeredKnob Component**: Photorealistic multi-layer knob rendering system
   - Supports 4+ image layers with alpha compositing
   - Independent rotation control per layer (rotating vs static)

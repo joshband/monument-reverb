@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready
 **CPU Usage:** 3.38% (p99, 48kHz, 512 samples) - **Good Efficiency**
 **Complexity:** 🟡 MEDIUM-HIGH
-**File:** [`dsp/ElasticHallway.{h,cpp}`](../../../dsp/ElasticHallway.h)
+**File:** [`dsp/ElasticHallway.{h,cpp}`](../../../../dsp/ElasticHallway.h)
 
 ---
 
@@ -527,7 +527,7 @@ Returns multiplier for external FDN delay times (expansion → longer delays).
 
 ### Unit Tests
 
-**File:** [tests/NovelAlgorithmsTest.cpp](../../../tests/NovelAlgorithmsTest.cpp)
+**File:** [tests/NovelAlgorithmsTest.cpp](../../../../tests/NovelAlgorithmsTest.cpp)
 
 **Test Cases:**
 
@@ -558,7 +558,7 @@ Returns multiplier for external FDN delay times (expansion → longer delays).
 
 ### Integration Tests
 
-**File:** [tests/DspInitializationTest.cpp](../../../tests/DspInitializationTest.cpp)
+**File:** [tests/DspInitializationTest.cpp](../../../../tests/DspInitializationTest.cpp)
 
 **Test Cases:**
 
@@ -579,7 +579,7 @@ Returns multiplier for external FDN delay times (expansion → longer delays).
 
 ### Performance Tests
 
-**File:** [tests/PerformanceBenchmarkTest.cpp](../../../tests/PerformanceBenchmarkTest.cpp)
+**File:** [tests/PerformanceBenchmarkTest.cpp](../../../../tests/PerformanceBenchmarkTest.cpp)
 
 **Benchmarks:**
 
@@ -941,10 +941,10 @@ void setRoomDimensions(float width, float height, float depth) {
 
 ### Implementation Files
 
-- **Header:** [dsp/ElasticHallway.h](../../../dsp/ElasticHallway.h) (163 lines)
-- **Implementation:** [dsp/ElasticHallway.cpp](../../../dsp/ElasticHallway.cpp) (310 lines)
-- **Tests:** [tests/NovelAlgorithmsTest.cpp](../../../tests/NovelAlgorithmsTest.cpp)
-- **Benchmarks:** [tests/PerformanceBenchmarkTest.cpp](../../../tests/PerformanceBenchmarkTest.cpp)
+- **Header:** [dsp/ElasticHallway.h](../../../../dsp/ElasticHallway.h) (163 lines)
+- **Implementation:** [dsp/ElasticHallway.cpp](../../../../dsp/ElasticHallway.cpp) (310 lines)
+- **Tests:** [tests/NovelAlgorithmsTest.cpp](../../../../tests/NovelAlgorithmsTest.cpp)
+- **Benchmarks:** [tests/PerformanceBenchmarkTest.cpp](../../../../tests/PerformanceBenchmarkTest.cpp)
 
 ### Academic References
 
@@ -970,8 +970,8 @@ void setRoomDimensions(float width, float height, float depth) {
 - [02-pillars.md](../core-modules/02-pillars.md) - Early reflections (geometry coupling)
 - [08-resonance.md](08-resonance.md) - TubeRayTracer (complementary metallic effect)
 - [11-strata.md](../memory-system/11-strata.md) - Memory system (temporal coupling)
-- [docs/PERFORMANCE_BASELINE.md](../../PERFORMANCE_BASELINE.md) - Complete CPU profiling data
-- [docs/DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](../../DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md) - System-wide analysis
+- [PERFORMANCE_BASELINE.md](../../../../docs/archive/sessions/PERFORMANCE_BASELINE.md) - Complete CPU profiling data (archived)
+- [DSP_ARCHITECTURE_COMPREHENSIVE_REVIEW.md](../../../../docs/archive/reviews/01092026-DspArchitectureComprehensiveReview.md) - System-wide analysis (archived)
 
 ### JUCE API References
 

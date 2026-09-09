@@ -382,8 +382,8 @@ Visual diff would show timeline overlaying controls.
 
 - [TESTING.md](../../TESTING.md) - Testing hub (canonical)
 - [TESTING_GUIDE.md](TESTING_GUIDE.md) - Complete testing documentation
-- [BUILD_PATTERNS.md](BUILD_PATTERNS.md) - JUCE/CMake patterns
-- [tools/TESTING_INFRASTRUCTURE.md](../tools/TESTING_INFRASTRUCTURE.md) - Infrastructure details
+- [BUILD_PATTERNS.md](../archive/sessions/BUILD_PATTERNS.md) - JUCE/CMake patterns (archived)
+- [tools/TESTING_INFRASTRUCTURE.md](../../tools/TESTING_INFRASTRUCTURE.md) - Infrastructure details
 
 ## Summary
 
