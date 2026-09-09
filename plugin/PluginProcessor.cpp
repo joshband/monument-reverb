@@ -76,6 +76,22 @@ int sanitizeChoice(float value, int minValue, int maxValue, int fallback) noexce
     return juce::jlimit(minValue, maxValue, index);
 }
 
+// Equal-power dry/wet crossfade gains for a mix value in [0, 1]. Used at every
+// dry/wet blend point in processBlockCore() (the verbose debug logger, the
+// no-dry-buffer early return, and the per-sample crossfade loop) so all three
+// sites stay in sync by construction instead of duplicating the cos/sin pair.
+struct EqualPowerMixGains
+{
+    float dryGain;
+    float wetGain;
+};
+
+EqualPowerMixGains equalPowerMixGains(float mix01) noexcept
+{
+    return { std::cos(mix01 * juce::MathConstants<float>::halfPi),
+             std::sin(mix01 * juce::MathConstants<float>::halfPi) };
+}
+
 #if defined(MONUMENT_TESTING_VERBOSE_LOG)
 std::once_flag gTestingLoggerOnce;
 std::unique_ptr<juce::FileLogger> gTestingLogger;
@@ -109,6 +125,71 @@ MonumentAudioProcessor::MonumentAudioProcessor()
       presetManager(parameters, &modulationMatrix)  // Phase 3: Pass modulation matrix for serialization
 {
     routingGraph.setMemoryEchoes(&memoryEchoes);
+    cacheParameterPointers();
+}
+
+void MonumentAudioProcessor::cacheParameterPointers()
+{
+    auto rawParam = [this](const char* paramId)
+    {
+        return parameters.getRawParameterValue(paramId);
+    };
+
+    paramPointers.mix = rawParam("mix");
+    paramPointers.time = rawParam("time");
+    paramPointers.mass = rawParam("mass");
+    paramPointers.density = rawParam("density");
+    paramPointers.bloom = rawParam("bloom");
+    paramPointers.air = rawParam("air");
+    paramPointers.width = rawParam("width");
+    paramPointers.warp = rawParam("warp");
+    paramPointers.drift = rawParam("drift");
+    paramPointers.gravity = rawParam("gravity");
+    paramPointers.pillarShape = rawParam("pillarShape");
+    paramPointers.pillarMode = rawParam("pillarMode");
+    paramPointers.memory = rawParam("memory");
+    paramPointers.memoryDepth = rawParam("memoryDepth");
+    paramPointers.memoryDecay = rawParam("memoryDecay");
+    paramPointers.memoryDrift = rawParam("memoryDrift");
+    paramPointers.material = rawParam("material");
+    paramPointers.topology = rawParam("topology");
+    paramPointers.viscosity = rawParam("viscosity");
+    paramPointers.evolution = rawParam("evolution");
+    paramPointers.chaosIntensity = rawParam("chaosIntensity");
+    paramPointers.elasticityDecay = rawParam("elasticityDecay");
+    paramPointers.patina = rawParam("patina");
+    paramPointers.abyss = rawParam("abyss");
+    paramPointers.corona = rawParam("corona");
+    paramPointers.breath = rawParam("breath");
+    paramPointers.character = rawParam("character");
+    paramPointers.spaceType = rawParam("spaceType");
+    paramPointers.energy = rawParam("energy");
+    paramPointers.motion = rawParam("motion");
+    paramPointers.color = rawParam("color");
+    paramPointers.dimension = rawParam("dimension");
+    paramPointers.tubeCount = rawParam("tubeCount");
+    paramPointers.radiusVariation = rawParam("radiusVariation");
+    paramPointers.metallicResonance = rawParam("metallicResonance");
+    paramPointers.couplingStrength = rawParam("couplingStrength");
+    paramPointers.elasticity = rawParam("elasticity");
+    paramPointers.recoveryTime = rawParam("recoveryTime");
+    paramPointers.absorptionDrift = rawParam("absorptionDrift");
+    paramPointers.nonlinearity = rawParam("nonlinearity");
+    paramPointers.impossibilityDegree = rawParam("impossibilityDegree");
+    paramPointers.pitchEvolutionRate = rawParam("pitchEvolutionRate");
+    paramPointers.paradoxResonanceFreq = rawParam("paradoxResonanceFreq");
+    paramPointers.paradoxGain = rawParam("paradoxGain");
+    paramPointers.routingPreset = rawParam("routingPreset");
+    paramPointers.warpClustering = rawParam("warpClustering");
+    paramPointers.densityEvolution = rawParam("densityEvolution");
+    paramPointers.attackTime = rawParam("attackTime");
+    paramPointers.macroMode = rawParam("macroMode");
+    paramPointers.safetyClip = rawParam("safetyClip");
+    paramPointers.safetyClipDrive = rawParam("safetyClipDrive");
+    paramPointers.timelineEnabled = rawParam("timelineEnabled");
+    paramPointers.timelinePreset = rawParam("timelinePreset");
+    paramPointers.processingMode = rawParam("processingMode");
+    paramPointers.freeze = rawParam("freeze");
 }
 
 MonumentAudioProcessor::~MonumentAudioProcessor()
@@ -401,61 +482,63 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     // 1. Parameters are independent (no inter-parameter dependencies)
     // 2. APVTS already handles thread-safe writes on message thread
     // 3. Relaxed ordering avoids expensive memory fences while maintaining atomicity
-    paramCache.mix = parameters.getRawParameterValue("mix")->load(std::memory_order_relaxed);
-    paramCache.time = parameters.getRawParameterValue("time")->load(std::memory_order_relaxed);
-    paramCache.mass = parameters.getRawParameterValue("mass")->load(std::memory_order_relaxed);
-    paramCache.density = parameters.getRawParameterValue("density")->load(std::memory_order_relaxed);
-    paramCache.bloom = parameters.getRawParameterValue("bloom")->load(std::memory_order_relaxed);
-    paramCache.air = parameters.getRawParameterValue("air")->load(std::memory_order_relaxed);
-    paramCache.width = parameters.getRawParameterValue("width")->load(std::memory_order_relaxed);
-    paramCache.warp = parameters.getRawParameterValue("warp")->load(std::memory_order_relaxed);
-    paramCache.drift = parameters.getRawParameterValue("drift")->load(std::memory_order_relaxed);
-    paramCache.gravity = parameters.getRawParameterValue("gravity")->load(std::memory_order_relaxed);
-    paramCache.pillarShape = parameters.getRawParameterValue("pillarShape")->load(std::memory_order_relaxed);
-    paramCache.pillarMode = parameters.getRawParameterValue("pillarMode")->load(std::memory_order_relaxed);
-    paramCache.memory = parameters.getRawParameterValue("memory")->load(std::memory_order_relaxed);
-    paramCache.memoryDepth = parameters.getRawParameterValue("memoryDepth")->load(std::memory_order_relaxed);
-    paramCache.memoryDecay = parameters.getRawParameterValue("memoryDecay")->load(std::memory_order_relaxed);
-    paramCache.memoryDrift = parameters.getRawParameterValue("memoryDrift")->load(std::memory_order_relaxed);
-    paramCache.freeze = parameters.getRawParameterValue("freeze")->load(std::memory_order_relaxed) > 0.5f;
-    paramCache.material = parameters.getRawParameterValue("material")->load(std::memory_order_relaxed);
-    paramCache.topology = parameters.getRawParameterValue("topology")->load(std::memory_order_relaxed);
-    paramCache.viscosity = parameters.getRawParameterValue("viscosity")->load(std::memory_order_relaxed);
-    paramCache.evolution = parameters.getRawParameterValue("evolution")->load(std::memory_order_relaxed);
-    paramCache.chaosIntensity = parameters.getRawParameterValue("chaosIntensity")->load(std::memory_order_relaxed);
-    paramCache.elasticityDecay = parameters.getRawParameterValue("elasticityDecay")->load(std::memory_order_relaxed);
-    paramCache.patina = parameters.getRawParameterValue("patina")->load(std::memory_order_relaxed);
-    paramCache.abyss = parameters.getRawParameterValue("abyss")->load(std::memory_order_relaxed);
-    paramCache.corona = parameters.getRawParameterValue("corona")->load(std::memory_order_relaxed);
-    paramCache.breath = parameters.getRawParameterValue("breath")->load(std::memory_order_relaxed);
-    paramCache.character = parameters.getRawParameterValue("character")->load(std::memory_order_relaxed);
-    paramCache.spaceType = parameters.getRawParameterValue("spaceType")->load(std::memory_order_relaxed);
-    paramCache.energy = parameters.getRawParameterValue("energy")->load(std::memory_order_relaxed);
-    paramCache.motion = parameters.getRawParameterValue("motion")->load(std::memory_order_relaxed);
-    paramCache.color = parameters.getRawParameterValue("color")->load(std::memory_order_relaxed);
-    paramCache.dimension = parameters.getRawParameterValue("dimension")->load(std::memory_order_relaxed);
-    paramCache.tubeCount = parameters.getRawParameterValue("tubeCount")->load(std::memory_order_relaxed);
-    paramCache.radiusVariation = parameters.getRawParameterValue("radiusVariation")->load(std::memory_order_relaxed);
-    paramCache.metallicResonance = parameters.getRawParameterValue("metallicResonance")->load(std::memory_order_relaxed);
-    paramCache.couplingStrength = parameters.getRawParameterValue("couplingStrength")->load(std::memory_order_relaxed);
-    paramCache.elasticity = parameters.getRawParameterValue("elasticity")->load(std::memory_order_relaxed);
-    paramCache.recoveryTime = parameters.getRawParameterValue("recoveryTime")->load(std::memory_order_relaxed);
-    paramCache.absorptionDrift = parameters.getRawParameterValue("absorptionDrift")->load(std::memory_order_relaxed);
-    paramCache.nonlinearity = parameters.getRawParameterValue("nonlinearity")->load(std::memory_order_relaxed);
-    paramCache.impossibilityDegree = parameters.getRawParameterValue("impossibilityDegree")->load(std::memory_order_relaxed);
-    paramCache.pitchEvolutionRate = parameters.getRawParameterValue("pitchEvolutionRate")->load(std::memory_order_relaxed);
-    paramCache.paradoxResonanceFreq = parameters.getRawParameterValue("paradoxResonanceFreq")->load(std::memory_order_relaxed);
-    paramCache.paradoxGain = parameters.getRawParameterValue("paradoxGain")->load(std::memory_order_relaxed);
-    paramCache.routingPreset = parameters.getRawParameterValue("routingPreset")->load(std::memory_order_relaxed);
-    paramCache.warpClustering = parameters.getRawParameterValue("warpClustering")->load(std::memory_order_relaxed);
-    paramCache.densityEvolution = parameters.getRawParameterValue("densityEvolution")->load(std::memory_order_relaxed);
-    paramCache.attackTime = parameters.getRawParameterValue("attackTime")->load(std::memory_order_relaxed);
-    paramCache.macroMode = parameters.getRawParameterValue("macroMode")->load(std::memory_order_relaxed);
-    paramCache.safetyClip = parameters.getRawParameterValue("safetyClip")->load(std::memory_order_relaxed) > 0.5f;
-    paramCache.safetyClipDrive = parameters.getRawParameterValue("safetyClipDrive")->load(std::memory_order_relaxed);
-    paramCache.timelineEnabled = parameters.getRawParameterValue("timelineEnabled")->load(std::memory_order_relaxed) > 0.5f;
-    paramCache.timelinePreset = parameters.getRawParameterValue("timelinePreset")->load(std::memory_order_relaxed);
-    paramCache.processingMode = parameters.getRawParameterValue("processingMode")->load(std::memory_order_relaxed);
+    // Pointers are resolved once in cacheParameterPointers() (constructor) --
+    // no string-keyed APVTS lookups happen here, only the atomic load itself.
+    paramCache.mix = paramPointers.mix->load(std::memory_order_relaxed);
+    paramCache.time = paramPointers.time->load(std::memory_order_relaxed);
+    paramCache.mass = paramPointers.mass->load(std::memory_order_relaxed);
+    paramCache.density = paramPointers.density->load(std::memory_order_relaxed);
+    paramCache.bloom = paramPointers.bloom->load(std::memory_order_relaxed);
+    paramCache.air = paramPointers.air->load(std::memory_order_relaxed);
+    paramCache.width = paramPointers.width->load(std::memory_order_relaxed);
+    paramCache.warp = paramPointers.warp->load(std::memory_order_relaxed);
+    paramCache.drift = paramPointers.drift->load(std::memory_order_relaxed);
+    paramCache.gravity = paramPointers.gravity->load(std::memory_order_relaxed);
+    paramCache.pillarShape = paramPointers.pillarShape->load(std::memory_order_relaxed);
+    paramCache.pillarMode = paramPointers.pillarMode->load(std::memory_order_relaxed);
+    paramCache.memory = paramPointers.memory->load(std::memory_order_relaxed);
+    paramCache.memoryDepth = paramPointers.memoryDepth->load(std::memory_order_relaxed);
+    paramCache.memoryDecay = paramPointers.memoryDecay->load(std::memory_order_relaxed);
+    paramCache.memoryDrift = paramPointers.memoryDrift->load(std::memory_order_relaxed);
+    paramCache.freeze = paramPointers.freeze->load(std::memory_order_relaxed) > 0.5f;
+    paramCache.material = paramPointers.material->load(std::memory_order_relaxed);
+    paramCache.topology = paramPointers.topology->load(std::memory_order_relaxed);
+    paramCache.viscosity = paramPointers.viscosity->load(std::memory_order_relaxed);
+    paramCache.evolution = paramPointers.evolution->load(std::memory_order_relaxed);
+    paramCache.chaosIntensity = paramPointers.chaosIntensity->load(std::memory_order_relaxed);
+    paramCache.elasticityDecay = paramPointers.elasticityDecay->load(std::memory_order_relaxed);
+    paramCache.patina = paramPointers.patina->load(std::memory_order_relaxed);
+    paramCache.abyss = paramPointers.abyss->load(std::memory_order_relaxed);
+    paramCache.corona = paramPointers.corona->load(std::memory_order_relaxed);
+    paramCache.breath = paramPointers.breath->load(std::memory_order_relaxed);
+    paramCache.character = paramPointers.character->load(std::memory_order_relaxed);
+    paramCache.spaceType = paramPointers.spaceType->load(std::memory_order_relaxed);
+    paramCache.energy = paramPointers.energy->load(std::memory_order_relaxed);
+    paramCache.motion = paramPointers.motion->load(std::memory_order_relaxed);
+    paramCache.color = paramPointers.color->load(std::memory_order_relaxed);
+    paramCache.dimension = paramPointers.dimension->load(std::memory_order_relaxed);
+    paramCache.tubeCount = paramPointers.tubeCount->load(std::memory_order_relaxed);
+    paramCache.radiusVariation = paramPointers.radiusVariation->load(std::memory_order_relaxed);
+    paramCache.metallicResonance = paramPointers.metallicResonance->load(std::memory_order_relaxed);
+    paramCache.couplingStrength = paramPointers.couplingStrength->load(std::memory_order_relaxed);
+    paramCache.elasticity = paramPointers.elasticity->load(std::memory_order_relaxed);
+    paramCache.recoveryTime = paramPointers.recoveryTime->load(std::memory_order_relaxed);
+    paramCache.absorptionDrift = paramPointers.absorptionDrift->load(std::memory_order_relaxed);
+    paramCache.nonlinearity = paramPointers.nonlinearity->load(std::memory_order_relaxed);
+    paramCache.impossibilityDegree = paramPointers.impossibilityDegree->load(std::memory_order_relaxed);
+    paramCache.pitchEvolutionRate = paramPointers.pitchEvolutionRate->load(std::memory_order_relaxed);
+    paramCache.paradoxResonanceFreq = paramPointers.paradoxResonanceFreq->load(std::memory_order_relaxed);
+    paramCache.paradoxGain = paramPointers.paradoxGain->load(std::memory_order_relaxed);
+    paramCache.routingPreset = paramPointers.routingPreset->load(std::memory_order_relaxed);
+    paramCache.warpClustering = paramPointers.warpClustering->load(std::memory_order_relaxed);
+    paramCache.densityEvolution = paramPointers.densityEvolution->load(std::memory_order_relaxed);
+    paramCache.attackTime = paramPointers.attackTime->load(std::memory_order_relaxed);
+    paramCache.macroMode = paramPointers.macroMode->load(std::memory_order_relaxed);
+    paramCache.safetyClip = paramPointers.safetyClip->load(std::memory_order_relaxed) > 0.5f;
+    paramCache.safetyClipDrive = paramPointers.safetyClipDrive->load(std::memory_order_relaxed);
+    paramCache.timelineEnabled = paramPointers.timelineEnabled->load(std::memory_order_relaxed) > 0.5f;
+    paramCache.timelinePreset = paramPointers.timelinePreset->load(std::memory_order_relaxed);
+    paramCache.processingMode = paramPointers.processingMode->load(std::memory_order_relaxed);
 
     const int maxTimelinePreset = juce::jmax(0, monument::dsp::SequencePresets::getNumPresets() - 1);
     const int timelinePreset = sanitizeChoice(paramCache.timelinePreset, 0, maxTimelinePreset, 0);
@@ -773,30 +856,24 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     const float airEffective = airSum / numSamples;
     const float widthEffective = widthSum / numSamples;
 
-    // TEMPORARY (Step 3): Calculate averaged values for backward compatibility
-    // In Step 4, we'll pass ParameterBuffers directly to DspRoutingGraph
-    // These averages maintain compatibility with current float-based API
-    float timeSum = 0.0f, massSum = 0.0f, densitySum = 0.0f, bloomSum = 0.0f;
-    float warpSum = 0.0f, driftSum = 0.0f, gravitySum = 0.0f, pillarShapeSum = 0.0f;
+    // Block-rate average of the per-sample buffers, needed only for parameters
+    // whose block-rate value feeds the macro/modulation blend below (mass,
+    // density, warp, drift). time/gravity/pillarShape/bloom are consumed
+    // directly as per-sample ParameterBuffer views further down (see
+    // makeModulatedView / setChambersParams / setPillarsParams below), so no
+    // block-rate average is computed for them.
+    float massSum = 0.0f, densitySum = 0.0f, warpSum = 0.0f, driftSum = 0.0f;
     for (int i = 0; i < numSamples; ++i)
     {
-        timeSum += timeBuffer[i];
         massSum += massBuffer[i];
         densitySum += densityBuffer[i];
-        bloomSum += bloomBuffer[i];
         warpSum += warpBuffer[i];
         driftSum += driftBuffer[i];
-        gravitySum += gravityBuffer[i];
-        pillarShapeSum += pillarShapeBuffer[i];
     }
-    const float timeEffective = timeSum / numSamples;
     const float massEffective = massSum / numSamples;
     const float densityEffective = densitySum / numSamples;
-    const float bloomEffectiveMacro = bloomSum / numSamples;
     const float warpEffectiveMacro = warpSum / numSamples;
     const float driftEffectiveMacro = driftSum / numSamples;
-    const float gravityEffective = gravitySum / numSamples;
-    const float pillarShapeEffective = pillarShapeSum / numSamples;
 
     // OPTIMIZED: Use bitmask to skip inactive smoothers (5-10% CPU reduction)
     // Temporal coherence: if a smoother wasn't active last frame, skip the expensive isSmoothing() check
@@ -920,17 +997,17 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     const float modGravity = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::Gravity);
     const float modPillarShape = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::PillarShape);
 
-    // Apply modulation offsets and clamp to valid [0, 1] range
-    const float timeModulated = juce::jlimit(0.0f, 1.0f, timeEffective + modTime);
+    // Apply modulation offsets and clamp to valid [0, 1] range.
+    // modTime/modGravity/modPillarShape/modBloom are applied directly to
+    // their per-sample ParameterBuffer views below (see makeModulatedView)
+    // rather than to a block-rate average, so no *Modulated value is
+    // computed for them here.
     const float massModulated = juce::jlimit(0.0f, 1.0f, massEffective + modMass);
     const float densityModulated = juce::jlimit(0.0f, 1.0f, densityEffective + modDensity);
-    const float bloomModulated = juce::jlimit(0.0f, 1.0f, bloomEffectiveMacro + modBloom);
     const float airModulated = juce::jlimit(0.0f, 1.0f, airEffective + modAir);
     const float widthModulated = juce::jlimit(0.0f, 1.0f, widthEffective + modWidth);
     const float warpModulated = juce::jlimit(0.0f, 1.0f, warpEffectiveMacro + modWarp);
     const float driftModulated = juce::jlimit(0.0f, 1.0f, driftEffectiveMacro + modDrift);
-    const float gravityModulated = juce::jlimit(0.0f, 1.0f, gravityEffective + modGravity);
-    const float pillarShapeModulated = juce::jlimit(0.0f, 1.0f, pillarShapeEffective + modPillarShape);
 
     const float mixPercent = mixPercentRaw;
     const float mixPercentEffective = mixPercent;
@@ -939,7 +1016,6 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     // Use modulated values (Phase 3: modulation system now active)
     const float warpEffective = warpModulated;
     const float driftEffective = driftModulated;
-    const float bloomEffective = bloomModulated;
     float pillarModeSafe = pillarModeRaw;
     pillarModeSafe = juce::jlimit(0.0f, 2.0f, pillarModeSafe);
     const int pillarModeIndex = static_cast<int>(std::round(pillarModeSafe));
@@ -1081,12 +1157,11 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     {
         const float mixTargetPercent = mixSmoother.getTargetValue();
         const float mixTarget = mixTargetPercent / 100.0f;
-        const float dryGainTarget = std::cos(mixTarget * juce::MathConstants<float>::halfPi);
-        const float wetGainTarget = std::sin(mixTarget * juce::MathConstants<float>::halfPi);
+        const auto gainsTarget = equalPowerMixGains(mixTarget);
         juce::Logger::writeToLog("Monument DEBUG: Mix calculation mixPercent=" + juce::String(mixPercentEffective, 1) +
                                  " mix=" + juce::String(mixTarget, 3) +
-                                 " dryGain=" + juce::String(dryGainTarget, 3) +
-                                 " wetGain=" + juce::String(wetGainTarget, 3));
+                                 " dryGain=" + juce::String(gainsTarget.dryGain, 3) +
+                                 " wetGain=" + juce::String(gainsTarget.wetGain, 3));
     }
 #endif
 
@@ -1162,8 +1237,7 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
         if (numSamples > 1)
             mixSmoother.skip(numSamples - 1);
         const float mix = mixPercentSmoothed / 100.0f;
-        const float wetGain = std::sin(mix * juce::MathConstants<float>::halfPi);
-        buffer.applyGain(wetGain);
+        buffer.applyGain(equalPowerMixGains(mix).wetGain);
         return;
     }
 
@@ -1173,12 +1247,11 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     {
         const float mixPercentSmoothed = juce::jlimit(0.0f, 100.0f, mixSmoother.getNextValue());
         const float mix = mixPercentSmoothed / 100.0f;
-        const float dryGain = std::cos(mix * juce::MathConstants<float>::halfPi);
-        const float wetGain = std::sin(mix * juce::MathConstants<float>::halfPi);
+        const auto gains = equalPowerMixGains(mix);
 
         for (int channel = 0; channel < numChannels; ++channel)
-            wetChannels[channel][sample] = dryChannels[channel][sample] * dryGain
-                + wetChannels[channel][sample] * wetGain;
+            wetChannels[channel][sample] = dryChannels[channel][sample] * gains.dryGain
+                + wetChannels[channel][sample] * gains.wetGain;
     }
 
     if (presetTransition != PresetTransitionState::None)

@@ -173,6 +173,75 @@ private:
         bool freeze;
     } paramCache{};
 
+    // Cached raw-parameter atomic pointers, resolved once (constructor) instead
+    // of via ~54 string-keyed APVTS::getRawParameterValue() lookups every block.
+    // Each pointer aliases the same std::atomic<float> the string lookup would
+    // return; JUCE keeps these valid for the processor's lifetime, so caching
+    // them is safe and the audio thread only ever performs the atomic load.
+    struct ParameterPointerCache
+    {
+        std::atomic<float>* mix{};
+        std::atomic<float>* time{};
+        std::atomic<float>* mass{};
+        std::atomic<float>* density{};
+        std::atomic<float>* bloom{};
+        std::atomic<float>* air{};
+        std::atomic<float>* width{};
+        std::atomic<float>* warp{};
+        std::atomic<float>* drift{};
+        std::atomic<float>* gravity{};
+        std::atomic<float>* pillarShape{};
+        std::atomic<float>* pillarMode{};
+        std::atomic<float>* memory{};
+        std::atomic<float>* memoryDepth{};
+        std::atomic<float>* memoryDecay{};
+        std::atomic<float>* memoryDrift{};
+        std::atomic<float>* material{};
+        std::atomic<float>* topology{};
+        std::atomic<float>* viscosity{};
+        std::atomic<float>* evolution{};
+        std::atomic<float>* chaosIntensity{};
+        std::atomic<float>* elasticityDecay{};
+        std::atomic<float>* patina{};
+        std::atomic<float>* abyss{};
+        std::atomic<float>* corona{};
+        std::atomic<float>* breath{};
+        std::atomic<float>* character{};
+        std::atomic<float>* spaceType{};
+        std::atomic<float>* energy{};
+        std::atomic<float>* motion{};
+        std::atomic<float>* color{};
+        std::atomic<float>* dimension{};
+        std::atomic<float>* tubeCount{};
+        std::atomic<float>* radiusVariation{};
+        std::atomic<float>* metallicResonance{};
+        std::atomic<float>* couplingStrength{};
+        std::atomic<float>* elasticity{};
+        std::atomic<float>* recoveryTime{};
+        std::atomic<float>* absorptionDrift{};
+        std::atomic<float>* nonlinearity{};
+        std::atomic<float>* impossibilityDegree{};
+        std::atomic<float>* pitchEvolutionRate{};
+        std::atomic<float>* paradoxResonanceFreq{};
+        std::atomic<float>* paradoxGain{};
+        std::atomic<float>* routingPreset{};
+        std::atomic<float>* warpClustering{};
+        std::atomic<float>* densityEvolution{};
+        std::atomic<float>* attackTime{};
+        std::atomic<float>* macroMode{};
+        std::atomic<float>* safetyClip{};
+        std::atomic<float>* safetyClipDrive{};
+        std::atomic<float>* timelineEnabled{};
+        std::atomic<float>* timelinePreset{};
+        std::atomic<float>* processingMode{};
+        std::atomic<float>* freeze{};
+    } paramPointers{};
+
+    // Populates paramPointers from `parameters`. Called once from the
+    // constructor (after APVTS is fully constructed); never called from
+    // processBlockCore/prepareToPlay's hot path.
+    void cacheParameterPointers();
+
     // Track last routing preset to detect changes
     int lastRoutingPreset{0};
     int lastTimelinePreset{-1};
