@@ -3,6 +3,7 @@
 #include "dsp/TubeRayTracer.h"
 #include "dsp/ElasticHallway.h"
 #include "dsp/AlienAmplification.h"
+#include "dsp/MemoryEchoes.h"
 #include <initializer_list>
 
 namespace monument
@@ -190,7 +191,7 @@ void DspRoutingGraph::setChambersParams(const ParameterBuffer& time,
     chambersBloomBuffer = bloom;
     chambersGravityBuffer = gravity;
 
-#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG)
     // DEBUG: Log first parameter value from each buffer (sample 0)
     static int logCounter = 0;
     if (++logCounter % 100 == 0)  // Log every 100th call to avoid flooding
@@ -367,16 +368,27 @@ void DspRoutingGraph::processAncientWay(juce::AudioBuffer<float>& buffer)
     processModule(ModuleType::Foundation, buffer, bypassMaskValue);
     processModule(ModuleType::Pillars, buffer, bypassMaskValue);
 
-#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG)
     // DEBUG: Check signal before Chambers
     float preChambersRMS = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
         preChambersRMS = juce::jmax(preChambersRMS, buffer.getRMSLevel(ch, 0, buffer.getNumSamples()));
 #endif
 
+    // MemoryEchoes surfaces recalled material into the buffer Chambers is
+    // about to reverberate (see setMemoryEchoes()'s docs). Runs unconditionally
+    // (independent of Chambers's own bypass bit) so recall stays audible even
+    // when a routing preset bypasses Chambers itself.
+    if (memoryEchoes != nullptr)
+        memoryEchoes->process(buffer);
+
     processModule(ModuleType::Chambers, buffer, bypassMaskValue);
 
-#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
+    // Capture Chambers' wet output as future recall material.
+    if (memoryEchoes != nullptr)
+        memoryEchoes->captureWet(buffer);
+
+#if defined(MONUMENT_TESTING_VERBOSE_LOG)
     // DEBUG: Check signal after Chambers
     float postChambersRMS = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)

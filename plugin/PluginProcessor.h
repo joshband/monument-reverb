@@ -204,11 +204,7 @@ private:
     int presetFadeSamples = 0;
     int presetFadeRemaining = 0;
     float presetGain = 1.0f;
-#if defined(MONUMENT_MEMORY_PROVE)
-    int memoryProvePulseInterval = 0;
-    int memoryProvePulseRemaining = 0;
-#endif
-#if defined(MONUMENT_TESTING_VERBOSE_LOG) || defined(MONUMENT_MEMORY_PROVE)
+#if defined(MONUMENT_TESTING_VERBOSE_LOG)
     bool testingLoggerRegistered{false};
 #endif
 

@@ -208,14 +208,6 @@ if(MONUMENT_BUILD_UI_PROTOTYPE)
 endif()
 
 option(MONUMENT_ENABLE_TESTS "Build Monument legacy tests (DEPRECATED for DSP authority)" OFF)
-option(MONUMENT_ENABLE_MEMORY "Enable Memory Echoes in plugin" OFF)
-
-if(MONUMENT_ENABLE_MEMORY)
-  target_compile_definitions(Monument
-    PRIVATE
-      MONUMENT_ENABLE_MEMORY=1
-  )
-endif()
 
 if(MONUMENT_ENABLE_TESTS)
   enable_testing()
@@ -971,6 +963,44 @@ if(BUILD_TESTING)
   )
 
   add_test(NAME monument_dsp_routing_graph_test COMMAND $<TARGET_FILE:monument_dsp_routing_graph_test>)
+
+  juce_add_console_app(monument_memory_echoes_routing_integration_test
+    PRODUCT_NAME "Monument MemoryEchoes Routing Integration Test"
+  )
+
+  juce_generate_juce_header(monument_memory_echoes_routing_integration_test)
+
+  target_sources(monument_memory_echoes_routing_integration_test
+    PRIVATE
+      tests/MemoryEchoesRoutingIntegrationTest.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_memory_echoes_routing_integration_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_memory_echoes_routing_integration_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+
+  target_link_libraries(monument_memory_echoes_routing_integration_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_memory_echoes_routing_integration_test
+           COMMAND $<TARGET_FILE:monument_memory_echoes_routing_integration_test>)
 endif()
 
 # Routing Preset x Macro Mode Characterization Test (Repository Reset Report, Step 5)
