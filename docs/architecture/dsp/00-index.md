@@ -358,7 +358,8 @@ Monument's **Strata** (memory system) will be fully integrated into the routing 
 - `docs/archive/sessions/BUILD_PATTERNS.md` - Build system and CMake patterns (archived)
 
 ### Source Code Reference
-- `dsp/DspModules.h` - Core module class definitions
+- `dsp/DspModules.{h,cpp}` - Foundation/Weathering/Buttress/Facade module class definitions
+- `dsp/Pillars.{h,cpp}` - Pillars early-reflections module (IR loading, tap layout, mode tuning)
 - `dsp/Chambers.{h,cpp}` - FDN reverb core implementation
 - `dsp/DspRoutingGraph.{h,cpp}` - Signal routing and orchestration
 - `dsp/MemoryEchoes.{h,cpp}` - Memory system (to be renamed Strata)
