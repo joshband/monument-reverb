@@ -280,6 +280,21 @@ void MonumentAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     paradoxGainSmoother.setCurrentAndTargetValue(
         sanitizeUnit(loadParam("paradoxGain"), kDefaultParadoxGain));
 
+    // Output safety-clip stage smoothers. The drive amount uses the same
+    // 500ms ramp as the other macro parameters. The enable switch uses a
+    // short 8ms crossfade -- long enough (hundreds of samples) to remove the
+    // sample-to-sample step a hard on/off switch produced, but short enough
+    // to stay well inside a single processBlock() call at any block size
+    // this plugin declares support for, so an on/off toggle still takes
+    // full effect within the block it's requested in (see
+    // OutputSafetyClipTest, which expects that).
+    safetyClipDriveSmoother.reset(sampleRate, smoothingRampSeconds);
+    safetyClipDriveSmoother.setCurrentAndTargetValue(
+        sanitizeUnit(loadParam("safetyClipDrive"), kDefaultSafetyClipDrive));
+    safetyClipEnableSmoother.reset(sampleRate, 0.008);
+    safetyClipEnableSmoother.setCurrentAndTargetValue(
+        loadParam("safetyClip") > 0.5f ? 1.0f : 0.0f);
+
     // Initialize processing mode transition gain (starts at 1.0 for no fade)
     modeTransitionGain.reset(sampleRate, 0.05);  // 50ms fade time
     modeTransitionGain.setCurrentAndTargetValue(1.0f);
@@ -1179,25 +1194,45 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
         }
     }
 
-    if (paramCache.safetyClip)
-    {
-        const float drive = juce::jmap(
-            safetyClipDrive,
-            1.0f,
-            2.5f);
-        const float norm = juce::dsp::FastMathApproximations::tanh(drive);
-        const float normSafe = norm > 0.0f ? norm : 1.0f;
+    // Output safety-clip stage. `safetyClipDrive` and the `safetyClip`
+    // on/off switch used to be applied straight from the raw block-rate
+    // value: the drive amount stepped discontinuously between blocks, and
+    // toggling the switch snapped the output transfer function from
+    // identity to tanh-shaped instantly. Both are now interpolated with
+    // SmoothedValue -- the drive amount ramps, and the enable switch
+    // crossfades between the unclipped and clipped signal -- so a sweep or
+    // an on/off toggle never produces a sample-to-sample step.
+    safetyClipDriveSmoother.setTargetValue(safetyClipDrive);
+    safetyClipEnableSmoother.setTargetValue(paramCache.safetyClip ? 1.0f : 0.0f);
 
-        for (int channel = 0; channel < numChannels; ++channel)
+    if (safetyClipEnableSmoother.isSmoothing() || safetyClipEnableSmoother.getCurrentValue() > 0.0f)
+    {
+        auto* const* channels = buffer.getArrayOfWritePointers();
+
+        for (int sample = 0; sample < numSamples; ++sample)
         {
-            auto* data = buffer.getWritePointer(channel);
-            for (int sample = 0; sample < numSamples; ++sample)
+            const float driveSmoothed = safetyClipDriveSmoother.getNextValue();
+            const float enableAmount = safetyClipEnableSmoother.getNextValue();
+
+            const float drive = juce::jmap(driveSmoothed, 1.0f, 2.5f);
+            const float norm = juce::dsp::FastMathApproximations::tanh(drive);
+            const float normSafe = norm > 0.0f ? norm : 1.0f;
+
+            for (int channel = 0; channel < numChannels; ++channel)
             {
-                const float driven = data[sample] * drive;
-                const float clipped = juce::dsp::FastMathApproximations::tanh(driven) / normSafe;
-                data[sample] = juce::jlimit(-1.0f, 1.0f, clipped);
+                const float dry = channels[channel][sample];
+                const float driven = dry * drive;
+                const float clipped = juce::jlimit(-1.0f, 1.0f,
+                    juce::dsp::FastMathApproximations::tanh(driven) / normSafe);
+                channels[channel][sample] = dry + (clipped - dry) * enableAmount;
             }
         }
+    }
+    else if (numSamples > 0)
+    {
+        // Fully bypassed and settled: keep the drive smoother's internal
+        // state in sync with the block-rate target without touching audio.
+        safetyClipDriveSmoother.skip(numSamples);
     }
 
     float outputRms = 0.0f;
