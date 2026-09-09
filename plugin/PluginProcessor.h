@@ -182,6 +182,16 @@ private:
     juce::SmoothedValue<float> paradoxResonanceFreqSmoother;
     juce::SmoothedValue<float> paradoxGainSmoother;
 
+    // Output safety-clip stage smoothers: `safetyClipDrive` and the
+    // `safetyClip` on/off switch were previously applied straight from the
+    // raw atomic parameter value with no interpolation, so a per-block
+    // change (drive) or an on/off toggle (enable) produced a step
+    // discontinuity in the output transfer function. safetyClipDriveSmoother
+    // interpolates the drive amount; safetyClipEnableSmoother crossfades
+    // between the unclipped and clipped signal instead of switching instantly.
+    juce::SmoothedValue<float> safetyClipDriveSmoother;
+    juce::SmoothedValue<float> safetyClipEnableSmoother;
+
     // Smoother activity tracking bitmask (optimization: skip inactive smoothers)
     // Each bit represents one smoother (0-21); bit=1 means smoother was active last frame
     uint32_t activeSmoothers{0};

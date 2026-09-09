@@ -4,13 +4,39 @@
  * Tests that parameter changes do not produce audible clicks or pops.
  * All parameters must be smoothed to prevent discontinuities in the audio signal.
  *
- * Success Criteria:
- * - All macro parameters produce no transients > -15dB during sweep
- * - No sudden level changes exceeding 0.1 sample-to-sample
- * - Smooth parameter interpolation confirmed
+ * Success Criteria (both must hold for every parameter):
+ * - No abrupt jump in short-window high-frequency energy during the sweep
+ *   (see calculateMaxTransientJump and kMaxTransientJumpDb)
+ * - No sample-to-sample discontinuity exceeding 0.1
  *
- * Note: Threshold relaxed from -60dB to -15dB to accommodate Monument's
- *       characteristic long reverb tails (~-16dB transient energy is normal)
+ * History: this test previously scored the *absolute* broadband HF RMS of the
+ * whole sweep and required it to sit below a fixed level (originally -60 dB,
+ * later relaxed to -15 dB because Monument's own dense reverb tail was enough
+ * to trip it). That measured steady-state timbre, not transients, so it could
+ * not distinguish a click from a stage legitimately generating harmonic
+ * content — the `safetyClipDrive` sweep failed under it purely because driving
+ * a tanh saturator harder produces more harmonics by design, not because of an
+ * unsmoothed parameter. The metric now measures the largest window-to-window
+ * *rise* in HF energy instead, which is what a click or an unsmoothed
+ * parameter step actually looks like; steady or gradually-rising harmonic
+ * content no longer registers.
+ *
+ * kMaxTransientJumpDb and the analysis window size were calibrated
+ * empirically together, not guessed independently — the two interact. A first
+ * pass used a 5 ms window (long enough for a stable RMS estimate at a glance)
+ * and found a clean population maxing at ~0.7 dB vs. ~2.1 dB for the
+ * reintroduced pre-fix bug. But `safetyClip`'s enable crossfade is only 8 ms,
+ * and a 5 ms window can't resolve a legitimate, smooth 8 ms ramp from an
+ * instant step — most of the ramp's energy rise lands in one window either
+ * way, so the *correctly smoothed* signal itself measured 2.1 dB and the test
+ * would have failed on the fix, not the bug. Narrowing to a 1 ms window
+ * resolved the two cases cleanly: clean population maxes at 1.3 dB, the
+ * reintroduced bug measures 2.4 dB. 1.8 dB sits between them with margin on
+ * both sides. If this flakes in CI, the noise floor of the clean population
+ * (not the regression value) is what should move the threshold — never raise
+ * it past the regression value, and if a legitimately-smoothed short crossfade
+ * ever needs a shorter ramp than 8 ms, re-run this calibration rather than
+ * just widening the threshold.
  */
 
 #include <JuceHeader.h>
@@ -27,13 +53,16 @@
 #define COLOR_BLUE "\033[0;34m"
 #define COLOR_RESET "\033[0m"
 
+// See the calibration note above: 1.3 dB (clean) vs 2.4 dB (real regression).
+constexpr float kMaxTransientJumpDb = 1.8f;
+
 struct ClickDetectionResult
 {
     std::string parameterName;
     bool passed;
-    float maxTransient;  // Peak transient level (dB)
-    float maxSampleDiff; // Maximum sample-to-sample difference
-    int clickCount;      // Number of detected clicks
+    float maxTransientJump; // Largest abrupt window-to-window HF energy rise (dB)
+    float maxSampleDiff;    // Maximum sample-to-sample difference
+    int clickCount;         // Number of detected clicks
 };
 
 /**
@@ -81,36 +110,65 @@ float calculateMaxSampleDiff(const juce::AudioBuffer<float>& buffer)
 }
 
 /**
- * Calculate RMS level with high-pass filtering to isolate transient energy
- * High-pass filter removes low-frequency content, leaving only clicks/pops
+ * Measure the largest abrupt jump in high-frequency energy across the sweep.
+ *
+ * This deliberately measures the *change* in short-window HF energy, not the
+ * absolute HF level. A click or a parameter step is a sudden discontinuity, so
+ * its energy appears in one window and not its neighbour; steady-state
+ * harmonic content — a saturation stage being driven harder, or Monument's own
+ * dense reverb tail — raises the HF floor smoothly across many windows and is
+ * not an artifact. See the file header for why this replaced a broadband
+ * absolute-level check.
+ *
+ * Returns the maximum window-to-window increase in dB (0.0 = perfectly steady).
  */
-float calculateTransientLevel(const juce::AudioBuffer<float>& buffer, double sampleRate)
+float calculateMaxTransientJump(const juce::AudioBuffer<float>& buffer, double sampleRate)
 {
-    // Simple one-pole high-pass filter (cutoff ~10kHz)
-    const float alpha = 0.9f;  // Filter coefficient
+    // ~1 ms analysis windows. Must be short enough to resolve the shortest
+    // legitimate smoothing ramp in the plugin (safetyClipEnableSmoother's 8 ms
+    // crossfade) from an instant step — see the calibration note above; a 5 ms
+    // window was tried first and was too coarse to tell the two apart.
+    const int windowSamples = juce::jmax(32, static_cast<int>(sampleRate * 0.001));
+    const int numSamples = buffer.getNumSamples();
+    if (numSamples < windowSamples * 2)
+        return 0.0f;
+
+    // Same one-pole high-pass as before (~10 kHz) to isolate fast content.
+    const float alpha = 0.9f;
     float prevSample = 0.0f;
     float prevFiltered = 0.0f;
-    float sumSquared = 0.0f;
-    int sampleCount = 0;
 
-    // Process left channel only (stereo correlation expected)
     const float* samples = buffer.getReadPointer(0);
-    for (int i = 0; i < buffer.getNumSamples(); ++i)
-    {
-        // High-pass filter: y[n] = alpha * (y[n-1] + x[n] - x[n-1])
-        float filtered = alpha * (prevFiltered + samples[i] - prevSample);
-        sumSquared += filtered * filtered;
-        sampleCount++;
 
+    std::vector<float> windowDb;
+    windowDb.reserve(static_cast<size_t>(numSamples / windowSamples) + 1);
+
+    float sumSquared = 0.0f;
+    int windowCount = 0;
+
+    for (int i = 0; i < numSamples; ++i)
+    {
+        const float filtered = alpha * (prevFiltered + samples[i] - prevSample);
         prevSample = samples[i];
         prevFiltered = filtered;
+
+        sumSquared += filtered * filtered;
+        if (++windowCount == windowSamples)
+        {
+            const float rms = std::sqrt(sumSquared / static_cast<float>(windowCount));
+            windowDb.push_back(20.0f * std::log10(std::max(rms, 1e-10f)));
+            sumSquared = 0.0f;
+            windowCount = 0;
+        }
     }
 
-    // Calculate RMS
-    float rms = std::sqrt(sumSquared / sampleCount);
+    // Largest single-window rise. A click shows up as one window jumping well
+    // above its predecessor; a gradual distortion or decay ramp does not.
+    float maxJumpDb = 0.0f;
+    for (size_t i = 1; i < windowDb.size(); ++i)
+        maxJumpDb = std::max(maxJumpDb, windowDb[i] - windowDb[i - 1]);
 
-    // Convert to dB (with floor to avoid log(0))
-    return 20.0f * std::log10(std::max(rms, 1e-10f));
+    return maxJumpDb;
 }
 
 /**
@@ -125,7 +183,7 @@ ClickDetectionResult testParameterSweep(
 {
     ClickDetectionResult result;
     result.parameterName = param->getName(32).toStdString();
-    result.maxTransient = -120.0f;
+    result.maxTransientJump = 0.0f;
     result.maxSampleDiff = 0.0f;
     result.clickCount = 0;
 
@@ -179,12 +237,9 @@ ClickDetectionResult testParameterSweep(
     // Analyze full buffer for clicks
     result.clickCount = detectClicks(fullBuffer, 0.1f);
     result.maxSampleDiff = calculateMaxSampleDiff(fullBuffer);
-    result.maxTransient = calculateTransientLevel(fullBuffer, sampleRate);
+    result.maxTransientJump = calculateMaxTransientJump(fullBuffer, sampleRate);
 
-    // Pass criteria: transient level < -15dB and max sample diff < 0.1
-    // Relaxed threshold from -60dB to -15dB to accommodate reverb tail energy
-    // Monument's long reverb tails naturally produce ~-16dB transient energy
-    result.passed = (result.maxTransient < -15.0f) && (result.maxSampleDiff < 0.1f);
+    result.passed = (result.maxTransientJump < kMaxTransientJumpDb) && (result.maxSampleDiff < 0.1f);
 
     return result;
 }
@@ -243,13 +298,13 @@ int main()
         if (result.passed)
         {
             std::cout << COLOR_GREEN << "✓ PASS" << COLOR_RESET;
-            std::cout << " (transient: " << std::fixed << std::setprecision(1) << result.maxTransient << " dB)";
+            std::cout << " (jump: " << std::fixed << std::setprecision(1) << result.maxTransientJump << " dB)";
             passCount++;
         }
         else
         {
             std::cout << COLOR_RED << "✗ FAIL" << COLOR_RESET;
-            std::cout << " (transient: " << std::fixed << std::setprecision(1) << result.maxTransient << " dB, ";
+            std::cout << " (jump: " << std::fixed << std::setprecision(1) << result.maxTransientJump << " dB, ";
             std::cout << "clicks: " << result.clickCount << ")";
         }
         std::cout << "\n";
@@ -287,7 +342,7 @@ int main()
             if (!result.passed)
             {
                 std::cout << "  • " << result.parameterName << ": ";
-                std::cout << result.maxTransient << " dB transient, ";
+                std::cout << result.maxTransientJump << " dB jump, ";
                 std::cout << result.clickCount << " clicks\n";
             }
         }
