@@ -853,6 +853,66 @@ TestResult testWarpClusteringModeSwitchIsClickFree()
 }
 
 //==============================================================================
+// Test 10: Harmonic Clustering Modes Keep All Lines Distinct
+//==============================================================================
+TestResult testHarmonicClusteringModesKeepLinesDistinct()
+{
+    try
+    {
+        Chambers reverb;
+        reverb.prepare(kSampleRate, kBlockSize, kNumChannels);
+
+        const std::vector<std::pair<Chambers::WarpClusteringMode, std::string>> modes{
+            {Chambers::WarpClusteringMode::Harmonic2x, "Harmonic2x"},
+            {Chambers::WarpClusteringMode::Harmonic3x, "Harmonic3x"},
+            {Chambers::WarpClusteringMode::OctaveStack, "OctaveStack"},
+        };
+
+        for (const auto& [mode, name] : modes)
+        {
+            reverb.setWarpClusteringMode(mode);
+            // setWarpClusteringMode() only schedules the change; process
+            // enough samples for the mute-and-swap window to complete.
+            juce::AudioBuffer<float> buffer(kNumChannels, 600);
+            buffer.clear();
+            reverb.process(buffer);
+
+            const std::vector<float> delays = reverb.getDelaySamplesForTesting();
+
+            // All 12 lines must have distinct delay lengths -- collapsing
+            // several onto the same clamped value is exactly the bug this
+            // guards against (see kOctaveRatios' history: the original
+            // per-line-base scheme sent most lines to an identical clamp).
+            std::vector<float> sorted = delays;
+            std::sort(sorted.begin(), sorted.end());
+            for (size_t i = 1; i < sorted.size(); ++i)
+            {
+                if (sorted[i] - sorted[i - 1] < 1.0f)
+                {
+                    return {
+                        "Harmonic Clustering Modes Keep Lines Distinct",
+                        false,
+                        name + ": lines collapsed to duplicate/near-duplicate delays ("
+                            + std::to_string(sorted[i - 1]) + " and " + std::to_string(sorted[i]) + ")"};
+                }
+            }
+        }
+
+        return {
+            "Harmonic Clustering Modes Keep Lines Distinct",
+            true,
+            "All 12 lines remain distinct under Harmonic2x, Harmonic3x, and OctaveStack"};
+    }
+    catch (const std::exception& e)
+    {
+        return {
+            "Harmonic Clustering Modes Keep Lines Distinct",
+            false,
+            std::string("Exception: ") + e.what()};
+    }
+}
+
+//==============================================================================
 // Main Test Runner
 //==============================================================================
 int main()
@@ -881,6 +941,7 @@ int main()
     results.push_back(testDensityEvolutionAffectsOutput());
     results.push_back(testAttackTimeProducesSlowSwell());
     results.push_back(testWarpClusteringModeSwitchIsClickFree());
+    results.push_back(testHarmonicClusteringModesKeepLinesDistinct());
 
     // Report results
     std::cout << "Test Results:" << std::endl;

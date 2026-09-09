@@ -9,6 +9,7 @@
 #include <array>
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace monument
 {
@@ -52,6 +53,12 @@ public:
     /// signal-level comparison alone can't reliably distinguish "muted" from
     /// "a naturally quiet moment in the decay."
     float getWarpClusteringMuteGainForTesting() const noexcept { return warpClusteringMuteGain; }
+
+    /// Current per-line FDN delay lengths, in samples. Exposed so tests can
+    /// verify a warp-clustering mode actually produces distinct per-line
+    /// delays (a std::vector rather than std::array<float, kNumLines> so this
+    /// declaration doesn't need kNumLines, a private constant, in scope yet).
+    std::vector<float> getDelaySamplesForTesting() const { return { delaySamples.begin(), delaySamples.end() }; }
 
     // Per-sample parameter setters (accept ParameterBuffer for zipper-free automation)
     void setTime(const ParameterBuffer& time);

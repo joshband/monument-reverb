@@ -58,6 +58,17 @@ constexpr std::array<int, 12> kDelaySamples48k{
 
 // Harmonic clustering delay ratios: multiply the base delays above to create
 // musical relationships between lines, for resonant, pitched reverb character.
+//
+// Applied against a single shared fundamental (kDelaySamples48k[0], the
+// shortest base delay) rather than each line's own already-large,
+// widely-varying base delay (which itself spans ~129x across the 12 lines).
+// Multiplying per-line bases by these ratios would compound the two ranges
+// (e.g. OctaveStack's 2048x against the longest base is ~635M samples --
+// no realistic buffer holds that, so nearly every line would clamp to the
+// same maximum and lose the intended distinct spacing). A shared fundamental
+// is also what "harmonic"/"octave" relationships actually mean musically:
+// integer or power-of-2 multiples of one reference pitch, not of twelve
+// unrelated ones.
 constexpr std::array<float, 12> kHarmonic2xRatios{
     1.0f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f, 9.0f, 12.0f, 16.0f, 18.0f, 24.0f, 32.0f
 };
@@ -66,9 +77,19 @@ constexpr std::array<float, 12> kHarmonic3xRatios{
     1.0f, 3.0f, 5.0f, 7.0f, 9.0f, 11.0f, 13.0f, 15.0f, 17.0f, 19.0f, 21.0f, 23.0f
 };
 
+// Spans -2 to +9 octaves from the fundamental (some lines shorter than it,
+// most longer) rather than 0 to +11 (all longer): capped at 2^9 instead of
+// the original 2^11 so the longest resulting delay (fundamental * 512) fits
+// a bounded delay-buffer budget (see kHarmonicMaxGrowth) instead of the
+// ~635M-sample worst case the uncapped per-line-base scheme produced.
 constexpr std::array<float, 12> kOctaveRatios{
-    1.0f, 2.0f, 4.0f, 8.0f, 16.0f, 32.0f, 64.0f, 128.0f, 256.0f, 512.0f, 1024.0f, 2048.0f
+    0.25f, 0.5f, 1.0f, 2.0f, 4.0f, 8.0f, 16.0f, 32.0f, 64.0f, 128.0f, 256.0f, 512.0f
 };
+// Longest delay any harmonic-clustering mode can produce, as a multiple of
+// the fundamental (kOctaveRatios' max is the largest of the three tables).
+// prepare() sizes delayBufferLength to fit this alongside the Incommensurate
+// case, so a mode switch never needs to (RT-unsafe) reallocate the buffer.
+constexpr float kHarmonicMaxGrowth = 512.0f;
 
 // Density evolution range: negative shifts density down over the decay
 // (grainy -> smooth), positive shifts it up (smooth -> grainy).
@@ -297,7 +318,13 @@ void Chambers::prepare(double sampleRate, int blockSize, int numChannels)
         delaySum += delaySamples[i];
     }
 
-    delayBufferLength = juce::jmax(1, static_cast<int>(std::ceil(maxDelay)) + 2);
+    // Sized for the longer of the two worst cases -- plain Incommensurate
+    // delays, or a harmonic-clustering mode's fundamental * kHarmonicMaxGrowth
+    // -- so switching modes later never needs to (RT-unsafe) reallocate.
+    const float fundamentalDelay = juce::jmax(1.0f, static_cast<float>(kDelaySamples48k[0]) * scale);
+    const float harmonicMaxDelay = fundamentalDelay * kHarmonicMaxGrowth;
+    delayBufferLength = juce::jmax(1,
+        static_cast<int>(std::ceil(juce::jmax(maxDelay, harmonicMaxDelay))) + 2);
     meanDelaySeconds = (delaySum / static_cast<float>(kNumLines))
         / static_cast<float>(sampleRateHz);
     delayLines.setSize(kNumLines, delayBufferLength);
@@ -1198,34 +1225,43 @@ void Chambers::setDelayJitter(float amount)
 void Chambers::applyWarpClusteringMode(WarpClusteringMode mode)
 {
     warpClusteringMode = mode;
-    // Recompute delay lengths based on clustering mode
     const float scale = static_cast<float>(sampleRateHz / 48000.0);
-    // delayBufferLength is sized in prepare() from the Incommensurate base
-    // delays; a harmonic ratio (OctaveStack goes up to 2048x) must not push a
-    // line's delay past what readFractionalDelay's single-wrap subtraction can
-    // handle, or it reads out of bounds. -2 matches prepare()'s own margin.
+    // delayBufferLength is sized in prepare() to fit either case; -2 matches
+    // its own margin. The clamp is a last-resort safety net (it should never
+    // actually bind given kHarmonicMaxGrowth), not the mechanism keeping
+    // lines distinct -- that's the fundamental-based scheme below.
     const float maxDelaySamples = static_cast<float>(juce::jmax(1, delayBufferLength - 2));
+
+    if (warpClusteringMode == WarpClusteringMode::Incommensurate)
+    {
+        // Each line keeps its own prime-based base delay, unrelated to the
+        // others -- the non-repeating, diffuse default.
+        for (size_t i = 0; i < kNumLines; ++i)
+        {
+            delaySamples[i] = juce::jlimit(1.0f, maxDelaySamples,
+                static_cast<float>(kDelaySamples48k[i]) * scale);
+        }
+        return;
+    }
+
+    // Harmonic/octave modes: every line is a ratio of one shared fundamental
+    // (the shortest base delay), not of its own base -- see kOctaveRatios'
+    // comment for why compounding against twelve already-different bases
+    // doesn't work. This is also what "harmonic"/"octave" actually means:
+    // multiples of a single reference, not of unrelated references.
+    const float fundamentalDelay = juce::jmax(1.0f, static_cast<float>(kDelaySamples48k[0]) * scale);
+    const std::array<float, 12>* ratios = nullptr;
+    switch (warpClusteringMode)
+    {
+        case WarpClusteringMode::Harmonic2x:  ratios = &kHarmonic2xRatios; break;
+        case WarpClusteringMode::Harmonic3x:  ratios = &kHarmonic3xRatios; break;
+        case WarpClusteringMode::OctaveStack: ratios = &kOctaveRatios;     break;
+        default: break; // unreachable: Incommensurate returned above
+    }
     for (size_t i = 0; i < kNumLines; ++i)
     {
-        float harmonicRatio = 1.0f;
-        switch (warpClusteringMode)
-        {
-            case WarpClusteringMode::Harmonic2x:
-                harmonicRatio = kHarmonic2xRatios[i];
-                break;
-            case WarpClusteringMode::Harmonic3x:
-                harmonicRatio = kHarmonic3xRatios[i];
-                break;
-            case WarpClusteringMode::OctaveStack:
-                harmonicRatio = kOctaveRatios[i];
-                break;
-            case WarpClusteringMode::Incommensurate:
-            default:
-                harmonicRatio = 1.0f;
-                break;
-        }
         delaySamples[i] = juce::jlimit(1.0f, maxDelaySamples,
-            static_cast<float>(kDelaySamples48k[i]) * scale * harmonicRatio);
+            fundamentalDelay * (*ratios)[i]);
     }
 }
 
