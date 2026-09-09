@@ -102,6 +102,7 @@ private:
     LabeledCombo macroModeControl;
     LabeledCombo routingPresetControl;
     LabeledCombo pillarModeControl;
+    LabeledCombo processingModeControl;
     LabeledCombo timelinePresetControl;
 
     LabeledToggle freezeControl;

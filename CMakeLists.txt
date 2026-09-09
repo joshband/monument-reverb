@@ -1049,6 +1049,92 @@ if(BUILD_TESTING)
   add_test(NAME monument_routing_macro_mode_characterization_test COMMAND $<TARGET_FILE:monument_routing_macro_mode_characterization_test>)
 endif()
 
+# Processing Mode Routing Test (P2-06a: Ancient Monuments routing mode wiring)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_processing_mode_test
+    PRODUCT_NAME "Monument Processing Mode Test"
+  )
+
+  juce_generate_juce_header(monument_processing_mode_test)
+
+  target_sources(monument_processing_mode_test
+    PRIVATE
+      tests/ProcessingModeCharacterizationTest.cpp
+      plugin/PluginProcessor.cpp
+      plugin/PresetManager.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_processing_mode_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_processing_mode_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+      JucePlugin_Name="Monument"
+      JucePlugin_Manufacturer="Monument Audio"
+      JucePlugin_ManufacturerCode=0x4d6e6d74
+      JucePlugin_PluginCode=0x4d6e6d74
+  )
+
+  target_link_libraries(monument_processing_mode_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_processing_mode_test COMMAND $<TARGET_FILE:monument_processing_mode_test>)
+endif()
+
+# Pillars Impulse Response Test (P2-06b: IR loading dead-code wiring)
+if(BUILD_TESTING)
+  juce_add_console_app(monument_pillars_ir_test
+    PRODUCT_NAME "Monument Pillars Impulse Response Test"
+  )
+
+  juce_generate_juce_header(monument_pillars_ir_test)
+
+  target_sources(monument_pillars_ir_test
+    PRIVATE
+      tests/PillarsImpulseResponseTest.cpp
+      ${DSP_SOURCES}
+  )
+
+  target_include_directories(monument_pillars_ir_test
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  target_compile_definitions(monument_pillars_ir_test
+    PRIVATE
+      MONUMENT_TESTING=1
+      JUCE_WEB_BROWSER=0
+      JUCE_USE_CURL=0
+      JUCE_VST3_CAN_REPLACE_VST2=0
+  )
+
+  target_link_libraries(monument_pillars_ir_test
+    PRIVATE
+      juce::juce_audio_utils
+      juce::juce_dsp
+    PUBLIC
+      juce::juce_recommended_config_flags
+      juce::juce_recommended_lto_flags
+      juce::juce_recommended_warning_flags
+  )
+
+  add_test(NAME monument_pillars_ir_test COMMAND $<TARGET_FILE:monument_pillars_ir_test>)
+endif()
+
 # Feedback Mix Safety Test (Regression: 100% mix feedback runaway)
 if(BUILD_TESTING)
   juce_add_console_app(monument_feedback_mix_safety_test

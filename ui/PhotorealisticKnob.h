@@ -1,5 +1,5 @@
 // Monument Reverb - Photorealistic Knob Component
-// Filmstrip-based knob rendering with LED ring visualization
+// Layered-image knob rendering (static plate + rotating knob) with LED ring visualization
 
 #pragma once
 
@@ -8,9 +8,11 @@
 namespace monument {
 
 /**
- * Photorealistic knob using pre-rendered filmstrip
+ * Photorealistic knob using layered plate/knob/indicator images
  *
- * Renders knobs from vertical filmstrip images (PNG with multiple frames)
+ * Renders knobs from a static plate image plus a rotating knob layer
+ * (with optional highlight/shadow/indicator overlays); falls back to a
+ * simple vector-drawn knob when no layered images are set.
  * Supports parameter binding, LED ring overlay, and smooth animation
  */
 class PhotorealisticKnob : public juce::Slider
@@ -29,18 +31,6 @@ public:
         setRotaryParameters(juce::MathConstants<float>::pi * 1.2f,
                            juce::MathConstants<float>::pi * 2.8f,
                            true);
-    }
-
-    /** Load filmstrip asset
-     *
-     * @param filmstripImage Vertical strip of knob frames
-     * @param numFrames Number of frames in the strip (typically 128)
-     */
-    void loadFilmstrip(const juce::Image& filmstripImage, int numFrames)
-    {
-        filmstrip = filmstripImage;
-        this->numFrames = numFrames;
-        frameHeight = filmstrip.getHeight() / numFrames;
     }
 
     /** Load layered knob assets (static plate + rotating knob). */
@@ -86,18 +76,6 @@ public:
         repaint();
     }
 
-    void clearLayerImages()
-    {
-        plateLayer = {};
-        plateShadowLayer = {};
-        knobLayer = {};
-        highlightLayer = {};
-        shadowLayer = {};
-        indicatorLayer = {};
-        useLayeredImages = false;
-        repaint();
-    }
-
     /** Enable/disable LED ring overlay */
     void setLEDRingEnabled(bool enabled)
     {
@@ -114,31 +92,11 @@ public:
 
     void paint(juce::Graphics& g) override
     {
-        // Calculate frame index from value (0 to numFrames-1)
         const float normalizedValue = static_cast<float>(valueToProportionOfLength(getValue()));
 
         if (useLayeredImages && plateLayer.isValid() && knobLayer.isValid())
         {
             paintLayeredKnob(g, normalizedValue);
-        }
-        else if (filmstrip.isValid())
-        {
-            const int frameIndex = juce::jlimit(0, numFrames - 1,
-                                               static_cast<int>(normalizedValue * (numFrames - 1)));
-            const juce::Rectangle<int> sourceRect(0, frameIndex * frameHeight,
-                                                  filmstrip.getWidth(), frameHeight);
-
-            auto bounds = getKnobBounds().toNearestInt();
-            g.drawImage(filmstrip,
-                       bounds.getX(),
-                       bounds.getY(),
-                       bounds.getWidth(),
-                       bounds.getHeight(),
-                       sourceRect.getX(),
-                       sourceRect.getY(),
-                       sourceRect.getWidth(),
-                       sourceRect.getHeight(),
-                       false);  // Don't use high quality (faster rendering)
         }
         else
         {
@@ -150,19 +108,6 @@ public:
         {
             paintLEDRing(g, normalizedValue);
         }
-
-        // Draw label if set
-        if (label.isNotEmpty())
-        {
-            paintLabel(g);
-        }
-    }
-
-    /** Set parameter label displayed below knob */
-    void setLabel(const juce::String& labelText)
-    {
-        label = labelText;
-        repaint();
     }
 
 private:
@@ -316,16 +261,6 @@ private:
         }
     }
 
-    void paintLabel(juce::Graphics& g)
-    {
-        const int labelHeight = 20;
-        auto labelBounds = getLocalBounds().removeFromBottom(labelHeight);
-
-        g.setColour(juce::Colours::white.withAlpha(0.8f));
-        g.setFont(juce::Font(14.0f, juce::Font::bold));
-        g.drawText(label, labelBounds, juce::Justification::centred);
-    }
-
     juce::Rectangle<float> getKnobBounds() const
     {
         auto bounds = getLocalBounds().toFloat();
@@ -355,10 +290,6 @@ private:
         return juce::Rectangle<float>(size, size).withCentre(bounds.getCentre());
     }
 
-    juce::Image filmstrip;
-    int numFrames{128};
-    int frameHeight{0};
-
     juce::Image plateLayer;
     juce::Image plateShadowLayer;
     juce::Image knobLayer;
@@ -371,114 +302,6 @@ private:
 
     bool ledRingEnabled{true};
     juce::Colour ledColor{juce::Colours::cyan};
-    juce::String label;
-};
-
-/**
- * Knob group component - displays multiple related knobs
- *
- * Example: Time, Mass, Density, Gravity in a row
- */
-class KnobGroup : public juce::Component
-{
-public:
-    KnobGroup(const juce::String& groupTitle) : title(groupTitle)
-    {
-    }
-
-    void addKnob(PhotorealisticKnob* knob, const juce::String& label)
-    {
-        knob->setLabel(label);
-        knobs.add(knob);
-        addAndMakeVisible(knob);
-        resized();
-    }
-
-    void paint(juce::Graphics& g) override
-    {
-        // Draw group background
-        g.setColour(juce::Colour(0x22ffffff));
-        g.fillRoundedRectangle(getLocalBounds().toFloat(), 10.0f);
-
-        // Draw title
-        g.setColour(juce::Colours::white);
-        g.setFont(juce::Font(18.0f, juce::Font::bold));
-        g.drawText(title, getLocalBounds().removeFromTop(30),
-                  juce::Justification::centred);
-    }
-
-    void resized() override
-    {
-        auto bounds = getLocalBounds().reduced(10);
-        bounds.removeFromTop(40);  // Space for title
-
-        const int knobSize = 100;
-        const int spacing = 20;
-        const int numKnobs = knobs.size();
-
-        if (numKnobs == 0)
-            return;
-
-        const int totalWidth = numKnobs * knobSize + (numKnobs - 1) * spacing;
-        auto knobArea = bounds.withSizeKeepingCentre(totalWidth, knobSize);
-
-        for (auto* knob : knobs)
-        {
-            knob->setBounds(knobArea.removeFromLeft(knobSize));
-            knobArea.removeFromLeft(spacing);
-        }
-    }
-
-private:
-    juce::String title;
-    juce::OwnedArray<PhotorealisticKnob> knobs;
-};
-
-/**
- * Parameter display with value readout
- *
- * Shows numeric value and units below knob
- */
-class ParameterDisplay : public juce::Component,
-                         private juce::Slider::Listener
-{
-public:
-    ParameterDisplay(PhotorealisticKnob& knob, const juce::String& units)
-        : attachedKnob(knob), unitString(units)
-    {
-        addAndMakeVisible(knob);
-        knob.addListener(this);
-
-        addAndMakeVisible(valueLabel);
-        valueLabel.setJustificationType(juce::Justification::centred);
-        valueLabel.setColour(juce::Label::textColourId, juce::Colours::white);
-
-        updateDisplay();
-    }
-
-    void resized() override
-    {
-        auto bounds = getLocalBounds();
-        attachedKnob.setBounds(bounds.removeFromTop(bounds.getHeight() - 30));
-        valueLabel.setBounds(bounds);
-    }
-
-private:
-    void sliderValueChanged(juce::Slider*) override
-    {
-        updateDisplay();
-    }
-
-    void updateDisplay()
-    {
-        const double value = attachedKnob.getValue();
-        const juce::String text = juce::String(value, 2) + " " + unitString;
-        valueLabel.setText(text, juce::dontSendNotification);
-    }
-
-    PhotorealisticKnob& attachedKnob;
-    juce::String unitString;
-    juce::Label valueLabel;
 };
 
 } // namespace monument
