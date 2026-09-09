@@ -28,18 +28,13 @@ cmake --build build --target Monument_AU --config Release
 ./scripts/run_ci_tests.sh
 ```
 
-### Blender Knob Generation
+### Knob/UI Asset Generation
 
-```bash
-# Quick preview (64 samples, ~30sec/layer)
-./scripts/run_blender_enhanced.sh --material granite --quick
-
-# Production quality (256 samples, ~2-3min/layer)
-./scripts/run_blender_enhanced.sh --material granite
-
-# Preview composite
-python3 scripts/preview_knob_composite_enhanced.py --material granite
-```
+The Blender-based knob-rendering pipeline this section used to describe has
+been replaced by an image-extraction pipeline (`tools/extract_line6_knob_layers.py`,
+`tools/generate_archive_knob_ai.py`) that produces the layered knob packs under
+`assets/ui/line6/` and `assets/ui/archive/`. See
+[../ui/README.md](../ui/README.md) for the current commands and layer format.
 
 ### Testing Workflow
 
@@ -59,7 +54,7 @@ ctest --test-dir build
 ### Scripts
 - `scripts/rebuild_and_install.sh` - Build and install plugin
 - `scripts/run_ci_tests.sh` - Run full test suite
-- `scripts/run_blender_enhanced.sh` - Generate photorealistic knobs
+- `tools/extract_line6_knob_layers.py` - Extract layered knob assets (see [../ui/README.md](../ui/README.md))
 - `scripts/capture_all_presets.sh` - Capture audio for all presets
 - `scripts/analyze_all_presets.sh` - Analyze preset characteristics
 
@@ -146,10 +141,10 @@ cmake -S . -B build -DCMAKE_CXX_FLAGS="-DMONUMENT_TESTING=1"
 ## Asset Management
 
 ### UI Assets
-- Knob renders: `assets/ui/knobs_enhanced/`
-- Celestial assets: `assets/ui/celestial/`
-- Visual profiles: `assets/ui/visual_profiles.json`
-- Macro hints: `assets/ui/macro_hints.json`
+- Line 6 extraction pack (current default): `assets/ui/line6/`
+- Archive Instruments AI-generated pack: `assets/ui/archive/`
+- Full discovery order, overrides (`MONUMENT_KNOB_DIR`, `MONUMENT_KNOB_VARIANT`), and
+  layer file naming: [../ui/README.md](../ui/README.md)
 
 ### Binary Data
 All assets are embedded in the binary via `juce_add_binary_data()` in CMakeLists.txt

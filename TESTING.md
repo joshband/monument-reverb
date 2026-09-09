@@ -315,7 +315,7 @@ CTest list:
 
 ### Historical Validation
 
-**Pre-Memory Validation:** `docs/testing/Monument_v1.0_Pre-Memory_Validation.md`
+**Pre-Memory Validation:** `docs/archive/reviews/Monument_v1.0_Pre-Memory_Validation.md` (historical — predates Memory Echoes, which has since shipped and is wired into `DspRoutingGraph`)
 
 **Phase Testing:**
 - `docs/archive/phases/PHASE_2_VALIDATION_TEST.md`
@@ -324,7 +324,7 @@ CTest list:
 ## Testing Audits
 
 ### Comprehensive Audits
-- `docs/testing/TESTING_AUDIT.md` - Complete testing audit and recommendations
+- `docs/archive/reviews/01082026-TestingAudit.md` - Complete testing audit and recommendations (archived)
 
 ## Test Data Schemas
 
