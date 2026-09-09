@@ -2,9 +2,6 @@
 
 **Purpose:** Formal specification of all JSON output formats produced by the testing infrastructure.
 
-**Version:** 1.0.0
-**Last Updated:** 2026-01-08
-
 ---
 
 ## Overview
@@ -836,8 +833,3 @@ When updating schemas:
 - [testing/README.md](../testing/README.md) - Testing hub
 - [tools/compare_baseline.py](../tools/compare_baseline.py) - Regression detection tool
 - [JSON Schema Specification](https://json-schema.org/) - JSON Schema documentation
-
----
-
-**Schema Version:** 1.0.0
-**Last Updated:** 2026-01-08

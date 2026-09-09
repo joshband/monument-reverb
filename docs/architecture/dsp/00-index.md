@@ -1,9 +1,5 @@
 # Monument Reverb: DSP Architecture Documentation
 
-**Version:** 1.0
-**Last Updated:** 2026-01-09
-**Status:** In Progress
-
 ---
 
 ## Welcome to the Monument

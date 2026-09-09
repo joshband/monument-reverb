@@ -1230,7 +1230,5 @@ Where $\phi$ = pan angle (0 to π)
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2026-01-09
 **Word Count:** ~10,500
 **Status:** ✅ Complete

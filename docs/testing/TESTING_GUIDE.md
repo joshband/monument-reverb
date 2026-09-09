@@ -1,8 +1,5 @@
 # Monument Reverb - Testing Guide
 
-**Last Updated:** 2026-01-05
-**Status:** Production-Ready Testing Infrastructure
-
 Note: The canonical testing hub is `TESTING.md` in the repo root. This guide is a deep dive.
 
 ---

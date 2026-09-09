@@ -755,7 +755,5 @@ float transformerSaturation(float input, float drive)
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2026-01-09
 **Word Count:** ~4,800
 **Status:** ✅ Complete
