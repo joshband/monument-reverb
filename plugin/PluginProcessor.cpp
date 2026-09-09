@@ -76,6 +76,22 @@ int sanitizeChoice(float value, int minValue, int maxValue, int fallback) noexce
     return juce::jlimit(minValue, maxValue, index);
 }
 
+// Equal-power dry/wet crossfade gains for a mix value in [0, 1]. Used at every
+// dry/wet blend point in processBlockCore() (the verbose debug logger, the
+// no-dry-buffer early return, and the per-sample crossfade loop) so all three
+// sites stay in sync by construction instead of duplicating the cos/sin pair.
+struct EqualPowerMixGains
+{
+    float dryGain;
+    float wetGain;
+};
+
+EqualPowerMixGains equalPowerMixGains(float mix01) noexcept
+{
+    return { std::cos(mix01 * juce::MathConstants<float>::halfPi),
+             std::sin(mix01 * juce::MathConstants<float>::halfPi) };
+}
+
 #if defined(MONUMENT_TESTING_VERBOSE_LOG)
 std::once_flag gTestingLoggerOnce;
 std::unique_ptr<juce::FileLogger> gTestingLogger;
@@ -1126,12 +1142,11 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     {
         const float mixTargetPercent = mixSmoother.getTargetValue();
         const float mixTarget = mixTargetPercent / 100.0f;
-        const float dryGainTarget = std::cos(mixTarget * juce::MathConstants<float>::halfPi);
-        const float wetGainTarget = std::sin(mixTarget * juce::MathConstants<float>::halfPi);
+        const auto gainsTarget = equalPowerMixGains(mixTarget);
         juce::Logger::writeToLog("Monument DEBUG: Mix calculation mixPercent=" + juce::String(mixPercentEffective, 1) +
                                  " mix=" + juce::String(mixTarget, 3) +
-                                 " dryGain=" + juce::String(dryGainTarget, 3) +
-                                 " wetGain=" + juce::String(wetGainTarget, 3));
+                                 " dryGain=" + juce::String(gainsTarget.dryGain, 3) +
+                                 " wetGain=" + juce::String(gainsTarget.wetGain, 3));
     }
 #endif
 
@@ -1207,8 +1222,7 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
         if (numSamples > 1)
             mixSmoother.skip(numSamples - 1);
         const float mix = mixPercentSmoothed / 100.0f;
-        const float wetGain = std::sin(mix * juce::MathConstants<float>::halfPi);
-        buffer.applyGain(wetGain);
+        buffer.applyGain(equalPowerMixGains(mix).wetGain);
         return;
     }
 
@@ -1218,12 +1232,11 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     {
         const float mixPercentSmoothed = juce::jlimit(0.0f, 100.0f, mixSmoother.getNextValue());
         const float mix = mixPercentSmoothed / 100.0f;
-        const float dryGain = std::cos(mix * juce::MathConstants<float>::halfPi);
-        const float wetGain = std::sin(mix * juce::MathConstants<float>::halfPi);
+        const auto gains = equalPowerMixGains(mix);
 
         for (int channel = 0; channel < numChannels; ++channel)
-            wetChannels[channel][sample] = dryChannels[channel][sample] * dryGain
-                + wetChannels[channel][sample] * wetGain;
+            wetChannels[channel][sample] = dryChannels[channel][sample] * gains.dryGain
+                + wetChannels[channel][sample] * gains.wetGain;
     }
 
     if (presetTransition != PresetTransitionState::None)
