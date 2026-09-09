@@ -1393,8 +1393,8 @@ void setLongMemoryDuration(float seconds) {
 - [09-living-stone.md](../physical-modeling/09-living-stone.md) - ElasticHallway (temporal-geometric coupling)
 - [08-resonance.md](../physical-modeling/08-resonance.md) - TubeRayTracer (metallic coloration of memories)
 - [10-impossible-geometry.md](../physical-modeling/10-impossible-geometry.md) - AlienAmplification (non-linear time)
-- [docs/PERFORMANCE_BASELINE.md](../../../PERFORMANCE_BASELINE.md) - Complete CPU profiling data
-- [docs/EXPERIMENTAL_PRESETS.md](../../../EXPERIMENTAL_PRESETS.md) - Preset usage examples
+- [PERFORMANCE_BASELINE.md](../../../../docs/archive/sessions/PERFORMANCE_BASELINE.md) - Complete CPU profiling data (archived)
+- [EXPERIMENTAL_PRESETS.md](../../../../docs/archive/sessions/experimental/EXPERIMENTAL_PRESETS.md) - Preset usage examples (archived)
 
 ### JUCE API References
 

@@ -8,17 +8,17 @@
 
 All Monument Reverb testing tools output JSON for machine-readable analysis and regression detection. This document defines the schema, validation rules, and examples for each output type.
 
-**📁 Formal Schema Files:** Extracted JSON Schema files are available in [schemas/](schemas/) directory for automated validation.
+**📁 Formal Schema Files:** Extracted JSON Schema files are available in [schemas/](.) directory for automated validation.
 
 ## Quick Links
 
-- **[schemas/README.md](schemas/README.md)** - Schema validation guide and usage examples
-- **[schemas/rt60_metrics.schema.json](schemas/rt60_metrics.schema.json)** - RT60 decay time schema
-- **[schemas/frequency_response.schema.json](schemas/frequency_response.schema.json)** - Frequency analysis schema
-- **[schemas/spatial_metrics.schema.json](schemas/spatial_metrics.schema.json)** - Spatial metrics schema
-- **[schemas/capture_metadata.schema.json](schemas/capture_metadata.schema.json)** - Capture parameters schema
-- **[schemas/regression_report.schema.json](schemas/regression_report.schema.json)** - Regression report schema
-- **[schemas/cpu_profile.schema.json](schemas/cpu_profile.schema.json)** - CPU profiling schema
+- **[schemas/README.md](README.md)** - Schema validation guide and usage examples
+- **[schemas/rt60_metrics.schema.json](rt60_metrics.schema.json)** - RT60 decay time schema
+- **[schemas/frequency_response.schema.json](frequency_response.schema.json)** - Frequency analysis schema
+- **[schemas/spatial_metrics.schema.json](spatial_metrics.schema.json)** - Spatial metrics schema
+- **[schemas/capture_metadata.schema.json](capture_metadata.schema.json)** - Capture parameters schema
+- **[schemas/regression_report.schema.json](regression_report.schema.json)** - Regression report schema
+- **[schemas/cpu_profile.schema.json](cpu_profile.schema.json)** - CPU profiling schema
 
 ## Schema Catalog
 
@@ -820,7 +820,7 @@ jq '.broadband.rt60_seconds | if . < 0.1 or . > 60 then error("RT60 out of range
 ### Migration Path
 
 When updating schemas:
-1. Document breaking changes in [CHANGELOG.md](../CHANGELOG.md)
+1. Document breaking changes in [CHANGELOG.md](../../CHANGELOG.md)
 2. Provide migration script if needed
 3. Update baseline data with new schema
 4. Increment version appropriately
@@ -831,5 +831,5 @@ When updating schemas:
 
 - [testing/TESTING_AUDIT.md](../archive/reviews/01082026-TestingAudit.md) - Testing infrastructure audit (archived)
 - [testing/README.md](../testing/README.md) - Testing hub
-- [tools/compare_baseline.py](../tools/compare_baseline.py) - Regression detection tool
+- [tools/compare_baseline.py](../../tools/compare_baseline.py) - Regression detection tool
 - [JSON Schema Specification](https://json-schema.org/) - JSON Schema documentation

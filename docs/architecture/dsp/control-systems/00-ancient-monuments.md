@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready (Phase 5 Complete)
 **CPU Usage:** ~0.01% (negligible, block-rate only)
 **Complexity:** 🟡 MEDIUM
-**File:** [`dsp/MacroMapper.{h,cpp}`](../../dsp/MacroMapper.h)
+**File:** [`dsp/MacroMapper.{h,cpp}`](../../../../dsp/MacroMapper.h)
 
 ---
 
@@ -946,16 +946,16 @@ User hears coherent "harder stone" transformation
 
 ### Implementation Files
 
-- **Header:** [`dsp/MacroMapper.h`](../../dsp/MacroMapper.h) - Class definition
-- **Source:** [`dsp/MacroMapper.cpp`](../../dsp/MacroMapper.cpp) - Implementation (430 lines)
+- **Header:** [`dsp/MacroMapper.h`](../../../../dsp/MacroMapper.h) - Class definition
+- **Source:** [`dsp/MacroMapper.cpp`](../../../../dsp/MacroMapper.cpp) - Implementation (430 lines)
 - **Tests:** `tests/MacroMapperTest.cpp` - Unit tests
 
 ### Related Documentation
 
 - [Chambers](../core-modules/03-chambers.md) - Primary reverb parameters controlled by macros
 - [Routing Graph](../core-modules/07-routing-graph.md) - Signal routing and module orchestration
-- [Hybrid Macro System](../../architecture/HYBRID_MACRO_SYSTEM.md) - Design document for two-layer architecture
-- [Preset Gallery](../../PRESET_GALLERY.md) - 28 factory presets using Ancient Monuments macros
+- [Hybrid Macro System](../../../../docs/archive/sessions/HYBRID_MACRO_SYSTEM.md) - Design document for two-layer architecture (archived)
+- [Preset Gallery](../../../../docs/PRESET_GALLERY.md) - 28 factory presets using Ancient Monuments macros
 
 
 ---

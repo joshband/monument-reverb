@@ -4,7 +4,7 @@
 **Status:** ✅ Production-Ready (Phase 4 Complete)
 **CPU Usage:** 7.22% (p99, 48kHz, 512 samples) - **31% improvement from Phase 4**
 **Complexity:** 🔴 HIGH
-**File:** [`dsp/Chambers.{h,cpp}`](../../dsp/Chambers.h)
+**File:** [`dsp/Chambers.{h,cpp}`](../../../../dsp/Chambers.h)
 
 ---
 
@@ -542,11 +542,11 @@ Higher mass → Less damping, brighter tail
 
 | Test | File | Status | Coverage |
 |------|------|--------|----------|
-| FDN stability | [`tests/ChambersTest.cpp`](../../../tests/ChambersTest.cpp) | ✅ Pass | Verifies Householder orthogonality |
-| Parameter smoothing | `tests/ChambersTest.cpp` | ✅ Pass | No zipper noise with per-sample params |
-| DC blocking | `tests/ChambersTest.cpp` | ✅ Pass | <5Hz cutoff verified |
-| Freeze mode | `tests/ChambersTest.cpp` | ✅ Pass | Infinite sustain without runaway |
-| External injection | `tests/ChambersTest.cpp` | ✅ Pass | Strata integration safe |
+| FDN stability | [`tests/ReverbDspTest.cpp`](../../../../tests/ReverbDspTest.cpp) | ✅ Pass | Verifies Householder orthogonality |
+| Parameter smoothing | `tests/ReverbDspTest.cpp` | ✅ Pass | No zipper noise with per-sample params |
+| DC blocking | `tests/ReverbDspTest.cpp` | ✅ Pass | <5Hz cutoff verified |
+| Freeze mode | `tests/ReverbDspTest.cpp` | ✅ Pass | Infinite sustain without runaway |
+| External injection | `tests/ReverbDspTest.cpp` | ✅ Pass | Strata integration safe |
 
 ### Integration Tests
 
@@ -708,9 +708,9 @@ Facade (emergence)
 
 ### Implementation Files
 
-- **Header:** [`dsp/Chambers.h`](../../dsp/Chambers.h) - Class definition
-- **Source:** [`dsp/Chambers.cpp`](../../dsp/Chambers.cpp) - Implementation
-- **Tests:** [`tests/ChambersTest.cpp`](../../../tests/ChambersTest.cpp) - Unit tests
+- **Header:** [`dsp/Chambers.h`](../../../../dsp/Chambers.h) - Class definition
+- **Source:** [`dsp/Chambers.cpp`](../../../../dsp/Chambers.cpp) - Implementation
+- **Tests:** [`tests/ReverbDspTest.cpp`](../../../../tests/ReverbDspTest.cpp) - Unit tests
 
 ### Related Documentation
 

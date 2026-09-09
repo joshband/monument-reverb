@@ -14,7 +14,7 @@ Comprehensive architecture documentation for Monument Reverb's DSP system and im
 All 17 DSP modules fully documented in [dsp/](dsp/) subfolder:
 
 **Core Modules:** (6 modules)
-- 00: [Routing Graph Overview](dsp/overview/00-routing-graph.md)
+- 00: [Routing Graph Overview](dsp/core-modules/07-routing-graph.md)
 - 01: [Foundation](dsp/core-modules/01-foundation.md) - Input stage
 - 02: [Pillars](dsp/core-modules/02-pillars.md) - Early reflections
 - 03: [Chambers](dsp/core-modules/03-chambers.md) - FDN reverb core (*to be extracted*)
@@ -47,8 +47,8 @@ All 17 DSP modules fully documented in [dsp/](dsp/) subfolder:
 - [PARAMETER_BEHAVIOR.md](PARAMETER_BEHAVIOR.md) - Parameter smoothing and behavior
 
 ### Experimental & Design
-- [EXPERIMENTAL_REDESIGN.md](EXPERIMENTAL_REDESIGN.md) - Experimental features and designs
-- [COMPLETE_EXPERIMENTAL_REDESIGN_PLAN.md](COMPLETE_EXPERIMENTAL_REDESIGN_PLAN.md) - Complete redesign proposals
+- [EXPERIMENTAL_REDESIGN.md](../archive/sessions/experimental/EXPERIMENTAL_REDESIGN.md) - Experimental features and designs (archived)
+- [COMPLETE_EXPERIMENTAL_REDESIGN_PLAN.md](../archive/sessions/experimental/COMPLETE_EXPERIMENTAL_REDESIGN_PLAN.md) - Complete redesign proposals (archived)
 
 ## Documentation Stats
 
