@@ -825,30 +825,24 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     const float airEffective = airSum / numSamples;
     const float widthEffective = widthSum / numSamples;
 
-    // TEMPORARY (Step 3): Calculate averaged values for backward compatibility
-    // In Step 4, we'll pass ParameterBuffers directly to DspRoutingGraph
-    // These averages maintain compatibility with current float-based API
-    float timeSum = 0.0f, massSum = 0.0f, densitySum = 0.0f, bloomSum = 0.0f;
-    float warpSum = 0.0f, driftSum = 0.0f, gravitySum = 0.0f, pillarShapeSum = 0.0f;
+    // Block-rate average of the per-sample buffers, needed only for parameters
+    // whose block-rate value feeds the macro/modulation blend below (mass,
+    // density, warp, drift). time/gravity/pillarShape/bloom are consumed
+    // directly as per-sample ParameterBuffer views further down (see
+    // makeModulatedView / setChambersParams / setPillarsParams below), so no
+    // block-rate average is computed for them.
+    float massSum = 0.0f, densitySum = 0.0f, warpSum = 0.0f, driftSum = 0.0f;
     for (int i = 0; i < numSamples; ++i)
     {
-        timeSum += timeBuffer[i];
         massSum += massBuffer[i];
         densitySum += densityBuffer[i];
-        bloomSum += bloomBuffer[i];
         warpSum += warpBuffer[i];
         driftSum += driftBuffer[i];
-        gravitySum += gravityBuffer[i];
-        pillarShapeSum += pillarShapeBuffer[i];
     }
-    const float timeEffective = timeSum / numSamples;
     const float massEffective = massSum / numSamples;
     const float densityEffective = densitySum / numSamples;
-    const float bloomEffectiveMacro = bloomSum / numSamples;
     const float warpEffectiveMacro = warpSum / numSamples;
     const float driftEffectiveMacro = driftSum / numSamples;
-    const float gravityEffective = gravitySum / numSamples;
-    const float pillarShapeEffective = pillarShapeSum / numSamples;
 
     // OPTIMIZED: Use bitmask to skip inactive smoothers (5-10% CPU reduction)
     // Temporal coherence: if a smoother wasn't active last frame, skip the expensive isSmoothing() check
@@ -972,17 +966,17 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     const float modGravity = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::Gravity);
     const float modPillarShape = modulationMatrix.getModulation(monument::dsp::ModulationMatrix::DestinationType::PillarShape);
 
-    // Apply modulation offsets and clamp to valid [0, 1] range
-    const float timeModulated = juce::jlimit(0.0f, 1.0f, timeEffective + modTime);
+    // Apply modulation offsets and clamp to valid [0, 1] range.
+    // modTime/modGravity/modPillarShape/modBloom are applied directly to
+    // their per-sample ParameterBuffer views below (see makeModulatedView)
+    // rather than to a block-rate average, so no *Modulated value is
+    // computed for them here.
     const float massModulated = juce::jlimit(0.0f, 1.0f, massEffective + modMass);
     const float densityModulated = juce::jlimit(0.0f, 1.0f, densityEffective + modDensity);
-    const float bloomModulated = juce::jlimit(0.0f, 1.0f, bloomEffectiveMacro + modBloom);
     const float airModulated = juce::jlimit(0.0f, 1.0f, airEffective + modAir);
     const float widthModulated = juce::jlimit(0.0f, 1.0f, widthEffective + modWidth);
     const float warpModulated = juce::jlimit(0.0f, 1.0f, warpEffectiveMacro + modWarp);
     const float driftModulated = juce::jlimit(0.0f, 1.0f, driftEffectiveMacro + modDrift);
-    const float gravityModulated = juce::jlimit(0.0f, 1.0f, gravityEffective + modGravity);
-    const float pillarShapeModulated = juce::jlimit(0.0f, 1.0f, pillarShapeEffective + modPillarShape);
 
     const float mixPercent = mixPercentRaw;
     const float mixPercentEffective = mixPercent;
@@ -991,7 +985,6 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     // Use modulated values (Phase 3: modulation system now active)
     const float warpEffective = warpModulated;
     const float driftEffective = driftModulated;
-    const float bloomEffective = bloomModulated;
     float pillarModeSafe = pillarModeRaw;
     pillarModeSafe = juce::jlimit(0.0f, 2.0f, pillarModeSafe);
     const int pillarModeIndex = static_cast<int>(std::round(pillarModeSafe));
