@@ -2,15 +2,16 @@
 
 **Purpose:** Long-term vision, future enhancements, and module ideation
 
-**Last Updated:** 2026-01-09
-
 ---
 
 ## Current Phase (Stable Foundation)
 
-**Status:** DSP architecture complete (15/17 modules documented). See
-[TESTING.md](TESTING.md) for current test status — don't infer it from this
-file, which tracks vision/ideation, not test counts.
+**Status:** DSP architecture documentation is substantially complete — see
+[docs/architecture/dsp/00-index.md](docs/architecture/dsp/00-index.md) for the
+authoritative per-module list and completion state; don't infer a module
+count from this file. See [TESTING.md](TESTING.md) for current test status —
+don't infer it from this file either, which tracks vision/ideation, not test
+counts.
 
 **Focus:** Documentation completion, performance optimization
 
@@ -18,7 +19,10 @@ file, which tracks vision/ideation, not test counts.
 
 **Critical RT-Safety Fixes** (from 2026-01-07/08 reviews):
 
-1. ✅ **Playhead null check** - Fixed in plugin/PluginProcessor.cpp:270-273
+1. ✅ **Playhead null check** - `getPlayHead()` in `plugin/PluginProcessor.cpp`'s
+   `processBlock()` is guarded before use (guards against a null playhead by
+   falling back to an empty `PositionInfo`) — file line numbers drift as the
+   file grows, so no line reference is pinned here; verify against source.
 2. ✅ **Timeline-preset / TubeRayTracer allocation on the audio thread** -
    Fixed; proven allocation-free by
    `monument_realtime_allocation_characterization_test` (see `TESTING.md`).
@@ -29,25 +33,46 @@ file, which tracks vision/ideation, not test counts.
 
 **Documentation Completion:**
 
-- ⏳ Chambers (03-chambers.md) - Extract from comprehensive review docs
-- ⏳ Ancient Monuments (07-ancient-monuments.md) - Macro system documentation
-- **Target:** Complete 17/17 DSP architecture modules
+- Both DSP module docs that were previously outstanding now exist and are
+  substantial: Chambers
+  ([docs/architecture/dsp/core-modules/03-chambers.md](docs/architecture/dsp/core-modules/03-chambers.md))
+  and Ancient Monuments
+  ([docs/architecture/dsp/control-systems/00-ancient-monuments.md](docs/architecture/dsp/control-systems/00-ancient-monuments.md) —
+  note it lives under `control-systems/` as `00-`, not the `07-` core-module
+  numbering once assumed for it).
+- Remaining documentation gaps (if any) are tracked in
+  [docs/architecture/dsp/00-index.md](docs/architecture/dsp/00-index.md)
+  itself, not here — that index carries a per-module status column and is
+  the source of truth, since a count hardcoded into this vision doc will
+  only go stale again.
 
 **Build & Test Hygiene:**
 
 - ✅ CTest config-aware paths
-- ⏳ Particle system RTTI removal (if playground becomes production UI)
-- ⏳ Fast particle removal (swap-pop instead of O(n) removal)
+- ✅ Dead code removal: deleted the unused `ExperimentalModulation` module
+  (never wired into the shipped plugin) and `DspRoutingGraph`'s generic
+  series/parallel/feedback/crossfeed graph executor (the host-visible
+  `routingPreset` parameter only ever drove its bypass mask, never that
+  executor) — see `ARCHITECTURE.md`.
+- ⏳ Particle system RTTI removal (if playground becomes production UI) - no
+  particle system currently exists in this repository; this stays
+  conditional on that playground work happening at all.
+- ⏳ Fast particle removal (swap-pop instead of O(n) removal) - same caveat
+  as above.
 - **Target:** all registered CTest targets green — see [TESTING.md](TESTING.md) for the current inventory and status, not a fixed count here
 
-**Asset Pipeline Decision:**
+**Asset Pipeline Decision (unmade — not planned work):**
 
+- No decision has been made yet. This is an open question sitting in front
+  of the team, not a scheduled task with an owner or timeline.
 - Current: Split between binary-embedded (knobs) and file-based (presets)
 - Options:
   - Binary-embedded: Larger plugin, no file dependencies
   - File-based: Smaller plugin, requires resource installation
   - Hybrid: Core assets embedded, expansions file-based
-- **Action Required:** Document and implement chosen strategy
+- **Action Required:** Make the decision, then document and implement the
+  chosen strategy. Until that happens, treat the current binary/file split
+  as unintentional, not as an endorsed hybrid design.
 
 ---
 
@@ -64,9 +89,12 @@ file, which tracks vision/ideation, not test counts.
    - Vectorized fractional delay interpolation
    - Batch spatial distance calculations
    
-2. **Lock-Free Architecture** - Eliminate RT violations
-   - Pre-allocated routing configurations with atomic swap
-   - Double-buffered modulation connections
+2. **Further Lock-Free Hardening** - Extend lock-free patterns beyond what
+   already shipped (ModulationMatrix's own announce-then-verify rotating
+   snapshot handshake is done — see Near-Term Milestones above — so this is
+   about what's left, not a restatement of it)
+   - Pre-allocated routing configurations with atomic swap (for routing
+     preset switching)
    - Lock-free parameter updates
 
 3. **Memory Optimization**
@@ -204,7 +232,9 @@ Interaction Model:
 
 ### Phase 8: Preset Expansion (Ideation)
 
-**Current:** 8 presets (3 original + 5 experimental)
+**Current:** 37 factory presets (`plugin/PresetManager.h`'s
+`kNumFactoryPresets`: 18 original + 5 "Living" (Phase 3) + 5 Physical
+Modeling (Phase 5) + 9 "Living" (Phase 6))
 
 **Target:** 50+ factory presets across categories
 
@@ -286,7 +316,11 @@ Interaction Model:
 
 ### MemoryEchoes Expansion
 
-**Current:** Dual buffer (24s + 180s), probabilistic recall
+**Current:** Dual buffer (24s + 180s), probabilistic recall. Now
+permanently wired into the live signal path (reached unconditionally,
+around Chambers) rather than prepared-but-unreached — see `ARCHITECTURE.md`'s
+"Memory Echoes is reached, wired around Chambers" section. The enhancements
+below build on that live module, not a hypothetical future connection.
 
 **Enhancements:**
 
