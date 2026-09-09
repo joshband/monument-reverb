@@ -72,7 +72,34 @@ public:
                         const juce::String& description);
     void loadUserPreset(const juce::File& sourceFile);
 
+    /**
+     * @brief Access the modulation matrix (connection editing, preset I/O, UI visualization).
+     *
+     * Message-thread only. processBlock() never calls through this accessor;
+     * it drives modulationMatrix directly, and ModulationMatrix::process()
+     * reads connections/LFO configs via a lock-free announce-then-verify
+     * snapshot handshake (see ModulationMatrix::publishConnectionsSnapshot()/
+     * process() in ModulationMatrix.cpp) that assumes exactly one writer.
+     * Calling a mutator on the returned reference (setConnection,
+     * clearConnections, setConnections, randomizeSparse/Dense, setLfoConfig)
+     * from the audio thread, or concurrently from more than one non-audio
+     * thread, violates that single-writer assumption and is a data race.
+     */
     monument::dsp::ModulationMatrix& getModulationMatrix() { return modulationMatrix; }
+
+    /**
+     * @brief Access the timeline sequence scheduler (Phase 4).
+     *
+     * Unlike ModulationMatrix, SequenceScheduler has no internal
+     * synchronization at all - no snapshot handshake, no atomics on its
+     * playback state. It is owned and driven entirely by the audio thread:
+     * processBlockCore() itself calls loadSequenceRef(), setEnabled(), and
+     * process() every block. NEVER call any method on the returned reference
+     * from the message thread (or any other non-audio thread) while
+     * processBlock() may run concurrently - there is no mechanism making
+     * that safe. Current callers only use this from single-threaded test
+     * harnesses that drive processBlock() and this accessor sequentially.
+     */
     monument::dsp::SequenceScheduler& getSequenceScheduler() { return sequenceScheduler; }  // Phase 4
 
     // Processing mode management (Ancient Monuments routing)

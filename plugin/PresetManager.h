@@ -82,10 +82,26 @@ public:
         return lastLoadedModulationConnections;
     }
 
+    /**
+     * @brief Save current parameter/modulation state to a user preset JSON file.
+     *
+     * Message-thread only, NOT real-time safe: does synchronous file I/O
+     * (juce::File::replaceWithText) and heap-allocates the JSON DOM
+     * (juce::DynamicObject). NEVER call from processBlock() or any
+     * audio-thread context.
+     */
     void saveUserPreset(const juce::String& name, const juce::String& description);
     void saveUserPreset(const juce::File& targetFile,
                         const juce::String& name,
                         const juce::String& description);
+
+    /**
+     * @brief Load a user preset JSON file and apply it to the APVTS/modulation matrix.
+     *
+     * Message-thread only, NOT real-time safe: does synchronous file I/O
+     * (juce::File::loadFileAsString) and heap-allocates while parsing JSON.
+     * NEVER call from processBlock() or any audio-thread context.
+     */
     bool loadUserPreset(const juce::File& sourceFile);
 
     juce::File getDefaultUserPresetDirectory() const;
