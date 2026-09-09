@@ -17,6 +17,20 @@ namespace dsp
 class Chambers final : public DSPModule
 {
 public:
+    // Delay-clustering modes for the warp control: how the twelve FDN delay
+    // lengths relate to one another (independent primes vs. harmonically
+    // related ratios). Declared first so it's a complete type at the point
+    // setWarpClusteringMode() below references it (class member declarations
+    // aren't a complete-class context, unlike function bodies/default args,
+    // so forward use fails to compile).
+    enum class WarpClusteringMode
+    {
+        Incommensurate = 0,  // Prime-based, non-repeating (default)
+        Harmonic2x,          // 2:1 harmonic ratios (clustered delays)
+        Harmonic3x,          // 3:1 harmonic ratios (sparser, resonant)
+        OctaveStack          // Octave-spaced delays (musical)
+    };
+
     void prepare(double sampleRate, int blockSize, int numChannels) override;
     void reset() override;
     void process(juce::AudioBuffer<float>& buffer) override;
@@ -31,7 +45,15 @@ public:
      */
     void setDeterministicDriftSeedForTesting(juce::int64 seed) noexcept { testDriftSeed = seed; }
 
-    // Phase 4: Per-sample parameter setters (accept ParameterBuffer for zipper-free automation)
+    /// Current warp-clustering mode-switch mute gain (1.0 = unmuted). Exposed
+    /// so tests can verify the click guard's envelope directly, sample by
+    /// sample, instead of inferring it from the reverb tail's own level --
+    /// which fluctuates enough between the FDN's 12 delay lines that a
+    /// signal-level comparison alone can't reliably distinguish "muted" from
+    /// "a naturally quiet moment in the decay."
+    float getWarpClusteringMuteGainForTesting() const noexcept { return warpClusteringMuteGain; }
+
+    // Per-sample parameter setters (accept ParameterBuffer for zipper-free automation)
     void setTime(const ParameterBuffer& time);
     void setMass(const ParameterBuffer& mass);
     void setDensity(const ParameterBuffer& density);
@@ -45,8 +67,14 @@ public:
     void setAdaptiveMatrixAmount(float amount);
     void setFeedbackSaturation(float amount);
     void setDelayJitter(float amount);
+    
+    // Ambient-reverb shaping controls: how the twelve delay lines relate to
+    // each other, how echo density evolves over the decay, and how quickly
+    // the reverb swells in after a transient.
+    void setWarpClusteringMode(WarpClusteringMode mode);
+    void setDensityEvolution(float evolution);  // Controls density buildup/decay over time
+    void setAttackTime(float attackTimeNorm);   // Slow-attack reverb swell time
 
-    /// FIXED: Documented lifetime guarantees for external injection pointer
     /// Sets an external audio buffer for memory injection into the reverb network.
     ///
     /// LIFETIME GUARANTEES:
@@ -75,7 +103,14 @@ private:
     // (see setDeterministicDriftSeedForTesting()).
     std::optional<juce::int64> testDriftSeed;
 
-    static constexpr int kNumLines = 8;
+    // Actually recomputes delaySamples[] for the given mode (clamped to
+    // delayBufferLength so a large harmonic ratio, e.g. OctaveStack's 2048x,
+    // can't push a read past the allocated delay-line buffer). Called from the
+    // middle of the mute window set up by setWarpClusteringMode(), not directly.
+    void applyWarpClusteringMode(WarpClusteringMode mode);
+
+    // Number of parallel delay lines in the feedback delay network.
+    static constexpr int kNumLines = 12;
     double sampleRateHz = 44100.0;
     int maxBlockSize = 0;
     int channels = 0;
@@ -93,8 +128,8 @@ private:
     int delayBufferLength = 0;
     float meanDelaySeconds = 0.0f;
 
-    // Phase 4: Per-sample parameter buffers (eliminate double smoothing)
-    // These are lightweight 16-byte views set via setXXX() and consumed in process()
+    // Per-sample parameter buffers (eliminate double smoothing): lightweight
+    // 16-byte views set via setXXX() and consumed in process()
     ParameterBuffer timeBuffer;
     ParameterBuffer massBuffer;
     ParameterBuffer densityBuffer;
@@ -121,6 +156,29 @@ private:
     float adaptiveMatrixAmount = 0.0f;
     float feedbackSaturationAmount = 0.0f;
     float delayJitterAmount = 0.0f;
+    
+    // Ambient reverb shaping state
+    WarpClusteringMode warpClusteringMode = WarpClusteringMode::Incommensurate;
+    // Recomputing delaySamples[] on a mode change is a discontinuous jump in a
+    // live feedback delay network, so the swap is deferred to the middle of a
+    // brief mute window instead of applied instantly (see applyWarpClusteringMode
+    // and the per-sample mute-gain logic in process()).
+    WarpClusteringMode lastRequestedWarpClusteringMode = WarpClusteringMode::Incommensurate;
+    WarpClusteringMode pendingWarpClusteringMode = WarpClusteringMode::Incommensurate;
+    int warpClusteringMuteHalfSamples = 0;   // half-window length in samples, set in prepare()
+    int warpClusteringMuteCounter = -1;      // -1 = idle; else counts down from 2*halfSamples
+    float warpClusteringMuteGain = 1.0f;     // current output multiplier (triangular fade)
+    float densityEvolutionTarget = 0.0f;  // -1 (decreasing) to +1 (increasing) density over time
+    float attackTimeTarget = 0.0f;         // 0 (instant) to 1 (slow ~10s attack)
+    juce::SmoothedValue<float> densityEvolutionSmoother;
+    juce::SmoothedValue<float> attackTimeSmoother;
+    float attackEnvelopeValue = 1.0f;      // Current attack envelope state
+    float attackEnvelopeRate = 0.0f;       // Attack envelope increment per sample
+    // Multiplies densityNorm on the *next* sample (one-sample lag; updated from
+    // the current sample's envelopeTimeSeconds, which the diffusion-strength
+    // calculations for this sample have already consumed by the time it's known).
+    float densityEvolutionFactor = 1.0f;
+    
     juce::SmoothedValue<float> adaptiveWarpOffsetSmoother;
     juce::Random jitterRandom;
     float lastMatrixBlend = 1.0f;
@@ -164,7 +222,7 @@ private:
     alignas(juce::dsp::SIMDRegister<float>::SIMDRegisterSize)
         std::array<std::array<float, kNumLines>, kNumLines> feedbackMatrix{};
 
-    // Spatial positioning system (Phase 1: Ancient Monuments Three-System Plan)
+    // Spatial positioning system shared with the Ancient Monuments module
     std::unique_ptr<SpatialProcessor> spatialProcessor;
 };
 
