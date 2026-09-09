@@ -151,6 +151,23 @@ Implement BigSky MX-style parallel/series dual reverb engine routing.
 
 ---
 
+### P1-07: Fix pillarMode Parameter Gap (dead UI control)
+**Domain:** `[DSP] [UI]` | **Effort:** 1h
+
+Found via architecture review (2026-09-09). The `pillarMode` combo ("Glass/Stone/Fog") is loaded,
+sanitized, and clamped every block in `PluginProcessor::processBlockCore`, but never passed to any
+DSP module — `DspRoutingGraph::setPillarsParams()` has no slot for it. Moving this knob currently
+does nothing audible; it's a real functional gap, not just a style issue.
+
+**Acceptance Criteria:**
+- [ ] Either wire `pillarMode` into `Pillars`/`DspRoutingGraph::setPillarsParams()` so it has an
+      audible effect, or remove the control from the UI/APVTS if it's genuinely vestigial
+- [ ] `monument_parameter_smoothing_test` still passes for this parameter either way
+
+**Dependencies:** None
+
+---
+
 ## P2: Medium Priority Tasks (Parallelizable: 8-10 agents)
 
 ### P2-01: UI Component System
@@ -258,6 +275,108 @@ Implement BigSky MX-style parallel/series dual reverb engine routing.
 
 ---
 
+### P2-06: Dead/Unreachable Code Audit (processing modes, IR loading, knob utilities)
+**Domain:** `[DSP] [UI]` | **Effort:** 4h | **Agents:** 2 (parallel)
+
+Found via architecture review (2026-09-09). Several code paths have zero callers anywhere in the
+repo (confirmed by full-repo grep, not just visual inspection). For each, decide whether to finish
+wiring it up as an intended feature or remove it — don't leave it half-alive.
+
+**Subtasks (parallel):**
+- **P2-06a: Processing Mode Routing**
+  - `MonumentAudioProcessor::setProcessingMode()`/`getProcessingMode()` (`plugin/PluginProcessor.h`)
+    have zero callers anywhere, making `DspRoutingGraph::processResonantHalls()`/
+    `processBreathingStone()` (~55 lines, `dsp/DspRoutingGraph.cpp`) unreachable in production
+  - Decide: expose `ProcessingMode` selection somewhere in the UI/APVTS, or remove the unreachable
+    code path
+  - Acceptance: either a working UI control exercises all 3 modes, or the dead code is removed
+
+- **P2-06b: Pillars IR Loading**
+  - `Pillars::loadImpulseResponse()`/`clearImpulseResponse()` (`dsp/DspModules.cpp`) have zero
+    callers anywhere; the `irLoaded` branch can never go true
+  - Decide: wire up convolution-based early reflections as a real feature, or remove the dead branch
+  - Acceptance: either a reachable, tested call site exists, or the code is removed
+
+- **P2-06c: Orphaned PhotorealisticKnob Members**
+  - `PhotorealisticKnob::loadFilmstrip()`, `setLabel()`, `clearLayerImages()`, `KnobGroup`,
+    `ParameterDisplay` (`ui/PhotorealisticKnob.h`) — confirmed zero callers/instantiations across
+    `plugin/`, `ui/`, `tests/`
+  - Acceptance: removed, or a comment explains why they're kept for a specific planned use
+
+**Dependencies:** None
+
+---
+
+### P2-07: Split dsp/DspModules.{h,cpp} by Concern
+**Domain:** `[DSP]` | **Effort:** 2h
+
+Found via architecture review (2026-09-09). `dsp/DspModules.h/cpp` (852 lines) bundles 5 unrelated
+signal-chain stages (Foundation, Pillars, Weathering, Buttress, Facade) under a name that describes
+none of them. `Pillars` alone is complex enough (IR loading, tap-based early reflections, mode
+tuning) to read more clearly as its own file.
+
+**Acceptance Criteria:**
+- [ ] `Pillars` moved to its own `dsp/Pillars.{h,cpp}` (or similar)
+- [ ] Foundation/Weathering/Buttress/Facade may stay bundled (small enough) or split further at the
+      implementer's judgment
+- [ ] `CMakeLists.txt`'s `DSP_SOURCES` updated; all existing tests pass unchanged
+
+**Dependencies:** None
+
+---
+
+### P2-08: Real-Time-Safety Doc Contracts on Public Headers
+**Domain:** `[DOC]` | **Effort:** 2h
+
+Found via architecture review (2026-09-09). Public headers don't state real-time-safety contracts
+where it matters most:
+- `PluginProcessor.h`'s `getModulationMatrix()`/`getSequenceScheduler()` return live mutable
+  references touched by the audio thread, with no concurrency note in the header itself (the
+  actual safety mechanism — an announce/verify snapshot handshake — is documented only in
+  `ModulationMatrix.cpp` and `ARCHITECTURE.md`)
+- `PresetManager.h`'s `saveUserPreset`/`loadUserPreset` do file I/O with no "message-thread-only,
+  not RT-safe" note
+
+**Acceptance Criteria:**
+- [ ] Each of the above methods has a doc comment stating its threading/RT-safety contract,
+      discoverable from the header alone
+
+**Dependencies:** None
+
+---
+
+### P2-09: processBlockCore Migration Scaffolding Cleanup
+**Domain:** `[DSP] [PERF]` | **Effort:** 4h
+
+Found via architecture review (2026-09-09). Leftover "Phase 4" migration scaffolding in
+`plugin/PluginProcessor.cpp::processBlockCore` (per the code's own `// TEMPORARY (Step 3)` comment):
+several parameter groups are filled into per-sample buffers via `SmoothedValue`, then immediately
+re-averaged into a block-rate float that's either unused or duplicative of the per-sample buffer
+already passed downstream.
+
+**Subtasks:**
+- **P2-09a: Remove unused computed values**
+  - `timeModulated`, `gravityModulated`, `pillarShapeModulated`, `bloomEffective` are computed every
+    block and never read (confirmed via full-file grep)
+  - Acceptance: removed, or wired to their evident intended purpose (per-sample modulation, per the
+    `TODO: Apply per-sample modulation in Step 8` comment on `makeModulatedView`)
+
+- **P2-09b: Cache parameter pointers**
+  - ~54 sequential `parameters.getRawParameterValue("id")` string-keyed atomic loads per block in
+    `ParameterCache` population
+  - Acceptance: cached `RangedAudioParameter*`/`std::atomic<float>*` pointers resolved once (e.g.
+    in the constructor or `prepareToPlay`), avoiding per-block string lookups;
+    `monument_parameter_smoothing_test` still passes
+
+- **P2-09c: Deduplicate mix-gain cos/sin computation**
+  - Equal-power dry/wet gain computed independently at 3 call sites in
+    `plugin/PluginProcessor.cpp` (~line 1066-1069, ~1145-1150, ~1156-1166)
+  - Acceptance: extracted to one small inline helper called from all 3 sites; no behavior change
+
+**Dependencies:** None (independent of P2-06/07/08)
+
+---
+
 ## P3: Low Priority / Experimental (Unlimited parallelization)
 
 ### P3-01: Machine Learning Features
@@ -354,8 +473,12 @@ For each task marked `complete`:
 
 **Next Actions:**
 1. ✅ P1-01 (Ambient Reverb Quality Alignment) — complete, see task entry above
-2. Execute P1-05 (Test Coverage Expansion) — 2 agents
-3. Execute P1-06 (Documentation Completion) — 2 agents
+2. P1-07 (Fix pillarMode Parameter Gap) — small, do first: a real functional gap (dead UI control)
+3. P2-06 through P2-09 (architecture-review cleanup: dead code audit, DspModules split, RT-safety
+   doc contracts, processBlockCore scaffolding cleanup) — found 2026-09-09, no dependencies between
+   them or on anything else, safe to pick up in any order
+4. Execute P1-05 (Test Coverage Expansion) — 2 agents
+5. Execute P1-06 (Documentation Completion) — 2 agents
 
 ---
 
