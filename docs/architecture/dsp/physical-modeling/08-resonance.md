@@ -1003,7 +1003,5 @@ void setMaterial(Material m);
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2026-01-09
 **Author:** Generated from source code analysis
 **Status:** ✅ Complete and Production-Ready

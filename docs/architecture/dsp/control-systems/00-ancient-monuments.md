@@ -957,11 +957,6 @@ User hears coherent "harder stone" transformation
 - [Hybrid Macro System](../../../../docs/archive/sessions/HYBRID_MACRO_SYSTEM.md) - Design document for two-layer architecture (archived)
 - [Preset Gallery](../../../../docs/PRESET_GALLERY.md) - 28 factory presets using Ancient Monuments macros
 
----
-
-**Last Updated:** 2026-01-09
-**Document Version:** 1.0
-**Reviewer:** Monument Development Team
 
 ---
 

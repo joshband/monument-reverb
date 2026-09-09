@@ -1207,7 +1207,5 @@ float readDelayLagrange(const float* buffer, int bufferLength,
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2026-01-09
 **Word Count:** ~9,500
 **Status:** ✅ Complete

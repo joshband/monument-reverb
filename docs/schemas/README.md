@@ -1,8 +1,5 @@
 # Monument Reverb JSON Schemas
 
-**Version:** 1.0.0
-**Last Updated:** 2026-01-08
-
 ## Overview
 
 This directory contains formal JSON Schema specifications for all test output formats used in the Monument Reverb testing infrastructure. These schemas enable automated validation of test outputs to ensure data integrity.

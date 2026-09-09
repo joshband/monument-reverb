@@ -1482,8 +1482,6 @@ void processFDN(ParameterBufferSpecialized<true> time,   // Per-sample
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2026-01-09
 **Status:** ✅ Complete (12/12 sections)
 **Template Compliance:** ✅ Matches Phase 3 standards (Strata, Resonance, Living Stone)
 **Word Count:** ~12,500 words
