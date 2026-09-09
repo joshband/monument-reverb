@@ -397,6 +397,12 @@ MonumentAudioProcessorEditorV2::MonumentAudioProcessorEditorV2(MonumentAudioProc
     pillarModeItems.add("Fog");
     setupCombo(pillarModeControl, "Pillar Mode", pillarModeItems, "pillarMode");
 
+    juce::StringArray processingModeItems;
+    processingModeItems.add("Ancient Way");
+    processingModeItems.add("Resonant Halls");
+    processingModeItems.add("Breathing Stone");
+    setupCombo(processingModeControl, "Processing Mode", processingModeItems, "processingMode");
+
     juce::StringArray timelinePresets;
     for (int i = 0; i < monument::dsp::SequencePresets::getNumPresets(); ++i)
         timelinePresets.add(monument::dsp::SequencePresets::getPresetName(i));
@@ -939,6 +945,7 @@ void MonumentAudioProcessorEditorV2::layoutControls()
             {
                 entry(routingPresetControl),
                 entry(pillarModeControl),
+                entry(processingModeControl),
                 entry(freezeControl)
             });
             positionGroupToggle(routingGroup, routingToggle);
@@ -1127,6 +1134,7 @@ void MonumentAudioProcessorEditorV2::updateSectionVisibility()
         {
             entry(routingPresetControl),
             entry(pillarModeControl),
+            entry(processingModeControl),
             entry(freezeControl)
         },
         showBase && routingExpanded);

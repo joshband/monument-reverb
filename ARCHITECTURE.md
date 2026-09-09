@@ -30,10 +30,14 @@ Host audio + APVTS atomics
 ```
 
 `processBlock()` dispatches through `ProcessingMode` to one of three fixed chain
-implementations in `DspRoutingGraph`. No caller of `setProcessingMode()` was
-found outside the initialized default, so `AncientWay` (above) is the only
-demonstrated ordinary runtime path — treat the other two as unverified.
-(`dsp/DspRoutingGraph.cpp`, `processAncientWay()`.)
+implementations in `DspRoutingGraph`. All three are now reachable: the
+host-visible `processingMode` APVTS choice parameter (UI combo box in the
+"Routing + Modes" group) selects `AncientWay`/`ResonantHalls`/`BreathingStone`,
+and `MonumentAudioProcessor::processBlock()` calls `setProcessingMode()`
+whenever that parameter changes, crossfading between chains via
+`modeTransitionGain` to avoid clicks.
+(`plugin/PluginProcessor.cpp`; `dsp/DspRoutingGraph.cpp`'s `processAncientWay()`,
+`processResonantHalls()`, `processBreathingStone()`.)
 
 **Routing preset — bypass mask only:** the host-visible `routingPreset`
 parameter publishes an index and a bypass mask that the fixed chains honor

@@ -455,6 +455,7 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     paramCache.safetyClipDrive = parameters.getRawParameterValue("safetyClipDrive")->load(std::memory_order_relaxed);
     paramCache.timelineEnabled = parameters.getRawParameterValue("timelineEnabled")->load(std::memory_order_relaxed) > 0.5f;
     paramCache.timelinePreset = parameters.getRawParameterValue("timelinePreset")->load(std::memory_order_relaxed);
+    paramCache.processingMode = parameters.getRawParameterValue("processingMode")->load(std::memory_order_relaxed);
 
     const int maxTimelinePreset = juce::jmax(0, monument::dsp::SequencePresets::getNumPresets() - 1);
     const int timelinePreset = sanitizeChoice(paramCache.timelinePreset, 0, maxTimelinePreset, 0);
@@ -469,6 +470,19 @@ void MonumentAudioProcessor::processBlockCore(juce::AudioBuffer<float>& buffer, 
     {
         sequenceScheduler.setEnabled(paramCache.timelineEnabled);
         lastTimelineEnabled = paramCache.timelineEnabled;
+    }
+
+    // Ancient Monuments processing-mode routing: host-visible "processingMode"
+    // choice parameter selects between the three fixed signal chains
+    // (AncientWay/ResonantHalls/BreathingStone). setProcessingMode() only
+    // stores an atomic pending value and a change flag (lock-free, safe to
+    // call from the audio thread); the actual crossfade/switch happens later
+    // in this function via modeChangeRequested/pendingMode/currentMode.
+    const int processingModeIndex = sanitizeChoice(paramCache.processingMode, 0, 2, 0);
+    if (processingModeIndex != lastProcessingModeIndex)
+    {
+        setProcessingMode(static_cast<ProcessingMode>(processingModeIndex));
+        lastProcessingModeIndex = processingModeIndex;
     }
 
     // Process sequence scheduler (Phase 4: Timeline automation)
@@ -1810,6 +1824,17 @@ MonumentAudioProcessor::APVTS::ParameterLayout MonumentAudioProcessor::createPar
         "timelinePreset",
         "Timeline Preset",
         timelinePresets,
+        0));
+
+    juce::StringArray processingModes;
+    processingModes.add("Ancient Way");
+    processingModes.add("Resonant Halls");
+    processingModes.add("Breathing Stone");
+
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        "processingMode",
+        "Processing Mode",
+        processingModes,
         0));
 
     return {params.begin(), params.end()};

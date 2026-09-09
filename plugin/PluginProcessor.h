@@ -167,6 +167,7 @@ private:
         float macroMode;  // 0 = Ancient Monuments, 1 = Expressive Macros
         float safetyClipDrive;  // Output soft clip intensity (0..1)
         float timelinePreset;  // Timeline preset index
+        float processingMode;  // Ancient Monuments routing mode (0=AncientWay, 1=ResonantHalls, 2=BreathingStone)
         bool safetyClip;
         bool timelineEnabled;
         bool freeze;
@@ -176,6 +177,7 @@ private:
     int lastRoutingPreset{0};
     int lastTimelinePreset{-1};
     bool lastTimelineEnabled{false};
+    int lastProcessingModeIndex{0};
 
     // Processing mode state (Ancient Monuments routing modes)
     ProcessingMode currentMode{ProcessingMode::AncientWay};
